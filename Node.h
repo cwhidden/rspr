@@ -58,12 +58,13 @@ vector<Node *> find_leaves(Node *node);
 */
 class Node {
 	private:
-	Node *lc;		// left child
-	Node *rc;		// right child
-	Node *p;		// parent
-	Node *twin;		// counterpart in another tree
-	string name;	// label
-	int depth;		//distance from root
+	Node *lc;			// left child
+	Node *rc;			// right child
+	Node *p;			// parent
+	Node *twin;			// counterpart in another tree
+	string name;		// label
+	int depth;			//distance from root
+	int pre_num;	// preorder number
 
 	public:
 	Node() {
@@ -85,6 +86,7 @@ class Node {
 		this->name = string(n);
 		this->twin = NULL;
 		this->depth = d;
+		this->pre_num = -1;
 	}
 	// copy constructor
 	Node(const Node &n) {
@@ -193,6 +195,10 @@ class Node {
 	int set_depth(int d) {
 		depth = d;
 		return depth;
+	}
+	int set_preorder_number(int p) {
+		pre_num = p;
+		return pre_num;
 	}
 
 	/* contract:
@@ -309,6 +315,9 @@ class Node {
 	}
 	int get_depth() {
 		return depth;
+	}
+	int get_preorder_number() {
+		return pre_num;
 	}
 	string str() {
 		return name;

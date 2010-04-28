@@ -5,7 +5,6 @@ all:
 .PHONY: test
 .PHONY: debug
 test:
-	./rspr.exe -fpt <test_trees/trees1.txt;
 	./rspr.exe -fpt <test_trees/trees2.txt;
 	./rspr.exe -fpt <test_trees/trees3.txt;
 	./rspr.exe -fpt <test_trees/trees4.txt;

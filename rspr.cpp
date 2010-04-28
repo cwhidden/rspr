@@ -118,6 +118,10 @@ exact BB drSPR=4
 	#define INCLUDE_FOREST
 	#include "Forest.h"
 #endif
+#ifndef INCLUDE_LCA
+	#define INCLUDE_LCA
+	#include "LCA.h"
+#endif
 #ifndef INCLUDE_VECTOR
 	#define INCLUDE_VECTOR
 	#include <vector>
@@ -134,6 +138,7 @@ exact BB drSPR=4
 	#define INCLUDE_DEQUE
 	#include <deque>
 #endif
+
 using namespace std;
 
 Node *build_tree(string s);
@@ -167,6 +172,7 @@ bool CUT_ONE_B = false;
 bool CUT_ALL_B = false;
 bool CUT_AC_SEPARATE_COMPONENTS = false;
 bool CUT_ONE_AB = false;
+bool LCA_TEST = false;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -288,6 +294,9 @@ int main(int argc, char *argv[]) {
 			cout << USAGE;
 			return 0;
 		}
+		else if (strcmp(arg, "-lca") == 0) {
+			LCA_TEST = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -321,6 +330,11 @@ int main(int argc, char *argv[]) {
 				cout << "T2: ";
 				T2->print_subtree();
 				cout << endl;
+			}
+			if (LCA_TEST) {
+				LCA lca = LCA(T1);
+				lca.debug();
+				exit(0);
 			}
 
 			T1->labels_to_numbers(&label_map, &reverse_label_map);
