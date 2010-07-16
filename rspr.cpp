@@ -332,8 +332,23 @@ int main(int argc, char *argv[]) {
 				cout << endl;
 			}
 			if (LCA_TEST) {
-				LCA lca = LCA(T1);
-				lca.debug();
+				LCA lca_query = LCA(T1);
+				cout << endl;
+				lca_query.debug();
+				cout << endl;
+				vector<Node *> leaves = T1->find_leaves();
+				for(vector<Node *>::iterator i = leaves.begin(); i != leaves.end(); i++) {
+					for(vector<Node *>::iterator j = i; j != leaves.end(); j++) {
+						if (j==i)
+							continue;
+						Node *lca = lca_query.get_lca(*i, *j);
+						(*i)->print_subtree_hlpr();
+						cout << "\t";
+						(*j)->print_subtree_hlpr();
+						cout << "\t";
+						lca->print_subtree();
+					}
+				}
 				exit(0);
 			}
 
