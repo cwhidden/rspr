@@ -83,8 +83,8 @@ class LCA {
 		N.push_back(node);
 		node->set_preorder_number(preorder_number);
 
-		cout << preorder_number << "\t";
-		node->print_subtree();
+		//cout << preorder_number << "\t";
+		//node->print_subtree();
 		H.push_back(euler_number);
 		L.push_back(depth);
 		E.push_back(preorder_number);

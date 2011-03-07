@@ -56,6 +56,7 @@ void str_subtree_hlpr(string *s);
 vector<Node *> find_sibling_pairs(Node *node);
 vector<Node *> find_leaves(Node *node);
 */
+
 class Node {
 	private:
 	Node *lc;			// left child
@@ -210,6 +211,7 @@ class Node {
 	 * return the first degree two parent found or NULL if there
 	 * was no contraction
 	 */
+	// TODO: check handling twins for interior nodes
 	Node *contract() {
 		Node *parent = p;
 		Node *child;
@@ -421,7 +423,10 @@ class Node {
 	// find the leaves in this node's subtree
 	vector<Node *> find_leaves() {
 		vector<Node *> leaves = vector<Node *>();
-		find_leaves_hlpr(leaves);
+		if (is_leaf())
+			leaves.push_back(this);
+		else
+			find_leaves_hlpr(leaves);
 		return leaves;
 	}
 
@@ -500,5 +505,111 @@ class Node {
 		if (rc != NULL)
 			rc->numbers_to_labels(reverse_label_map);
 	}
+
+	void preorder_number() {
+		preorder_number(0);
+	}
+	int preorder_number(int next) {
+		set_preorder_number(next);
+		next++;
+		if(lchild() != NULL) {
+			next = lchild()->preorder_number(next);
+		}
+		if(rchild() != NULL) {
+			next = rchild()->preorder_number(next);
+		}
+		return next;
+	}
+
 };
 
+// function prototypes
+Node *build_tree(string s);
+Node *build_tree(string s, int start_depth);
+int build_tree_helper(int start, const string& s, Node *parent);
+//void preorder_number(Node *node);
+//int preorder_number(Node *node, int next);
+
+
+// build a tree from a newick string
+Node *build_tree(string s) {
+	return build_tree(s, 0);
+}
+Node *build_tree(string s, int start_depth) {
+	if (s == "")
+		return new Node();
+	Node *dummy_head = new Node("p", start_depth-1);
+	build_tree_helper(0, s, dummy_head);
+	Node *head = dummy_head->lchild();
+	delete dummy_head;
+	return head;
+}
+
+// build_tree recursive helper function
+int build_tree_helper(int start, const string& s, Node *parent) {
+	int loc = s.find_first_of("(,)", start);
+	while(s[start] == ' ' || s[start] == '\t')
+		start++;
+	int end = loc;
+	while(s[end] == ' ' || s[end] == '\t')
+		end--;
+	string name = s.substr(start, end - start);
+	Node *node = new Node(name);
+	parent->add_child(node);
+	if (s[loc] == '(') {
+			loc = build_tree_helper(loc + 1, s, node);
+			loc = build_tree_helper(loc + 1, s, node);
+			loc++;
+	}
+	return loc;
+}
+
+// swap two nodes
+void swap(Node **a, Node **b) {
+	Node *temp = *a;
+	*a = *b;
+	*b = temp;
+}
+
+// expand all contracted nodes of a subtree starting at n
+void expand_contracted_nodes(Node *n) {
+	Node *lc = n->lchild();
+	Node *rc = n->rchild();
+	if (lc != NULL)
+		expand_contracted_nodes(lc);
+	if (rc != NULL)
+		expand_contracted_nodes(rc);
+	if (n->is_leaf()) {
+		Node *subtree = build_tree(n->str(), n->get_depth());
+		Node *new_lc = subtree->lchild();
+		Node *new_rc = subtree->rchild();
+		if (new_lc != NULL) {
+			n->set_lchild(new_lc);
+			new_lc->set_parent(n);
+			n->set_name("");
+		}
+		if (new_rc != NULL) {
+			n->set_rchild(new_rc);
+			new_rc->set_parent(n);
+			n->set_name("");
+		}
+		delete subtree;
+	}
+}
+
+/*
+void preorder_number(Node *node) {
+	preorder_number(node, 0);
+}
+int preorder_number(Node *node, int next) {
+	node->set_preorder_number(next);
+	next++;
+	if(node->lchild() != NULL) {
+		next = preorder_number(node->lchild(), next);
+	}
+	if(node->rchild() != NULL) {
+		next = preorder_number(node->rchild(), next);
+	}
+	return next;
+}
+*/

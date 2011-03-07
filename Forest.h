@@ -69,13 +69,15 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 	#define INCLUDE_NODE
 	#include "Node.h"
 #endif
+#ifndef INCLUDE_LCA
+	#define INCLUDE_LCA
+	#include "LCA.h"
+#endif
 #ifndef INCLUDE_MAP
 	#define INCLUDE_MAP
 	#include <map>
 #endif
 using namespace std;
-
-vector<Node *> find_labels(vector<Node *> components);
 
 class Forest {
 	public:
@@ -128,7 +130,6 @@ class Forest {
 		vector<Node *> deleted_nodes_temp = this->deleted_nodes;
 		this->deleted_nodes = f->deleted_nodes;
 		f->deleted_nodes = deleted_nodes_temp;
-		
 		*/
 	}
 
@@ -142,6 +143,20 @@ class Forest {
 			else
 				root->print_subtree_hlpr();
 			cout << " ";
+		}
+		cout << endl;
+	}
+
+	// print the components seperated by s
+	void print_components(string s) {
+		vector<Node *>::iterator it = components.begin();
+		for(it = components.begin(); it != components.end(); it++) {
+			Node *root = *it;
+			if (root == NULL)
+				cout << "!";
+			else
+				root->print_subtree_hlpr();
+			cout << s;
 		}
 		cout << endl;
 	}
@@ -207,9 +222,25 @@ void numbers_to_labels(map<int, string> *reverse_label_map) {
 	}
 }
 
+int size() {
+	return components.size();
+}
+
+
 };
 
+// Functions
+
+vector<Node *> find_labels(vector<Node *> components);
+void sync_twins(Forest *T1, Forest *T2);
+void sync_interior_twins(Forest *T1, Forest *T2);
+void sync_interior_twins(Node *n, LCA *twin_LCA);
+vector<Node *> *find_cluster_points(Forest *f);
+void find_cluster_points(Node *n, vector<Node *> *cluster_points);
+
+
 // Make the leaves of two forests point to their twin in the other tree
+// Note: removes unique leaves
 void sync_twins(Forest *T1, Forest *T2) {
 	vector<Node *> T1_labels = vector<Node *>();
 	vector<Node *> T2_labels = vector<Node *>();
@@ -223,10 +254,13 @@ void sync_twins(Forest *T1, Forest *T2) {
 		for(j = unsorted_labels.begin(); j != unsorted_labels.end(); j++) {
 			Node *leaf = *j;
 			string name = leaf->str();
-			int number = atoi(name.c_str());
-			if (number >= T1_labels.size())
-				T1_labels.resize(number+1, NULL);
-			T1_labels[number] = leaf;
+			// hack for clusters
+			if (name.substr(0,1) != "X") {
+				int number = atoi(name.c_str());
+				if (number >= T1_labels.size())
+					T1_labels.resize(number+1, NULL);
+				T1_labels[number] = leaf;
+			}
 		}
 	}
 	for(i = T2_components.begin(); i != T2_components.end(); i++) {
@@ -236,10 +270,13 @@ void sync_twins(Forest *T1, Forest *T2) {
 		for(j = unsorted_labels.begin(); j != unsorted_labels.end(); j++) {
 			Node *leaf = *j;
 			string name = leaf->str();
-			int number = atoi(name.c_str());
-			if (number >= T2_labels.size())
-				T2_labels.resize(number+1, NULL);
-			T2_labels[number] = leaf;
+			// hack for clusters
+			if (name.substr(0,1) != "X") {
+				int number = atoi(name.c_str());
+				if (number >= T2_labels.size())
+					T2_labels.resize(number+1, NULL);
+				T2_labels[number] = leaf;
+			}
 		}
 	}
 	int size = T1_labels.size();
@@ -280,4 +317,76 @@ void sync_twins(Forest *T1, Forest *T2) {
 			node->contract();
 	}
 	return;
+}
+
+/* make interior nodes point to the lca of their descendants in the other tree
+   assumes that sync_twins has already been called
+   assumes that component 1 of T1 matches with 1 of T2
+      NOTE: this isn't true during the algorithm so this will need to be changed
+      if we want to interleave clustering. It should be just component 1 of T1
+	  matching multiple components of T2 (The first several components?)
+   */
+void sync_interior_twins(Forest *T1, Forest *T2) {
+	Node  *root1 = T1->get_component(0);
+	Node  *root2 = T2->get_component(0);
+	LCA T1_LCA = LCA(root1);
+	LCA T2_LCA = LCA(root2);
+	sync_interior_twins(root1, &T2_LCA);
+	sync_interior_twins(root2, &T1_LCA);
+}
+
+/* make interior nodes point to the lca of their descendants in the other tree
+   assumes that sync_twins has already been called
+   */
+void sync_interior_twins(Node *n, LCA *twin_LCA) {
+	Node *lc = n->lchild();
+	Node *rc = n->rchild();
+	if (lc != NULL)
+		sync_interior_twins(lc, twin_LCA);
+	if (rc != NULL)
+		sync_interior_twins(rc, twin_LCA);
+	if (lc == NULL && rc != NULL)
+		n->set_twin(rc->get_twin());
+	else if (lc != NULL && rc == NULL)
+		n->set_twin(lc->get_twin());
+	else if (lc != NULL && rc != NULL) {
+		Node *twin = twin_LCA->get_lca(lc->get_twin(), rc->get_twin());
+		n->set_twin(twin);
+	}
+}
+
+vector<Node *> *find_cluster_points(Forest *F) {
+	vector<Node *> *cluster_points = new vector<Node *>();
+	find_cluster_points(F->get_component(0), cluster_points);
+	return cluster_points;
+}
+
+// find the cluster points
+void find_cluster_points(Node *n, vector<Node *> *cluster_points) {
+	Node *lc = n->lchild();
+	Node *rc = n->rchild();
+	if (lc != NULL)
+		find_cluster_points(lc, cluster_points);
+	if (rc != NULL)
+		find_cluster_points(rc, cluster_points);
+	if (n == n->get_twin()->get_twin()
+			&& n->parent() != NULL
+			&& lc != NULL
+			&& rc != NULL
+			&& (lc != lc->get_twin()->get_twin()
+				|| rc != rc->get_twin()->get_twin())) {
+		cluster_points->push_back(n);
+	}
+}
+
+// swap two forests
+void swap(Forest **a, Forest **b) {
+	(*a)->swap(*b);
+}
+
+// expand all contracted nodes
+void expand_contracted_nodes(Forest *F) {
+	for(int i = 0; i < F->size(); i++) {
+		expand_contracted_nodes(F->get_component(i));
+	}
 }

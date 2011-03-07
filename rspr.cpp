@@ -102,9 +102,17 @@ exact BB drSPR=4
 	#define INCLUDE_CSTDIO
 	#include <cstdio>
 #endif
+#ifndef INCLUDE_CSTLIB
+	#define INCLUDE_CSTDLIB
+	#include <cstdlib>
+#endif
 #ifndef INCLUDE_STRING
 	#define INCLUDE_STRING
 	#include <string>
+#endif
+#ifndef INCLUDE_CSTRING
+	#define INCLUDE_CSTRING
+	#include <cstring>
 #endif
 #ifndef INCLUDE_IOSTREAM
 	#define INCLUDE_IOSTREAM
@@ -141,8 +149,6 @@ exact BB drSPR=4
 
 using namespace std;
 
-Node *build_tree(string s);
-int build_tree_helper(int start, const string& s, Node *parent);
 int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		deque<Node *> *sibling_pairs);
 int rSPR_3_approx(Forest *T1, Forest *T2);
@@ -173,6 +179,7 @@ bool CUT_ALL_B = false;
 bool CUT_AC_SEPARATE_COMPONENTS = false;
 bool CUT_ONE_AB = false;
 bool LCA_TEST = false;
+bool CLUSTER_TEST = false;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -297,6 +304,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-lca") == 0) {
 			LCA_TEST = true;
 		}
+		else if (strcmp(arg, "-cluster") == 0) {
+			CLUSTER_TEST = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -359,6 +369,92 @@ int main(int argc, char *argv[]) {
 			Forest F2 = Forest(T2);
 			Forest F3 = Forest(T1);
 			Forest F4 = Forest(T2);
+
+			if (CLUSTER_TEST) {
+				int approx_spr;
+				//int approx_spr = rSPR_3_approx(&F3, &F4);
+				//	cout << "approx drSPR=" << approx_spr << endl;
+				//	cout << "\n";
+
+				sync_twins(&F1, &F2);
+				sync_interior_twins(&F1, &F2);
+				vector<Node *> *cluster_points = find_cluster_points(&F1);
+				if (!cluster_points->empty()) {
+					/*
+					cout << "CLUSTER POINTS:" << endl;
+					for(vector<Node *>::iterator i = cluster_points->begin();
+							i != cluster_points->end(); i++) {
+						string s1 = (*i)->str_subtree();
+						string s2 = (*i)->get_twin()->str_subtree();
+						if (s1 != s2)
+							cout << s1 << "\t" << s2 << endl;
+					}
+					cout << endl;
+					*/
+					// TODO: not quite right because we need to put
+					// in the leaf with a ref and not do contractions
+					for(vector<Node *>::iterator i = cluster_points->begin();
+							i != cluster_points->end(); i++) {
+						stringstream ss;
+						string cluster_name = "X";
+						ss << F1.size();
+						cluster_name += ss.str();
+						int num_labels = label_map.size();
+						label_map.insert(make_pair(cluster_name,num_labels));
+						reverse_label_map.insert(
+								make_pair(num_labels,cluster_name));
+						ss.str("");
+						ss << num_labels;
+						cluster_name = ss.str();
+
+						Node *n = *i;
+						Node *n_parent = n->parent();
+						Node *twin = n->get_twin();
+						Node *twin_parent = twin->parent();
+
+						F1.add_component(n);
+						n->cut_parent();
+						Node *n_child = new Node(cluster_name);
+						n_parent->add_child(n_child);
+
+						F2.add_component(twin);
+						twin->cut_parent();
+						Node *twin_child = new Node(cluster_name);
+						twin_parent->add_child(twin_child);
+
+						n_child->set_twin(twin_child);
+						twin_child->set_twin(n_child);
+					}
+					cout << endl << "CLUSTERS" << endl;
+					//cout << "F1: " << endl;
+					//F1.print_components("\n");
+					//cout << endl;
+					//cout << "F2: " << endl;
+					//F2.print_components("\n");
+
+					for(int i = 0; i < F1.num_components(); i++) {
+						//if (i == 50) {
+						Forest f1 = Forest(F1.get_component(i));
+						Forest f2 = Forest(F2.get_component(i));
+						f1.numbers_to_labels(&reverse_label_map);
+						f2.numbers_to_labels(&reverse_label_map);
+						f1.print_components();
+						cout << "\t";
+						f2.print_components();
+						cout << endl;
+
+						// TODO: fix this
+							approx_spr = rSPR_3_approx(&f1, &f2);
+							cout << "X" << i << "  approx drSPR=" << approx_spr << endl;
+							cout << "\n";
+						//}
+					}
+				}
+
+
+				delete cluster_points;
+				exit(0);
+			}
 	
 			// APPROX ALGORITHM
 			int approx_spr = rSPR_3_approx(&F1, &F2);
@@ -586,47 +682,6 @@ int main(int argc, char *argv[]) {
 	return 0;
 }
 
-// build a tree from a newick string
-Node *build_tree(string s) {
-	if (s == "")
-		return new Node();
-	Node *dummy_head = new Node("p",-1);
-	build_tree_helper(0, s, dummy_head);
-	Node *head = dummy_head->lchild();
-	delete dummy_head;
-	return head;
-}
-
-// build_tree recursive helper function
-int build_tree_helper(int start, const string& s, Node *parent) {
-	int loc = s.find_first_of("(,)", start);
-	while(s[start] == ' ' || s[start] == '\t')
-		start++;
-	int end = loc;
-	while(s[end] == ' ' || s[end] == '\t')
-		end--;
-	string name = s.substr(start, end - start);
-	Node *node = new Node(name);
-	parent->add_child(node);
-	if (s[loc] == '(') {
-			loc = build_tree_helper(loc + 1, s, node);
-			loc = build_tree_helper(loc + 1, s, node);
-			loc++;
-	}
-	return loc;
-}
-
-// swap two nodes
-void swap(Node **a, Node **b) {
-	Node *temp = *a;
-	*a = *b;
-	*b = temp;
-}
-
-// swap two forests
-void swap(Forest **a, Forest **b) {
-	(*a)->swap(*b);
-}
 
 /* rSPR_3_approx
  * Calculate an approximate maximum agreement forest and SPR distance
@@ -650,6 +705,7 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 	while(!singletons->empty() || !sibling_pairs->empty()) {
 		// Case 1 - Remove singletons
 		while(!singletons->empty()) {
+//			cout << "Case 1" << endl;
 
 			Node *T2_a = singletons->back();
 			singletons->pop_back();
@@ -691,6 +747,7 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 
 			// Case 2 - Contract identical sibling pair
 			if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent()) {
+//				cout << "Case 2" << endl;
 				Node *T2_ac = T2_a->parent();
 				T1_ac->contract_sibling_pair();
 				T2_ac->contract_sibling_pair();
@@ -712,6 +769,10 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 			}
 			// Case 3
 			else {
+//				cout << "Case 3" << endl;
+//				T1->print_components();
+//				T2->print_components();
+				
 				//  ensure T2_a is below T2_c
 				if (T2_a->get_depth() < T2_c->get_depth()) {
 					swap(&T1_a, &T1_c);
@@ -725,13 +786,34 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 					swap(&T2_a, &T2_c);
 					}
 				}
+//				cout << "foo0" << endl;
+
 				// get T2_b
 				Node *T2_ab = T2_a->parent();
+//				cout << "foo01" << endl;
+//				cout << T2_ab << endl;
+//				cout << "A: " << T2_a->str_subtree() << endl;
+//				cout << "A: " << T2_a->parent() << endl;
+//				cout << "A: " << T2_a->parent()->str_subtree() << endl;
+				//cout << "A: " << T2_a->parent()->parent() << endl;
+				//cout << "A: " << T2_a->parent()->parent()->str_subtree() << endl;
+//				cout << "C: " << T2_c->str_subtree() << endl;
+//				cout << "C: " << T2_c->parent() << endl;
+//				cout << "C: " << T2_c->parent()->str_subtree() << endl;
+				//cout << "C: " << T2_c->parent()->parent() << endl;
+				//cout << "C: " << T2_c->parent()->parent()->str_subtree() << endl;
+//				cout << T2_ab->rchild() << endl;
 				Node *T2_b = T2_ab->rchild();
+//				cout << "foo02" << endl;
 				if (T2_b == T2_a)
 					T2_b = T2_ab->lchild();
 				// cut T1_a, T1_c, T2_a, T2_b, T2_c
+//				cout << "B: " << T2_b->str_subtree() << endl;
+//				cout << "B: " << T2_b->parent() << endl;
+				//cout << "B: " << T2_b->parent()->str_subtree() << endl;
 				
+//				cout << "foo1" << endl;
+
 				bool cut_b_only = false;
 				if (T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()) {
 					cut_b_only = true;
@@ -792,7 +874,7 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 					add_T2_c = false;
 				}
 				num_cut++;
-				
+
 				
 				//delete(T1_a);
 				if (!cut_b_only)
@@ -813,6 +895,7 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				// may have already been added
 				if (T2_b->is_leaf())
 					singletons->push_back(T2_b);
+
 			}
 		}
 	}
