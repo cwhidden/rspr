@@ -440,6 +440,16 @@ class Node {
 			twin->set_twin(this);
 	}
 
+	// remove all twins
+	void unsync() {
+		if (lc != NULL)
+			lc->unsync();
+		if (rc != NULL)
+			rc->unsync();
+		if (twin != NULL)
+			twin = NULL;
+	}
+
 	// find the root of this node's tree
 	Node *find_root() {
 		Node *root = this;

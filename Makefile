@@ -3,6 +3,7 @@ CC64=x86_64-w64-mingw32-g++
 CFLAGS=-O2
 C64FLAGS=$(CFLAGS)
 BOOST_GRAPH=-lboost_graph-mt
+DEBUGFLAGS=-g -pg
 all:
 	$(CC) $(CFLAGS) -o rspr rspr.cpp
 .PHONY: test
@@ -22,8 +23,7 @@ bb-test:
 	./rspr.exe -bb <test_trees/trees5.txt;
 	./rspr.exe -bb <test_trees/trees6.txt;
 debug:
-	#make "CFLAGS= -g -pg -fprofile-arcs -ftest-coverage" all
-	CFLAGS=" -g -pg -fprofile-arcs -ftest-coverage $(CFLAGS)"
+	$(CC) $(CFLAGS) $(DEBUGFLAGS) -o rspr rspr.cpp
 hyb:
 	$(CC64) $(C64FLAGS) $(BOOST_GRAPH) -o hyb hyb.cpp
 w32:

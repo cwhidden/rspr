@@ -83,6 +83,7 @@ class Forest {
 	public:
 		vector<Node *> components;
 		vector<Node *> deleted_nodes;
+		bool rho;
 
 	public:
 	Forest() {
@@ -95,6 +96,7 @@ class Forest {
 		components = vector<Node *>();
 		components.push_back(new Node(*head));
 		deleted_nodes = vector<Node *>();
+		rho = false;
 	}
 	Forest(const Forest &f) {
 		components = vector<Node *>(f.components.size());
@@ -103,11 +105,13 @@ class Forest {
 			components[i] = new Node(*f.components[i]);
 		}
 		deleted_nodes = vector<Node *>();
+		rho = f.rho;
 	}
 
 	void init(vector<Node *> components) {
 		this->components = components;
 		deleted_nodes = vector<Node *>();
+		rho = false;
 	}
 	~Forest() {
 		for(int i = 0; i < components.size(); i++) {
@@ -207,6 +211,13 @@ class Forest {
 			(*i)->resync();
 		}
 	}
+	// clear twin pointers
+	void unsync() {
+		vector<Node *>::iterator i;
+		for(i = components.begin(); i != components.end(); i++) {
+			(*i)->unsync();
+		}
+	}
 
 void labels_to_numbers(map<string, int> *label_map, map<int, string> *reverse_label_map) {
 	vector<Node *>::iterator i;
@@ -226,6 +237,18 @@ int size() {
 	return components.size();
 }
 
+bool add_rho() {
+	if (rho)
+		return false;
+	Node *T_p = new Node("p");
+	add_component(T_p);
+	rho = true;
+	return true;
+}
+
+bool contains_rho() {
+	return rho;
+}
 
 };
 
@@ -254,13 +277,10 @@ void sync_twins(Forest *T1, Forest *T2) {
 		for(j = unsorted_labels.begin(); j != unsorted_labels.end(); j++) {
 			Node *leaf = *j;
 			string name = leaf->str();
-			// hack for clusters
-			if (name.substr(0,1) != "X") {
-				int number = atoi(name.c_str());
-				if (number >= T1_labels.size())
-					T1_labels.resize(number+1, NULL);
-				T1_labels[number] = leaf;
-			}
+			int number = atoi(name.c_str());
+			if (number >= T1_labels.size())
+				T1_labels.resize(number+1, NULL);
+			T1_labels[number] = leaf;
 		}
 	}
 	for(i = T2_components.begin(); i != T2_components.end(); i++) {
