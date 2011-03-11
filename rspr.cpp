@@ -95,7 +95,7 @@ exact BB drSPR=4
 
 *******************************************************************************/
 
-#define DEBUG 1
+//#define DEBUG 1
 #define MAX_SPR 1000
 
 #ifndef INCLUDE_CSTDIO
@@ -158,6 +158,7 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 int rSPR_3_approx(Forest *T1, Forest *T2);
 int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		deque<Node *> *sibling_pairs);
+int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync);
 int rSPR_worse_3_approx(Forest *T1, Forest *T2);
 int rSPR_FPT_hlpr(Forest *T1, Forest *T2, int k, deque<Node *> *sibling_pairs,
 		list<Node *> *singletons, bool cut_b_only);
@@ -453,6 +454,7 @@ int main(int argc, char *argv[]) {
 					int exact_spr;
 					int k;
 					int num_clusters = F1.num_components();
+					int total_k = 0;
 					for(int i = 1; i < num_clusters; i++) {
 						Forest f1 = Forest(F1.get_component(i));
 
@@ -464,15 +466,16 @@ int main(int argc, char *argv[]) {
 
 //						f1.numbers_to_labels(&reverse_label_map);
 //						f2.numbers_to_labels(&reverse_label_map);
+						cout << "C" << i << "_1: ";
 						f1.print_components();
-						cout << "\t";
+						cout << "C" << i << "_2: ";
 						f2.print_components();
-						cout << endl;
 
-						// TODO: fix this
 						int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
 						if (!(QUIET && (BB || FPT)))
 							cout << "cluster approx drSPR=" << approx_spr << endl;
+
+						cout << endl;
 
 						if (BB) {
 							int min_spr = approx_spr / 3;
@@ -483,40 +486,43 @@ int main(int argc, char *argv[]) {
 								f2t.unsync();
 								cout << k << " ";
 								cout.flush();
-								cout << "foo1" << endl;
-								f1t.print_components();
-								f1t.print_components();
-								cout << "foo1a" << endl;
+//								cout << "foo1" << endl;
+//								f1t.print_components();
+//								f1t.print_components();
+//								cout << "foo1a" << endl;
 								exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
-								cout << "foo2" << endl;
+//								cout << "foo2" << endl;
 								if (exact_spr >= 0) {
-									cout << "foo3" << endl;
+//									cout << "foo3" << endl;
 									if (i < num_clusters - 1) {
-										cout << "foo3a" << endl;
-										cout << "rho=" << f1t.contains_rho() << endl;
-										cout << i << endl;
-										cout << &f1t << endl;
-										cout << f1t.num_components() << endl;
-										f1t.print_components();
+//										cout << "foo3a" << endl;
+//										cout << "rho=" << f1t.contains_rho() << endl;
+//										cout << i << endl;
+//										cout << &f1t << endl;
+//										cout << f1t.num_components() << endl;
+//										f1t.print_components();
 										// TODO: problem things getting
 										// deleted?
 										F1.join_cluster(i,&f1t);
-										cout << "foo3b" << endl;
-										F2.print_components();
-										f2t.print_components();
+//										cout << "foo3b" << endl;
+//										cout << "rho=" << f2t.contains_rho() << endl;
+										//F2.print_components();
+//										f2t.print_components();
 										F2.join_cluster(i,&f2t);
 									}
-									cout << "foo4" << endl;
+//									cout << "foo4" << endl;
 									//f1.numbers_to_labels(&reverse_label_map);
 									//f2.numbers_to_labels(&reverse_label_map);
 									cout << endl;
-									cout << "F1: ";
+									cout << "F" << i << "_1: ";
 									f1t.print_components();
-									cout << "foo5" << endl;
-									cout << "F2: ";
+//									cout << "foo5" << endl;
+									cout << "F" << i << "_2: ";
 									f2t.print_components();
-									cout << "foo6" << endl;
+//									cout << "foo6" << endl;
 									cout << "cluster exact drSPR=" << exact_spr << endl;
+									cout << endl;
+									total_k += exact_spr;
 									break;
 								}
 							}
@@ -527,6 +533,15 @@ int main(int argc, char *argv[]) {
 					}
 				//}
 
+				if (BB) {
+					F1.erase_components(0, num_clusters-1);
+					F2.erase_components(0, num_clusters-1);
+					cout << "F1: ";
+					F1.print_components();
+					cout << "F2: ";
+					F2.print_components();
+					cout << "total exact drSPR=" << total_k << endl;
+				}
 
 				delete cluster_points;
 				exit(0);
@@ -964,11 +979,23 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
  * NOTE: destructive. The computed forests replace T1 and T2.
  */
 int rSPR_worse_3_approx(Forest *T1, Forest *T2) {
-	// find sibling pairs of T1
 	// match up nodes of T1 and T2
 	sync_twins(T1, T2);
-	// find singletons of T2
+	// find sibling pairs of T1
 	deque<Node *> sibling_pairs = T1->find_sibling_pairs();
+	// find singletons of T2
+	list<Node *> singletons = T2->find_singletons();
+	return rSPR_worse_3_approx_hlpr(T1, T2, &singletons, &sibling_pairs);
+}
+
+int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync) {
+	// match up nodes of T1 and T2
+	if (sync) {
+		sync_twins(T1, T2);
+	}
+	// find sibling pairs of T1
+	deque<Node *> sibling_pairs = T1->find_sibling_pairs();
+	// find singletons of T2
 	list<Node *> singletons = T2->find_singletons();
 	return rSPR_worse_3_approx_hlpr(T1, T2, &singletons, &sibling_pairs);
 }
@@ -977,7 +1004,6 @@ int rSPR_worse_3_approx(Forest *T1, Forest *T2) {
 int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		deque<Node *> *sibling_pairs) {
 	//return rSPR_3_approx_hlpr(T1, T2, singletons, sibling_pairs);
-	cout << "foo_approx" << endl;
 	#ifdef DEBUG
 		cout << "rSPR_worse_3_approx_hlpr" << endl;
 	#endif
@@ -1027,10 +1053,23 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 			Node *T2_a = T1_a->get_twin();
 			Node *T2_c = T1_c->get_twin();
 
+			#ifdef DEBUG
+				cout << "Fetching sibling pair" << endl;
+				T1_ac->print_subtree();
+				cout << T2_a << ": ";
+				T2_a->print_subtree();
+				cout << T1_c << ": ";
+				T1_c->print_subtree();
+				cout << T2_c << ": ";
+				T2_c->print_subtree();
+			#endif
+
 			// Case 2 - Contract identical sibling pair
 			if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent()) {
 				#ifdef DEBUG
 					cout << "Case 2" << endl;
+					T1->print_components();
+					T2->print_components();
 				#endif
 				Node *T2_ac = T2_a->parent();
 				T1_ac->contract_sibling_pair();
@@ -1710,12 +1749,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				copy_trees(&T1, &T2, &sibling_pairs, &T1_a, &T1_c, &T2_a, &T2_c,
 						&T1_copy, &T2_copy, &sibling_pairs_copy,
 						&T1_a_copy, &T1_c_copy, &T2_a_copy, &T2_c_copy);
-				//int approx_spr = rSPR_worse_3_approx_hlpr(T1_copy, T2_copy,
-				//		singletons, sibling_pairs_copy);
-				cout << "foo" << endl;
 				int approx_spr = rSPR_worse_3_approx_hlpr(T1_copy, T2_copy,
 						singletons, sibling_pairs_copy);
-				cout << "foo" << endl;
 				delete T1_copy;
 				delete T2_copy;
 				delete sibling_pairs_copy;

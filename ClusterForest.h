@@ -93,21 +93,13 @@ class ClusterForest: public Forest {
 		return cluster_nodes.size();
 	}
 	void join_cluster(int cluster_loc, Forest *solved_cluster) {
-		print_components();
-		cout << "a" << endl;
 		Node *cluster_node = get_cluster_node(cluster_loc);
-		cout << "b" << endl;
 		Node *cluster_parent = cluster_node->parent();
-		cout << "c" << endl;
 		cluster_node->cut_parent();
-		cout << "d" << endl;
 		delete cluster_node;
 		delete components[cluster_loc];
 		components[cluster_loc] = NULL;
-		cout << "e" << endl;
 		int start = 0;
-		cout << "f" << endl;
-		// problem here!!!
 		if (solved_cluster->contains_rho()) {
 			cluster_parent->contract();
 		}
@@ -115,14 +107,11 @@ class ClusterForest: public Forest {
 			cluster_parent->add_child(new Node(*(solved_cluster->get_component(0))));
 			start = 1;
 		}
-		cout << "g" << endl;
 		// should we add these to a finished_components or something?
 		for(int i = start; i < solved_cluster->num_components(); i++) {
 			if (solved_cluster->get_component(i)->str() != "p")
 				add_component(new Node(*(solved_cluster->get_component(i))));
 		}
-		cout << "h" << endl;
-		print_components();
 
 	}
 

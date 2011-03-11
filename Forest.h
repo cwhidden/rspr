@@ -77,6 +77,10 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 	#define INCLUDE_MAP
 	#include <map>
 #endif
+#ifndef INCLUDE_LIMITS
+	#define INCLUDE_LIMITS
+	#include <limits>
+#endif
 using namespace std;
 
 class Forest {
@@ -135,6 +139,10 @@ class Forest {
 		this->deleted_nodes = f->deleted_nodes;
 		f->deleted_nodes = deleted_nodes_temp;
 		*/
+
+		bool rho_temp = this->rho;
+		this->rho = f->rho;
+		f->rho = rho_temp;
 	}
 
 	// print the forest
@@ -250,6 +258,9 @@ bool contains_rho() {
 	return rho;
 }
 
+void erase_components(int start, int end) {
+	components.erase(components.begin()+start, components.begin()+end);
+}
 };
 
 // Functions
@@ -260,6 +271,35 @@ void sync_interior_twins(Forest *T1, Forest *T2);
 void sync_interior_twins(Node *n, LCA *twin_LCA);
 vector<Node *> *find_cluster_points(Forest *f);
 void find_cluster_points(Node *n, vector<Node *> *cluster_points);
+
+
+// return the smallest number in s
+int stomini(string s) {
+//	cout << "stomini" << endl;
+	string number_characters = "+-0123456789";
+	int i = 0;
+	int min = INT_MAX;
+	string current = "";
+	for(int i = 0; i < s.size(); i++) {
+		if (number_characters.find(s[i]) != string::npos) {
+			current += s[i];
+		}
+		else if (current.size() > 0) {
+			int num = atoi(current.c_str());
+			if (num < min)
+				min = num;
+			current = "";
+		}
+	}
+	if (current.size() > 0) {
+		int num = atoi(current.c_str());
+		if (num < min)
+			min = num;
+		current = "";
+	}
+//	cout << "returning " << min << endl;
+	return min;
+}
 
 
 // Make the leaves of two forests point to their twin in the other tree
@@ -276,8 +316,10 @@ void sync_twins(Forest *T1, Forest *T2) {
 		vector<Node *>::iterator j;
 		for(j = unsorted_labels.begin(); j != unsorted_labels.end(); j++) {
 			Node *leaf = *j;
-			string name = leaf->str();
-			int number = atoi(name.c_str());
+//			cout << "T1: " << leaf->str() << endl;
+			// find smallest number contained in the label
+			int number = stomini(leaf->str());
+//			cout << "\t" << number << endl;
 			if (number >= T1_labels.size())
 				T1_labels.resize(number+1, NULL);
 			T1_labels[number] = leaf;
@@ -289,19 +331,19 @@ void sync_twins(Forest *T1, Forest *T2) {
 		vector<Node *>::iterator j;
 		for(j = unsorted_labels.begin(); j != unsorted_labels.end(); j++) {
 			Node *leaf = *j;
-			string name = leaf->str();
-			// hack for clusters
-			if (name.substr(0,1) != "X") {
-				int number = atoi(name.c_str());
-				if (number >= T2_labels.size())
-					T2_labels.resize(number+1, NULL);
-				T2_labels[number] = leaf;
-			}
+//			cout << "T2: " << leaf->str() << endl;
+			// find smallest number contained in the label
+			int number = stomini(leaf->str());
+//			cout << "\t" << number << endl;
+			if (number >= T2_labels.size())
+				T2_labels.resize(number+1, NULL);
+			T2_labels[number] = leaf;
 		}
 	}
 	int size = T1_labels.size();
 	if (size > T2_labels.size())
 		size = T2_labels.size();
+//	cout << "Syncing Twins" << endl;
 	for(int i = 0; i < size; i++) {
 		Node *T1_a = T1_labels[i];
 		Node *T2_a = T2_labels[i];
@@ -320,6 +362,7 @@ void sync_twins(Forest *T1, Forest *T2) {
 		if (T1_a != NULL && T2_a != NULL) {
 			T1_a->set_twin(T2_a);
 			T2_a->set_twin(T1_a);
+//			cout << T1_a->str() << endl;
 		}
 	}
 	for(int i = size; i < T1_labels.size(); i++) {
@@ -336,6 +379,7 @@ void sync_twins(Forest *T1, Forest *T2) {
 		if (node != NULL)
 			node->contract();
 	}
+//	cout << "Finished Syncing Twins" << endl;
 	return;
 }
 
