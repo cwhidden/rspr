@@ -122,6 +122,10 @@ exact BB drSPR=4
 	#define INCLUDE_SSTREAM
 	#include <sstream>
 #endif
+#ifndef INCLUDE_LIMITS
+	#define INCLUDE_LIMITS
+	#include <climits>
+#endif
 #ifndef INCLUDE_FOREST
 	#define INCLUDE_FOREST
 	#include "Forest.h"
@@ -394,7 +398,8 @@ int main(int argc, char *argv[]) {
 				//	cout << "\n";
 
 				sync_twins(&F1, &F2);
-				sync_interior_twins(&F1, &F2);
+				sync_interior_twins_real(&F1, &F2);
+				//sync_interior_twins(&F1, &F2);
 				vector<Node *> *cluster_points = find_cluster_points(&F1);
 //				if (!cluster_points->empty()) {
 					/*

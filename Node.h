@@ -46,6 +46,11 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 	#define INCLUDE_MAP
 	#include <map>
 #endif
+#ifndef INCLUDE_BOOST_ANY
+	#define INCLUDE_BOOST_ANY
+	#include <boost/any.hpp>
+#endif
+
 using namespace std;
 
 // representation of a component with no leaves
@@ -57,6 +62,14 @@ vector<Node *> find_sibling_pairs(Node *node);
 vector<Node *> find_leaves(Node *node);
 */
 
+// parameter types
+enum PARAMETER_TYPE {
+	COMPONENT_NUMBER,
+	ACTIVE_DESCENDANTS,
+	REMOVABLE_DESCENDANTS,
+	ROOT_LCAS,
+};
+
 class Node {
 	private:
 	Node *lc;			// left child
@@ -66,6 +79,7 @@ class Node {
 	string name;		// label
 	int depth;			//distance from root
 	int pre_num;	// preorder number
+	map <PARAMETER_TYPE, boost::any> parameter; // custom parameters
 
 	public:
 	Node() {
@@ -88,6 +102,7 @@ class Node {
 		this->twin = NULL;
 		this->depth = d;
 		this->pre_num = -1;
+		this->parameter = map<PARAMETER_TYPE,boost::any>();
 	}
 	// copy constructor
 	Node(const Node &n) {
@@ -95,6 +110,7 @@ class Node {
 		name = n.name;
 		twin = n.twin;
 		depth = n.depth;
+		parameter = map<PARAMETER_TYPE,boost::any>(n.parameter);
 		if (n.lc == NULL)
 			lc = NULL;
 		else
@@ -109,6 +125,7 @@ class Node {
 		name = n.name;
 		twin = n.twin;
 		depth = n.depth;
+		parameter = map<PARAMETER_TYPE,boost::any>(n.parameter);
 		if (n.lc == NULL)
 			lc = NULL;
 		else
@@ -200,6 +217,32 @@ class Node {
 	int set_preorder_number(int p) {
 		pre_num = p;
 		return pre_num;
+	}
+
+	void set_parameter(PARAMETER_TYPE name, boost::any value) {
+		parameter[name] = value;
+	}
+	void initialize_parameter(PARAMETER_TYPE name, boost::any value) {
+		parameter[name] = value;
+		if (lc != NULL)
+			lc->initialize_parameter(name, value);
+		if (rc != NULL)
+			rc->initialize_parameter(name, value);
+	}
+	void clear_parameters() {
+		parameter.clear();
+	}
+	boost::any get_parameter(PARAMETER_TYPE name) {
+		map<PARAMETER_TYPE,boost::any>::iterator value = parameter.find(name);
+		if (value == parameter.end())
+			return boost::any();
+		else return (*value).second;
+	}
+	boost::any *get_parameter_ref(PARAMETER_TYPE name) {
+		map<PARAMETER_TYPE,boost::any>::iterator value = parameter.find(name);
+		if (value == parameter.end())
+			return NULL;
+		else return &((*value).second);
 	}
 
 	/* contract:
@@ -529,6 +572,24 @@ class Node {
 			next = rchild()->preorder_number(next);
 		}
 		return next;
+	}
+
+	int size() {
+		int s  = 1;
+		if(lchild() != NULL)
+			s += lchild()->size();
+		if(rchild() != NULL)
+			s += rchild()->size();
+		return s;
+	}
+
+	int size_using_prenum() {
+		if(rchild() != NULL)
+			return rchild()->size_using_prenum();
+		else if (lchild() != NULL)
+			return lchild()->size_using_prenum();
+		else
+			return get_preorder_number();
 	}
 
 };

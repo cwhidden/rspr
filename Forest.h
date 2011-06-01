@@ -269,8 +269,14 @@ vector<Node *> find_labels(vector<Node *> components);
 void sync_twins(Forest *T1, Forest *T2);
 void sync_interior_twins(Forest *T1, Forest *T2);
 void sync_interior_twins(Node *n, LCA *twin_LCA);
+void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs);
 vector<Node *> *find_cluster_points(Forest *f);
 void find_cluster_points(Node *n, vector<Node *> *cluster_points);
+void delete_and_merge_LCAs(list<Node *> *active_descendants,
+		vector<LCA> *F2_LCAs, list<Node *>:: iterator node1_location,
+		list<Node *>:: iterator node2_location);
+void delete_and_merge_LCAs(Node *n, list<Node *> *active_descendants,
+		vector<LCA> *F2_LCAs);
 
 
 // return the smallest number in s
@@ -399,9 +405,50 @@ void sync_interior_twins(Forest *T1, Forest *T2) {
 	sync_interior_twins(root2, &T1_LCA);
 }
 
-/* make interior nodes point to the lca of their descendants in the other tree
-   assumes that sync_twins has already been called
-   */
+/* make interior nodes point to the LCA of their descendants in the other
+	 forest if there is one unambiguous LCA
+	 * This is true for a node n of T1 if all leaves that are a descendant
+	 	of T1 either map to a single component of F2 or are from another
+	 	component of F2 such that the root of that component maps to
+	 	a descendant of n (i.e. a finished component)
+   * assumes that sync_twins has already been called
+	 */
+void sync_interior_twins_real(Forest *T1, Forest *F2) {
+	Node  *T1_root = T1->get_component(0);
+	LCA T1_LCA = LCA(T1_root);
+	int T1_size = T1_root->size_using_prenum();
+	// roots of F2
+	vector<Node *> F2_roots = vector<Node *>();
+	// LCA queries for F2
+	vector<LCA> F2_LCAs = vector<LCA>();
+	// lists of root nodes that map to a given T1 node
+	T1_root->initialize_parameter(ROOT_LCAS, list<Node *>());
+	// list of active descendants
+	T1_root->initialize_parameter(ACTIVE_DESCENDANTS, list<Node *>());
+
+	// should be fine.
+	for(int i = 0; i < F2->num_components(); i++) {
+		F2_roots.push_back(F2->get_component(i));
+		// ignore finished components
+		if (F2_roots[i]->get_twin() != NULL && F2_roots[i]->get_twin()->parent() == NULL)
+			continue;
+		F2_LCAs.push_back(LCA(F2_roots[i]));
+		// number the component
+		F2_roots[i]->initialize_parameter(COMPONENT_NUMBER,i);
+		// list of nodes that get deleted when a component is finished
+		F2_roots[i]->initialize_parameter(REMOVABLE_DESCENDANTS,list<list<Node *>::iterator>());
+		// sync the component with T1
+		sync_interior_twins(F2_roots[i], &T1_LCA);
+		// keep reverse pointer for the root's twin
+		boost::any_cast<list<Node *> >(F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS))->push_back(F2_roots[i]);
+	}
+	sync_interior_twins(T1_root, &F2_LCAs); 
+}
+
+/* make interior nodes point to the lca of their descendants in the other
+ * tree
+ * assumes that sync_twins has already been called
+ */
 void sync_interior_twins(Node *n, LCA *twin_LCA) {
 	Node *lc = n->lchild();
 	Node *rc = n->rchild();
@@ -416,6 +463,143 @@ void sync_interior_twins(Node *n, LCA *twin_LCA) {
 	else if (lc != NULL && rc != NULL) {
 		Node *twin = twin_LCA->get_lca(lc->get_twin(), rc->get_twin());
 		n->set_twin(twin);
+	}
+}
+
+void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
+	Node *lc = n->lchild();
+	Node *rc = n->rchild();
+	list<Node *> *active_descendants = boost::any_cast<list<Node *> >(n->get_parameter_ref(ACTIVE_DESCENDANTS));
+	// visit left subtree first
+	if (lc != NULL)
+		sync_interior_twins(lc, F2_LCAs);
+	// visit right subtree first
+	if (rc != NULL)
+		sync_interior_twins(rc, F2_LCAs);
+	if (lc == NULL && rc == NULL) {
+		active_descendants->push_back(n->get_twin());
+		list<Node *>::iterator node_location = active_descendants->end();
+		node_location--;
+			boost::any_cast<list<list<Node *>::iterator> >(n->get_twin()->get_parameter_ref(REMOVABLE_DESCENDANTS))->push_back(node_location);
+	}
+	// no lc so propogate up
+	if (lc == NULL && rc != NULL) {
+		n->set_twin(rc->get_twin());
+		list<Node *> *rc_active_descendants = boost::any_cast<list<Node *> >(rc->get_parameter_ref(ACTIVE_DESCENDANTS));
+		active_descendants->splice(active_descendants->end(),*rc_active_descendants);
+	}
+	// no rc so propogate up
+	if (lc != NULL && rc == NULL) {
+		n->set_twin(lc->get_twin());
+		list<Node *> *lc_active_descendants = boost::any_cast<list<Node *> >(lc->get_parameter_ref(ACTIVE_DESCENDANTS));
+		active_descendants->splice(active_descendants->end(),*lc_active_descendants);
+	}
+	else if (lc != NULL && rc == NULL)
+		n->set_twin(lc->get_twin());
+	// two children so put their info together
+	else if (lc != NULL && rc != NULL) {
+		list<Node *> *lc_active_descendants = boost::any_cast<list<Node *> >(lc->get_parameter_ref(ACTIVE_DESCENDANTS));
+		list<Node *> *rc_active_descendants = boost::any_cast<list<Node *> >(rc->get_parameter_ref(ACTIVE_DESCENDANTS));
+		bool done = false;
+		if (lc_active_descendants->empty() || rc_active_descendants->empty())
+			done = true;
+		active_descendants->splice(active_descendants->end(),*lc_active_descendants);
+		list<Node *>::iterator node1_location = active_descendants->end();
+		node1_location--;
+		list<Node *>::iterator node2_location = node1_location;
+		active_descendants->splice(active_descendants->end(),*rc_active_descendants);
+		node2_location++;
+		/* check the intersection point to see if we have two
+			leaves from the same component
+		*/
+		if (!done)
+			delete_and_merge_LCAs(active_descendants, F2_LCAs, node1_location,
+					node2_location);
+
+		/* check to see if n is twinned by a root of F2
+			 if so, then remove each leaf twinned by that component
+			 and check each of the new intersection points
+		*/
+		list<Node *> *root_lcas = boost::any_cast<list<Node *> >(n->get_parameter_ref(ROOT_LCAS));
+		while(!root_lcas->empty()) {
+			Node *root_lca = root_lcas->front();
+			root_lcas->pop_front();
+			/* TODO: problem when n is a root
+				 We don't care about this but it might mean there is a different
+				 problem
+				 */
+			if (n->parent() != NULL)
+				delete_and_merge_LCAs(root_lca, active_descendants, F2_LCAs);
+		}
+
+		/* If we have a single element in n's active descendants
+			 list then set twin pointers appropriately
+		*/
+		if (active_descendants->size() == 1) {
+			Node *twin = active_descendants->front();
+			n->set_twin(twin);
+		}
+	}
+}
+
+/* merge two nodes from a list into their LCA if they are from
+	 the same component
+	 */
+void delete_and_merge_LCAs(list<Node *> *active_descendants,
+		vector<LCA> *F2_LCAs, list<Node *>:: iterator node1_location,
+		list<Node *>:: iterator node2_location) {
+
+//	while(active_descendants->size() > 1) {
+	Node *n1 = *node1_location;
+	Node *n2 = *node2_location;
+	int component1 = boost::any_cast<int>(n1->get_parameter(COMPONENT_NUMBER));
+	int component2 = boost::any_cast<int>(n2->get_parameter(COMPONENT_NUMBER));
+	if (component1 == component2) {
+		Node *lca = (*F2_LCAs)[component1].get_lca(n1,n2);
+		list<Node *>::iterator lca_location =
+			active_descendants->insert(node1_location,lca);
+		boost::any_cast<list<list<Node *>::iterator> >(lca->get_parameter_ref(REMOVABLE_DESCENDANTS))->push_back(lca_location);
+		active_descendants->erase(node1_location);
+		boost::any_cast<list<list<Node *>::iterator> >(n1->get_parameter_ref(REMOVABLE_DESCENDANTS))->pop_back();
+		active_descendants->erase(node2_location);
+		boost::any_cast<list<list<Node *>::iterator> >(n2->get_parameter_ref(REMOVABLE_DESCENDANTS))->pop_back();
+	}
+//		else {
+//			break;
+//		}
+//	}
+}
+
+/* delete each leaf from the list that is twinned with the component
+	 of n. For each such deleted node, merge its predecessor
+	 and successor in the list into their LCA if they are from
+	 the same component (other than n's component)
+	 */
+void delete_and_merge_LCAs(Node *n, list<Node *>
+		*active_descendants, vector<LCA> *F2_LCAs) {
+	int component = boost::any_cast<int>(n->get_parameter(COMPONENT_NUMBER));
+	list<list<Node *>::iterator> *removable_descendants	=
+			boost::any_cast<list<list<Node *>::iterator> >(n->get_parameter_ref(REMOVABLE_DESCENDANTS));
+	while (!removable_descendants->empty()) {
+		list<Node *>::iterator leaf_location = removable_descendants->front();
+		removable_descendants->pop_front();
+
+		if (active_descendants->front() != *leaf_location
+				&& active_descendants->back() != *leaf_location) {
+			list<Node *>::iterator node1_location = leaf_location;
+			list<Node *>::iterator node2_location = leaf_location;
+			node1_location--;
+			node2_location++;
+			active_descendants->erase(leaf_location);
+			int node1_component = boost::any_cast<int>((*node1_location)->get_parameter(COMPONENT_NUMBER));
+			if (component != node1_component)
+				delete_and_merge_LCAs(active_descendants, F2_LCAs, node1_location,
+						node2_location);
+		}
+		else {
+			active_descendants->erase(leaf_location);
+		}
+
 	}
 }
 
