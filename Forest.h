@@ -643,7 +643,6 @@ void find_cluster_points(Node *n, vector<Node *> *cluster_points) {
 	//cout << rc->get_twin()->get_twin()->get_depth() << endl;
 	}
 	*/
-	// FOO
 	if (n->get_twin() != NULL
 			&& n->parent() != NULL
 			&& lc != NULL
