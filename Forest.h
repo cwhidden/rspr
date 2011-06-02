@@ -226,6 +226,13 @@ class Forest {
 			(*i)->unsync();
 		}
 	}
+	// clear interior twin pointers
+	void unsync_interior() {
+		vector<Node *>::iterator i;
+		for(i = components.begin(); i != components.end(); i++) {
+			(*i)->unsync_interior();
+		}
+	}
 
 void labels_to_numbers(map<string, int> *label_map, map<int, string> *reverse_label_map) {
 	vector<Node *>::iterator i;
@@ -606,25 +613,48 @@ void delete_and_merge_LCAs(Node *n, list<Node *>
 vector<Node *> *find_cluster_points(Forest *F) {
 	vector<Node *> *cluster_points = new vector<Node *>();
 	find_cluster_points(F->get_component(0), cluster_points);
+	cout << "foo" << endl;
 	return cluster_points;
 }
 
 // find the cluster points
 void find_cluster_points(Node *n, vector<Node *> *cluster_points) {
+	//cout << "Start: " << n->str_subtree() << endl;
 	Node *lc = n->lchild();
 	Node *rc = n->rchild();
 	if (lc != NULL)
 		find_cluster_points(lc, cluster_points);
 	if (rc != NULL)
 		find_cluster_points(rc, cluster_points);
-	if (n == n->get_twin()->get_twin()
+	/*
+	cout << "here" << endl;
+	cout << n->get_depth() << endl;
+	if (n->get_twin() != NULL)
+		cout << n->get_twin()->get_twin()->get_depth() << endl;
+	cout << n->parent() << endl;
+	if (lc != NULL) {
+	cout << lc << endl;
+	cout << lc->get_depth() << endl;
+	//cout << lc->get_twin()->get_twin()->get_depth() << endl;
+	}
+	if (rc != NULL) {
+	cout << rc << endl;
+	cout << rc->get_depth() << endl;
+	//cout << rc->get_twin()->get_twin()->get_depth() << endl;
+	}
+	*/
+	if (n->get_twin() != NULL
 			&& n->parent() != NULL
 			&& lc != NULL
 			&& rc != NULL
-			&& (lc != lc->get_twin()->get_twin()
-				|| rc != rc->get_twin()->get_twin())) {
+			&& n->get_depth() <= n->get_twin()->get_twin()->get_depth()
+			&& (lc->get_twin() == NULL
+				|| lc->get_depth() > lc->get_twin()->get_twin()->get_depth()
+				|| rc->get_twin() == NULL
+				|| rc->get_depth() > rc->get_twin()->get_twin()->get_depth())) {
 		cluster_points->push_back(n);
 	}
+	//cout << "End: " << n->str_subtree() << endl;
 }
 
 // swap two forests

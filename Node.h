@@ -489,7 +489,15 @@ class Node {
 			lc->unsync();
 		if (rc != NULL)
 			rc->unsync();
-		if (twin != NULL)
+		twin = NULL;
+	}
+	// remove all twins
+	void unsync_interior() {
+		if (lc != NULL)
+			lc->unsync_interior();
+		if (rc != NULL)
+			rc->unsync_interior();
+		if (lc != NULL || rc != NULL)
 			twin = NULL;
 	}
 

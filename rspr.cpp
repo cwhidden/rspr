@@ -1582,6 +1582,18 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		}
 		cout << endl;
 		#endif
+
+		if (1 || k>=3) {
+			cout << "foo" << endl;
+			//sync_interior_twins(T1, T2);
+			sync_interior_twins_real(T1, T2);
+			vector<Node *> *cluster_points = find_cluster_points(T1);
+			cout << "k=" << k << endl;
+			cout << "cp=" << cluster_points->size() << endl;
+			T1->unsync_interior();
+			T2->unsync_interior();
+			cout << "done" << endl;
+		}
 	
 	while(!singletons->empty() || !sibling_pairs->empty()) {
 		// Case 1 - Remove singletons
