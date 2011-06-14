@@ -26,30 +26,16 @@ You should have received a copy of the GNU General Public License
 along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
-#ifndef INCLUDE_CSTDIO
-	#define INCLUDE_CSTDIO
-	#include <cstdio>
-#endif
-#ifndef INCLUDE_STRING
-	#define INCLUDE_STRING
-	#include <string>
-#endif
-#ifndef INCLUDE_IOSTREAM
-	#define INCLUDE_IOSTREAM
-	#include <iostream>
-#endif
-#ifndef INCLUDE_SSTREAM
-	#define INCLUDE_SSTREAM
-	#include <sstream>
-#endif
-#ifndef INCLUDE_MAP
-	#define INCLUDE_MAP
-	#include <map>
-#endif
-#ifndef INCLUDE_BOOST_ANY
-	#define INCLUDE_BOOST_ANY
-	#include <boost/any.hpp>
-#endif
+#ifndef INCLUDE_NODE
+
+#define INCLUDE_NODE
+
+#include <cstdio>
+#include <string>
+#include <iostream>
+#include <sstream>
+#include <map>
+#include <boost/any.hpp>
 
 using namespace std;
 
@@ -114,11 +100,11 @@ class Node {
 		if (n.lc == NULL)
 			lc = NULL;
 		else
-			lc = new Node(*n.lc, this);
+			lc = new Node(*(n.lc), this);
 		if (n.rc == NULL)
 			rc = NULL;
 		else
-			rc = new Node(*n.rc, this);
+			rc = new Node(*(n.rc), this);
 	}
 	Node(const Node &n, Node *parent) {
 		p = parent;
@@ -129,11 +115,11 @@ class Node {
 		if (n.lc == NULL)
 			lc = NULL;
 		else
-			lc = new Node(*n.lc, this);
+			lc = new Node(*(n.lc), this);
 		if (n.rc == NULL)
 			rc = NULL;
 		else
-			rc = new Node(*n.rc, this);
+			rc = new Node(*(n.rc), this);
 	}
 	~Node() {
 		if (lc != NULL) {
@@ -325,7 +311,8 @@ class Node {
 	bool contract_sibling_pair() {
 		if (lc != NULL && lc->is_leaf()
 				&& rc != NULL && rc->is_leaf()) {
-			#ifdef DEBUG
+//			#ifdef DEBUG
+			#if 1
 				string new_name = "<" + lc->str() + "," + rc->str() + ">";
 			#else
 				string new_name = "(" + lc->str() + "," + rc->str() + ")";
@@ -367,6 +354,7 @@ class Node {
 	string str() {
 		return name;
 	}
+
 	string str_subtree() {
 		string s = "";
 		str_subtree_hlpr(&s);
@@ -388,6 +376,32 @@ class Node {
 		}
 	}
 
+	string str_subtree_twin() {
+		string s = "";
+		str_subtree_twin_hlpr(&s);
+		return s;
+	}
+
+	void str_subtree_twin_hlpr(string *s) {
+		*s += name;
+		*s += "{";
+		if (twin == NULL)
+			*s += "*";
+		else
+			*s += twin->str();
+		*s += "}";
+		if (!is_leaf()) {
+			*s += "(";
+			if (lc != NULL) {
+				lc->str_subtree_hlpr(s);
+			}
+			*s += ",";
+			if (rc != NULL) {
+				rc->str_subtree_hlpr(s);
+			}
+			*s += ")";
+		}
+	}
 
 
 	void print() {
@@ -399,6 +413,9 @@ class Node {
 	}
 	void print_subtree_hlpr() {
 		cout << str_subtree();
+	}
+	void print_subtree_twin_hlpr() {
+		cout << str_subtree_twin();
 	}
 
 	bool is_leaf() {
@@ -692,3 +709,4 @@ int preorder_number(Node *node, int next) {
 	return next;
 }
 */
+#endif

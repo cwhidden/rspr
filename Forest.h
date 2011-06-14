@@ -25,62 +25,24 @@ You should have received a copy of the GNU General Public License
 along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 *******************************************************************************/
-#ifndef INCLUDE_CSTDIO
-	#define INCLUDE_CSTDIO
-	#include <cstdio>
-#endif
-#ifndef INCLUDE_CSTDLIB
-	#define INCLUDE_CSTDLIB
-	#include <cstdlib>
-#endif
-#ifndef INCLUDE_STRING
-	#define INCLUDE_STRING
-	#include <string>
-#endif
-#ifndef INCLUDE_CSTRING
-	#define INCLUDE_CSTRING
-	#include <cstring>
-#endif
-#ifndef INCLUDE_IOSTREAM
-	#define INCLUDE_IOSTREAM
-	#include <iostream>
-#endif
-#ifndef INCLUDE_SSTREAM
-	#define INCLUDE_SSTREAM
-	#include <sstream>
-#endif
-#ifndef INCLUDE_MATH
-	#define INCLUDE_MATH
-	#include <math.h>
-#endif
-#ifndef INCLUDE_VECTOR
-	#define INCLUDE_VECTOR
-	#include <vector>
-#endif
-#ifndef INCLUDE_LIST
-	#define INCLUDE_LIST
-	#include <list>
-#endif
-#ifndef INCLUDE_DEQUE
-	#define INCLUDE_DEQUE
-	#include <deque>
-#endif
-#ifndef INCLUDE_NODE
-	#define INCLUDE_NODE
-	#include "Node.h"
-#endif
-#ifndef INCLUDE_LCA
-	#define INCLUDE_LCA
-	#include "LCA.h"
-#endif
-#ifndef INCLUDE_MAP
-	#define INCLUDE_MAP
-	#include <map>
-#endif
-#ifndef INCLUDE_LIMITS
-	#define INCLUDE_LIMITS
-	#include <limits>
-#endif
+#ifndef INCLUDE_FOREST
+
+#define INCLUDE_FOREST
+#include <cstdio>
+#include <cstdlib>
+#include <string>
+#include <cstring>
+#include <iostream>
+#include <sstream>
+#include <math.h>
+#include <vector>
+#include <list>
+#include <deque>
+#include "Node.h"
+#include "LCA.h"
+#include <map>
+#include <limits>
+
 using namespace std;
 
 class Forest {
@@ -112,8 +74,18 @@ class Forest {
 		rho = f.rho;
 	}
 
+	Forest(Forest *f) {
+		components = vector<Node *>(f->components.size());
+		for(int i = 0; i < f->components.size(); i++) {
+			//if (f->components[i] != NULL)
+			components[i] = new Node(*f->components[i]);
+		}
+		deleted_nodes = vector<Node *>();
+		rho = f->rho;
+	}
+
 	void init(vector<Node *> components) {
-		this->components = components;
+		this->components = vector<Node *>(components);
 		deleted_nodes = vector<Node *>();
 		rho = false;
 	}
@@ -169,6 +141,20 @@ class Forest {
 			else
 				root->print_subtree_hlpr();
 			cout << s;
+		}
+		cout << endl;
+	}
+
+	// print the forest showing twins
+	void print_components_with_twins() {
+		vector<Node *>::iterator it = components.begin();
+		for(it = components.begin(); it != components.end(); it++) {
+			Node *root = *it;
+			if (root == NULL)
+				cout << "!";
+			else
+				root->print_subtree_twin_hlpr();
+			cout << " ";
 		}
 		cout << endl;
 	}
@@ -268,6 +254,9 @@ bool contains_rho() {
 void erase_components(int start, int end) {
 	components.erase(components.begin()+start, components.begin()+end);
 }
+void erase_components() {
+	components.clear();
+}
 };
 
 // Functions
@@ -277,8 +266,8 @@ void sync_twins(Forest *T1, Forest *T2);
 void sync_interior_twins(Forest *T1, Forest *T2);
 void sync_interior_twins(Node *n, LCA *twin_LCA);
 void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs);
-vector<Node *> *find_cluster_points(Forest *f);
-void find_cluster_points(Node *n, vector<Node *> *cluster_points);
+list<Node *> *find_cluster_points(Forest *f);
+void find_cluster_points(Node *n, list<Node *> *cluster_points);
 void delete_and_merge_LCAs(list<Node *> *active_descendants,
 		vector<LCA> *F2_LCAs, list<Node *>:: iterator node1_location,
 		list<Node *>:: iterator node2_location);
@@ -329,10 +318,10 @@ void sync_twins(Forest *T1, Forest *T2) {
 		vector<Node *>::iterator j;
 		for(j = unsorted_labels.begin(); j != unsorted_labels.end(); j++) {
 			Node *leaf = *j;
-//			cout << "T1: " << leaf->str() << endl;
+			cout << "T1: " << leaf->str() << endl;
 			// find smallest number contained in the label
 			int number = stomini(leaf->str());
-//			cout << "\t" << number << endl;
+			cout << "\t" << number << endl;
 			if (number >= T1_labels.size())
 				T1_labels.resize(number+1, NULL);
 			T1_labels[number] = leaf;
@@ -344,10 +333,10 @@ void sync_twins(Forest *T1, Forest *T2) {
 		vector<Node *>::iterator j;
 		for(j = unsorted_labels.begin(); j != unsorted_labels.end(); j++) {
 			Node *leaf = *j;
-//			cout << "T2: " << leaf->str() << endl;
+			cout << "T2: " << leaf->str() << endl;
 			// find smallest number contained in the label
 			int number = stomini(leaf->str());
-//			cout << "\t" << number << endl;
+			cout << "\t" << number << endl;
 			if (number >= T2_labels.size())
 				T2_labels.resize(number+1, NULL);
 			T2_labels[number] = leaf;
@@ -356,7 +345,7 @@ void sync_twins(Forest *T1, Forest *T2) {
 	int size = T1_labels.size();
 	if (size > T2_labels.size())
 		size = T2_labels.size();
-//	cout << "Syncing Twins" << endl;
+	cout << "Syncing Twins" << endl;
 	for(int i = 0; i < size; i++) {
 		Node *T1_a = T1_labels[i];
 		Node *T2_a = T2_labels[i];
@@ -375,7 +364,7 @@ void sync_twins(Forest *T1, Forest *T2) {
 		if (T1_a != NULL && T2_a != NULL) {
 			T1_a->set_twin(T2_a);
 			T2_a->set_twin(T1_a);
-//			cout << T1_a->str() << endl;
+			cout << T1_a->str() << endl;
 		}
 	}
 	for(int i = size; i < T1_labels.size(); i++) {
@@ -420,6 +409,7 @@ void sync_interior_twins(Forest *T1, Forest *T2) {
 	 	a descendant of n (i.e. a finished component)
    * assumes that sync_twins has already been called
 	 */
+// TODO: initializing parameters seems to be slow
 void sync_interior_twins_real(Forest *T1, Forest *F2) {
 	Node  *T1_root = T1->get_component(0);
 	LCA T1_LCA = LCA(T1_root);
@@ -435,10 +425,37 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
 
 	// should be fine.
 	for(int i = 0; i < F2->num_components(); i++) {
+//		cout << "starting i" << endl;
 		F2_roots.push_back(F2->get_component(i));
+//		cout << "COMPONENT " << i << ": " << F2_roots[i]->str_subtree() << endl;
+//		cout << "foo" << endl;
+//		cout << F2_roots[i]->get_twin() << endl;
+//		if (F2_roots[i]->get_twin() != NULL) {
+//		cout << F2_roots[i]->get_twin()->str_subtree() << endl;
+//		cout << F2_roots[i]->get_twin()->parent() << endl;
+//		cout << "fooa" << endl;
+//		if (F2_roots[i]->get_twin()->parent() != NULL) {
+//		cout << F2_roots[i]->get_twin()->parent()->str_subtree() << endl;
+//		}
+//		cout << "foob" << endl;
+//		}
 		// ignore finished components
-		if (F2_roots[i]->get_twin() != NULL && F2_roots[i]->get_twin()->parent() == NULL)
+		if (F2_roots[i]->get_twin() != NULL && F2_roots[i]->get_twin()->parent() == NULL) {
+//			cout << "fooc" << endl;
+		F2_LCAs.push_back(F2_roots[i]);
+			//F2_LCAs.push_back(LCA());
+//			cout << "fooc" << endl;
 			continue;
+		}
+//		cout << "foo" << endl;
+		// ignore rho components
+		if (F2_roots[i]->str() == "p") {
+		//	F2_LCAs.push_back(LCA());
+		F2_LCAs.push_back(F2_roots[i]);
+		//F2_LCAs.push_back(NULL);//LCA(F2_roots[i]));
+			continue;
+		}
+//		cout << "aa" << endl;
 		F2_LCAs.push_back(LCA(F2_roots[i]));
 		// number the component
 		F2_roots[i]->initialize_parameter(COMPONENT_NUMBER,i);
@@ -447,8 +464,20 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
 		// sync the component with T1
 		sync_interior_twins(F2_roots[i], &T1_LCA);
 		// keep reverse pointer for the root's twin
+//		cout << "a" << endl;
+		/*
+		cout << F2_roots[i] << endl;
+		cout << F2_roots[i]->str_subtree() << endl;
+		cout << F2_roots[i]->get_twin() << endl;
+		cout << F2_roots[i]->get_twin()->str_subtree() << endl;
+		cout << F2_roots[i]->get_twin()->get_parameter_ref(ACTIVE_DESCENDANTS) << endl;
+		cout << F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS) << endl;
+		cout << boost::any_cast<list<Node *> >(F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS))->size() << endl;
+		*/
 		boost::any_cast<list<Node *> >(F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS))->push_back(F2_roots[i]);
+//		cout << "b" << endl;
 	}
+//	cout << "syncing" << endl;
 	sync_interior_twins(T1_root, &F2_LCAs); 
 }
 
@@ -483,7 +512,10 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 	// visit right subtree first
 	if (rc != NULL)
 		sync_interior_twins(rc, F2_LCAs);
+//	cout << "SYNC_INTERIOR_TWINS()" << endl;
+//	cout << n->str_subtree() << endl;
 	if (lc == NULL && rc == NULL) {
+//		cout << "leaf" << endl;
 		active_descendants->push_back(n->get_twin());
 		list<Node *>::iterator node_location = active_descendants->end();
 		node_location--;
@@ -491,26 +523,42 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 	}
 	// no lc so propogate up
 	if (lc == NULL && rc != NULL) {
+//		cout << "no lc" << endl;
 		n->set_twin(rc->get_twin());
 		list<Node *> *rc_active_descendants = boost::any_cast<list<Node *> >(rc->get_parameter_ref(ACTIVE_DESCENDANTS));
 		active_descendants->splice(active_descendants->end(),*rc_active_descendants);
 	}
 	// no rc so propogate up
 	if (lc != NULL && rc == NULL) {
+//		cout << "no rc" << endl;
 		n->set_twin(lc->get_twin());
 		list<Node *> *lc_active_descendants = boost::any_cast<list<Node *> >(lc->get_parameter_ref(ACTIVE_DESCENDANTS));
 		active_descendants->splice(active_descendants->end(),*lc_active_descendants);
 	}
-	else if (lc != NULL && rc == NULL)
-		n->set_twin(lc->get_twin());
 	// two children so put their info together
 	else if (lc != NULL && rc != NULL) {
+//		cout << "two children" << endl;
 		list<Node *> *lc_active_descendants = boost::any_cast<list<Node *> >(lc->get_parameter_ref(ACTIVE_DESCENDANTS));
 		list<Node *> *rc_active_descendants = boost::any_cast<list<Node *> >(rc->get_parameter_ref(ACTIVE_DESCENDANTS));
+
+/*	cout << "active_descendants lc" << endl;
+	for(list<Node *>::iterator i =  lc_active_descendants-> begin(); i != lc_active_descendants->end(); i++) {
+		cout << "\t" << (*i)->str_subtree() << endl;
+	}
+		cout << endl;
+	cout << "active_descendants rc" << endl;
+	for(list<Node *>::iterator i =  rc_active_descendants-> begin(); i != rc_active_descendants->end(); i++) {
+		cout << "\t" << (*i)->str_subtree() << endl;
+	}
+		cout << endl;
+*/
+
 		bool done = false;
 		if (lc_active_descendants->empty() || rc_active_descendants->empty())
 			done = true;
+//		cout << active_descendants->size() << endl;
 		active_descendants->splice(active_descendants->end(),*lc_active_descendants);
+//		cout << active_descendants->size() << endl;
 		list<Node *>::iterator node1_location = active_descendants->end();
 		node1_location--;
 		list<Node *>::iterator node2_location = node1_location;
@@ -519,9 +567,12 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 		/* check the intersection point to see if we have two
 			leaves from the same component
 		*/
+//		cout << "foo" << endl;
+//		cout << active_descendants->size() << endl;
 		if (!done)
 			delete_and_merge_LCAs(active_descendants, F2_LCAs, node1_location,
 					node2_location);
+//		cout << "done first merge" << endl;
 
 		/* check to see if n is twinned by a root of F2
 			 if so, then remove each leaf twinned by that component
@@ -529,20 +580,32 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 		*/
 		list<Node *> *root_lcas = boost::any_cast<list<Node *> >(n->get_parameter_ref(ROOT_LCAS));
 		while(!root_lcas->empty()) {
+
 			Node *root_lca = root_lcas->front();
 			root_lcas->pop_front();
 			/* TODO: problem when n is a root
 				 We don't care about this but it might mean there is a different
 				 problem
 				 */
-			if (n->parent() != NULL)
+			if (n->parent() != NULL) {
+//			cout << "deleting from component " << 
+//	boost::any_cast<int>(root_lca->get_parameter(COMPONENT_NUMBER))
+//			<< endl;
 				delete_and_merge_LCAs(root_lca, active_descendants, F2_LCAs);
+			}
 		}
+//		cout << "done checking component" << endl;
 
 		/* If we have a single element in n's active descendants
 			 list then set twin pointers appropriately
 		*/
+
+//	cout << "active_descendants done" << endl;
+//	for(list<Node *>::iterator i =  active_descendants->begin(); i != active_descendants->end(); i++) {
+//		cout << "\t" << (*i)->str_subtree() << endl;
+//	}
 		if (active_descendants->size() == 1) {
+//			cout << "found twin" << endl;
 			Node *twin = active_descendants->front();
 			n->set_twin(twin);
 		}
@@ -555,25 +618,55 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 void delete_and_merge_LCAs(list<Node *> *active_descendants,
 		vector<LCA> *F2_LCAs, list<Node *>:: iterator node1_location,
 		list<Node *>:: iterator node2_location) {
+//	cout << "DELETE_AND_MERGE FIRST" << endl;
+//	cout << "active_descendants before" << endl;
+//	for(list<Node *>::iterator i =  active_descendants-> begin(); i != active_descendants->end(); i++) {
+//		cout << "\t" << (*i)->str_subtree() << endl;
+//	}
+//	cout << endl;
 
 //	while(active_descendants->size() > 1) {
 	Node *n1 = *node1_location;
 	Node *n2 = *node2_location;
+//	cout << "n1=" << n1->str_subtree() << endl;
+//	cout << "n2=" << n2->str_subtree() << endl;
 	int component1 = boost::any_cast<int>(n1->get_parameter(COMPONENT_NUMBER));
 	int component2 = boost::any_cast<int>(n2->get_parameter(COMPONENT_NUMBER));
+//	cout << "c1=" << component1 << endl;
+//	cout << "c2=" << component2 << endl;
 	if (component1 == component2) {
+//		cout << "size=" << (*F2_LCAs).size() << endl;
+//		for(int i = 0; i < (*F2_LCAs).size(); i++) {
+//			if ((*F2_LCAs)[i].get_tree() == NULL)
+//				cout << "\t" << "NULL" << endl;
+//			else
+//				cout << "\t" << (*F2_LCAs)[i].get_tree()->str_subtree() << endl;
+//		}
+//		cout << (*F2_LCAs)[component1].get_tree()->str_subtree() << endl;
 		Node *lca = (*F2_LCAs)[component1].get_lca(n1,n2);
+//		cout << lca->str_subtree() << endl;
+//		cout << "xa" << endl;
 		list<Node *>::iterator lca_location =
 			active_descendants->insert(node1_location,lca);
-		boost::any_cast<list<list<Node *>::iterator> >(lca->get_parameter_ref(REMOVABLE_DESCENDANTS))->push_back(lca_location);
+//		cout << "xb" << endl;
 		active_descendants->erase(node1_location);
-		boost::any_cast<list<list<Node *>::iterator> >(n1->get_parameter_ref(REMOVABLE_DESCENDANTS))->pop_back();
+//		cout << "xc" << endl;
+		boost::any_cast<list<list<Node *>::iterator> >(n1->get_parameter_ref(REMOVABLE_DESCENDANTS))->clear();
+//		cout << "xd" << endl;
 		active_descendants->erase(node2_location);
-		boost::any_cast<list<list<Node *>::iterator> >(n2->get_parameter_ref(REMOVABLE_DESCENDANTS))->pop_back();
+//		cout << "xe" << endl;
+		boost::any_cast<list<list<Node *>::iterator> >(n2->get_parameter_ref(REMOVABLE_DESCENDANTS))->clear();
+//		cout << "xf" << endl;
+		boost::any_cast<list<list<Node *>::iterator> >(lca->get_parameter_ref(REMOVABLE_DESCENDANTS))->push_back(lca_location);
+//		cout << "xg" << endl;
 	}
 //		else {
 //			break;
 //		}
+//	}
+//	cout << "active_descendants after" << endl;
+//	for(list<Node *>::iterator i =  active_descendants-> begin(); i != active_descendants->end(); i++) {
+//		cout << "\t" << (*i)->str_subtree() << endl;
 //	}
 }
 
@@ -584,41 +677,67 @@ void delete_and_merge_LCAs(list<Node *> *active_descendants,
 	 */
 void delete_and_merge_LCAs(Node *n, list<Node *>
 		*active_descendants, vector<LCA> *F2_LCAs) {
+//	cout << n->str_subtree() << endl;
 	int component = boost::any_cast<int>(n->get_parameter(COMPONENT_NUMBER));
 	list<list<Node *>::iterator> *removable_descendants	=
 			boost::any_cast<list<list<Node *>::iterator> >(n->get_parameter_ref(REMOVABLE_DESCENDANTS));
+
+//	cout << "removable_descendants" << endl;
+//	for(list<list<Node *>::iterator>::iterator i =  removable_descendants-> begin(); i != removable_descendants->end(); i++) {
+//		cout << "\t" << (**i)->str_subtree() << endl;
+//	}
+//	cout << "foo" << endl;
 	while (!removable_descendants->empty()) {
+//		cout << "fooa" << endl;
 		list<Node *>::iterator leaf_location = removable_descendants->front();
+//		cout << "foob" << endl;
 		removable_descendants->pop_front();
+//		cout << "fooc" << endl;
+//		cout << *leaf_location << endl;
+//		cout << (*leaf_location)->str_subtree() << endl;
+//		cout << "food" << endl;
 
 		if (active_descendants->front() != *leaf_location
 				&& active_descendants->back() != *leaf_location) {
 			list<Node *>::iterator node1_location = leaf_location;
+//		cout << "fooe" << endl;
 			list<Node *>::iterator node2_location = leaf_location;
+//		cout << "foof" << endl;
 			node1_location--;
+//		cout << "foog" << endl;
 			node2_location++;
+//		cout << "fooh" << endl;
 			active_descendants->erase(leaf_location);
+//		cout << "fooi" << endl;
 			int node1_component = boost::any_cast<int>((*node1_location)->get_parameter(COMPONENT_NUMBER));
+//		cout << "fooj" << endl;
 			if (component != node1_component)
 				delete_and_merge_LCAs(active_descendants, F2_LCAs, node1_location,
 						node2_location);
+//		cout << "fook" << endl;
 		}
-		else {
+		else if (active_descendants->size() > 1){
 			active_descendants->erase(leaf_location);
 		}
 
 	}
+//	cout << "foo end" << endl;
+	// TODO: continue to lc and rc?
+	if (n->lchild() != NULL)
+		delete_and_merge_LCAs(n->lchild(), active_descendants, F2_LCAs);
+	if (n->rchild() != NULL)
+		delete_and_merge_LCAs(n->rchild(), active_descendants, F2_LCAs);
 }
 
-vector<Node *> *find_cluster_points(Forest *F) {
-	vector<Node *> *cluster_points = new vector<Node *>();
+list<Node *> *find_cluster_points(Forest *F) {
+	list<Node *> *cluster_points = new list<Node *>();
 	find_cluster_points(F->get_component(0), cluster_points);
-	cout << "foo" << endl;
+	//cout << "foo" << endl;
 	return cluster_points;
 }
 
 // find the cluster points
-void find_cluster_points(Node *n, vector<Node *> *cluster_points) {
+void find_cluster_points(Node *n, list<Node *> *cluster_points) {
 	//cout << "Start: " << n->str_subtree() << endl;
 	Node *lc = n->lchild();
 	Node *rc = n->rchild();
@@ -633,14 +752,16 @@ void find_cluster_points(Node *n, vector<Node *> *cluster_points) {
 		cout << n->get_twin()->get_twin()->get_depth() << endl;
 	cout << n->parent() << endl;
 	if (lc != NULL) {
-	cout << lc << endl;
+	cout << "lc= " << lc->str_subtree() << endl;
 	cout << lc->get_depth() << endl;
-	//cout << lc->get_twin()->get_twin()->get_depth() << endl;
+	if (lc->get_twin() != NULL)
+	cout << lc->get_twin()->get_twin()->get_depth() << endl;
 	}
 	if (rc != NULL) {
-	cout << rc << endl;
+	cout << "rc= " << rc->str_subtree() << endl;
 	cout << rc->get_depth() << endl;
-	//cout << rc->get_twin()->get_twin()->get_depth() << endl;
+	if (rc->get_twin() != NULL)
+	cout << rc->get_twin()->get_twin()->get_depth() << endl;
 	}
 	*/
 	if (n->get_twin() != NULL
@@ -652,6 +773,7 @@ void find_cluster_points(Node *n, vector<Node *> *cluster_points) {
 				|| lc->get_depth() > lc->get_twin()->get_twin()->get_depth()
 				|| rc->get_twin() == NULL
 				|| rc->get_depth() > rc->get_twin()->get_twin()->get_depth())) {
+//		cout << "added cluster_point" << endl;
 		cluster_points->push_back(n);
 	}
 	//cout << "End: " << n->str_subtree() << endl;
@@ -668,3 +790,4 @@ void expand_contracted_nodes(Forest *F) {
 		expand_contracted_nodes(F->get_component(i));
 	}
 }
+#endif

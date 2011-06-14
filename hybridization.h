@@ -26,30 +26,16 @@ You should have received a copy of the GNU General Public License
 along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
-#ifndef INCLUDE_CSTDIO
-	#define INCLUDE_CSTDIO
-	#include <cstdio>
-#endif
-#ifndef INCLUDE_STRING
-	#define INCLUDE_STRING
-	#include <string>
-#endif
-#ifndef INCLUDE_IOSTREAM
-	#define INCLUDE_IOSTREAM
-	#include <iostream>
-#endif
-#ifndef INCLUDE_LIST
-	#define INCLUDE_LIST
-	#include <list>
-#endif
-#ifndef INCLUDE_BOOST_ADJACENCY_LIST
-	#define INCLUDE_BOOST_ADJACENCY_LIST
-	#include <boost/graph/adjacency_list.hpp>
-#endif
-#ifndef INCLUDE_BOOST_DFS
-	#define INCLUDE_BOOST_DFS
-	#include <boost/graph/depth_first_search.hpp>
-#endif
+#ifndef INCLUDE_HYBRIDIZATION
+
+#define INCLUDE_HYBRIDIZATION
+
+#include <cstdio>
+#include <string>
+#include <iostream>
+#include <list>
+#include <boost/graph/adjacency_list.hpp>
+#include <boost/graph/depth_first_search.hpp>
 #include <boost/graph/graphviz.hpp>
 //#include <boost/tuple/tuple.hpp>
 //#include <boost/graph/visitors.hpp>
@@ -293,3 +279,5 @@ bool has_cycle(Graph *g) {
   	boost::depth_first_search(*g, visitor(vis));
 	return has_cycle; 	
 }
+
+#endif

@@ -26,30 +26,15 @@ You should have received a copy of the GNU General Public License
 along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
-#ifndef INCLUDE_CSTDIO
-	#define INCLUDE_CSTDIO
-	#include <cstdio>
-#endif
-#ifndef INCLUDE_STRING
-	#define INCLUDE_STRING
-	#include <string>
-#endif
-#ifndef INCLUDE_IOSTREAM
-	#define INCLUDE_IOSTREAM
-	#include <iostream>
-#endif
-#ifndef INCLUDE_NODE
-	#define INCLUDE_NODE
-	#include "Node.h"
-#endif
-#ifndef INCLUDE_VECTOR
-	#define INCLUDE_VECTOR
-	#include <vector>
-#endif
-#ifndef INCLUDE_MATH
-	#define INCLUDE_MATH
-	#include <cmath>
-#endif
+#ifndef INCLUDE_LCA
+
+#define INCLUDE_LCA
+#include <cstdio>
+#include <string>
+#include <iostream>
+#include "Node.h"
+#include <vector>
+#include <cmath>
 using namespace std;
 
 int mylog2 (int val) {
@@ -75,6 +60,10 @@ class LCA {
 		this->tree = tree;
 		euler_tour(tree, 0);
 		precompute_rmq();
+	}
+
+	LCA() {
+		this->tree = NULL;
 	}
 	void euler_tour(Node *node, int depth) {
 		// First visit
@@ -148,6 +137,11 @@ class LCA {
 			lca_index = rmq(H[preorder_b], H[preorder_a]);
 		return N[lca_index];
 	}
+
+	Node *get_tree() {
+		return tree;
+	}
+
 	/* copy constructor
 	LCA(const LCA &n) {
 	}
@@ -179,3 +173,4 @@ class LCA {
 	}
 };
 
+#endif

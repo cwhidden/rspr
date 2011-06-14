@@ -24,10 +24,11 @@ You should have received a copy of the GNU General Public License
 along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 *******************************************************************************/
-#ifndef INCLUDE_FOREST
-	#define INCLUDE_FOREST
-	#include "Forest.h"
-#endif
+#ifndef INCLUDE_CLUSTERFOREST
+
+#define INCLUDE_CLUSTERFOREST
+#include "Forest.h"
+
 using namespace std;
 
 class ClusterForest: public Forest {
@@ -123,3 +124,4 @@ class ClusterForest: public Forest {
 void swap(ClusterForest **a, ClusterForest **b) {
 	(*a)->swap(*b);
 }
+#endif

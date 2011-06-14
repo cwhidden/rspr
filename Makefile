@@ -3,7 +3,7 @@ CC64=x86_64-w64-mingw32-g++
 CFLAGS=-O2
 C64FLAGS=$(CFLAGS)
 BOOST_GRAPH=-lboost_graph-mt
-BOOST_ANY=
+BOOST_ANY=-L/lib/libboost*
 LFLAGS=$(BOOST_GRAPH) $(BOOST_ANY)
 DEBUGFLAGS=-g -pg
 all:
