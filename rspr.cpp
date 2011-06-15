@@ -95,7 +95,7 @@ exact BB drSPR=4
 
 *******************************************************************************/
 
-#define DEBUG 1
+//#define DEBUG 1
 #define MAX_SPR 1000
 
 #include <cstdio>
@@ -1048,10 +1048,12 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				cout << "Fetching sibling pair" << endl;
 				T1_ac->print_subtree();
 				cout << "T2_a" << ": ";
+				cout << " d=" << T2_a->get_depth() << " ";
 				T2_a->print_subtree();
 				cout << "T1_c" << ": ";
 				T1_c->print_subtree();
 				cout << "T2_c" << ": ";
+				cout << " d=" << T2_c->get_depth() << " ";
 				T2_c->print_subtree();
 			#endif
 
@@ -1088,7 +1090,13 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				#endif
 				
 				//  ensure T2_a is below T2_c
-				if (T2_a->get_depth() < T2_c->get_depth()) {
+				if ((T2_a->get_depth() < T2_c->get_depth()
+						&& T2_c->parent() != NULL)
+						|| T2_a->parent() == NULL) {
+					#ifdef DEBUG
+						cout << "swapping" << endl;
+					#endif
+				
 					swap(&T1_a, &T1_c);
 					swap(&T2_a, &T2_c);
 				}
@@ -1106,6 +1114,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				Node *T2_b = T2_ab->rchild();
 				#ifdef DEBUG
 				cout << "T2_b" << ": ";
+				cout.flush();
 				T2_b->print_subtree();
 			#endif
 				if (T2_b == T2_a)
@@ -1587,6 +1596,7 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 	cout << "foo4" << endl;
 	int final_k = 
 		rSPR_branch_and_bound_hlpr(T1, T2, k, &sibling_pairs, &singletons, false);
+		cout << "foo" << endl;
 	if (final_k >= 0)
 		final_k = k - final_k;
 	return final_k;
@@ -1691,6 +1701,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					cluster.F2->print_components_with_twins();
 					int cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
 							cluster.F2, k);
+					cout << "foo" << endl;
 					if (cluster_spr >= 0) {
 						cout << "cluster k=" << cluster_spr << endl;
 						cout << "\tF1: ";
@@ -1709,13 +1720,13 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					if (!cluster.is_original()) {
 						cluster.join_cluster(T1, T2);
 
-						cout << cluster.F1_cluster_node->str_subtree() << endl;
-						cout << cluster.F2_cluster_node->str_subtree() << endl;
-						Node *p = cluster.F1_cluster_node;
-						while (p->parent() != NULL)
-							p = p->parent();
-						cout << &(*p) << endl;
-						cout << p->str_subtree() << endl;
+//						cout << cluster.F1_cluster_node->str_subtree() << endl;
+//						cout << cluster.F2_cluster_node->str_subtree() << endl;
+//						Node *p = cluster.F1_cluster_node;
+//						while (p->parent() != NULL)
+//							p = p->parent();
+//						cout << &(*p) << endl;
+//						cout << p->str_subtree() << endl;
 
 
 						cout << "\tF1: ";
@@ -1845,7 +1856,9 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				int answer_c = -1;
 				bool cut_ab_only = false;
 				//  ensure T2_a is below T2_c
-				if (T2_a->get_depth() < T2_c->get_depth()) {
+				if ((T2_a->get_depth() < T2_c->get_depth()
+						&& T2_c->parent() != NULL)
+						|| T2_a->parent() == NULL) {
 					swap(&T1_a, &T1_c);
 					swap(&T2_a, &T2_c);
 				}
