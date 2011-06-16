@@ -122,7 +122,11 @@ class LCA {
 		//cout << "  " << length << endl;
 		//cout << "  " << j - (1 << (length)) << endl;
 		int rmq1 = RMQ[length+1][i];
-		int rmq2 = RMQ[length+1][j - (1 << (length))];
+		int rmq2;
+		if (length >= 0)
+			rmq2 = RMQ[length+1][j - (1 << (length))];
+		else
+			rmq2 = RMQ[length+1][j];
 		if (rmq1 < rmq2)
 			return rmq1;
 		return rmq2;

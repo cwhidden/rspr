@@ -5,7 +5,7 @@ C64FLAGS=$(CFLAGS)
 BOOST_GRAPH=-lboost_graph-mt
 BOOST_ANY=-L/lib/libboost*
 LFLAGS=$(BOOST_GRAPH) $(BOOST_ANY)
-DEBUGFLAGS=-g -pg
+DEBUGFLAGS=-g -pg -O0
 all:
 	$(CC) $(CFLAGS) -o rspr rspr.cpp
 .PHONY: test

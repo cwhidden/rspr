@@ -567,6 +567,10 @@ int main(int argc, char *argv[]) {
 				Forest F2 = Forest(F4);
 				exact_spr = rSPR_branch_and_bound(&F1, &F2);
 				if (exact_spr >= 0) {
+					cout << "F1: ";
+					F1.print_components();
+					cout << "F2: ";
+					F2.print_components();
 					F1.numbers_to_labels(&reverse_label_map);
 					F2.numbers_to_labels(&reverse_label_map);
 					cout << endl;
@@ -1568,7 +1572,7 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 		F1.print_components();
 		Forest F2 = Forest(T2);
 		exact_spr = rSPR_branch_and_bound(&F1, &F2, k);
-		if (exact_spr >= 0) {
+		if (exact_spr >= 0 || k == end_k) {
 			F1.swap(T1);
 			F2.swap(T2);
 			break;
@@ -1692,6 +1696,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				while(!clusters.empty()) {
 					ClusterInstance cluster = clusters.front();
 					clusters.pop_front();
+					cluster.F1->unsync_interior();
+					cluster.F2->unsync_interior();
 					cout << "CLUSTER_START" << endl;
 //					cout << &(*cluster.F1->get_component(0)) << endl;
 //					cout << &(*clusters.front().F1->get_component(0)) << endl;
@@ -1699,8 +1705,10 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					cluster.F1->print_components_with_twins();
 					cout << "\tF2: ";
 					cluster.F2->print_components_with_twins();
-					int cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
-							cluster.F2, k);
+					int cluster_spr = -1;
+					if (k >= 0)
+						cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
+								cluster.F2, k);
 					cout << "foo" << endl;
 					if (cluster_spr >= 0) {
 						cout << "cluster k=" << cluster_spr << endl;

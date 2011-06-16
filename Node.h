@@ -134,6 +134,7 @@ class Node {
 			p->delete_child(this);
 			//p = NULL;
 		}
+		clear_parameters();
 	}
 	// delete a subtree
 	void delete_tree() {
@@ -143,9 +144,11 @@ class Node {
 		if (lc != NULL) {
 			lc->delete_tree();
 		}
+		lc = NULL;
 		if (rc != NULL) {
 			rc->delete_tree();
 		}
+		rc = NULL;
 	}
 
 	// cut edge between parent and child

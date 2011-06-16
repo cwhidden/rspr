@@ -50,6 +50,8 @@ class ClusterInstance {
 	ClusterInstance(const ClusterInstance &c) {
 		init(c.F1,c.F2,c.F1_cluster_node,c.F2_cluster_node);
 	}
+	~ClusterInstance() {
+	}
 
 	void init(Forest *f1, Forest *f2, Node *f1_cluster_node,
 			Node *f2_cluster_node) {
@@ -58,9 +60,6 @@ class ClusterInstance {
 		F1_cluster_node = f1_cluster_node;
 		F2_cluster_node = f2_cluster_node;
 	}
-
-	~ClusterInstance() {
-	} 
 
 	bool is_original() {
 		if (F1_cluster_node == NULL && F2_cluster_node == NULL)
@@ -88,7 +87,7 @@ class ClusterInstance {
 		if (F2->contains_rho()) {
 			F2_cluster_node->contract();
 		}
-		else if (F2_cluster_node != NULL) {
+		else if (F2_cluster_node != NULL && F1->get_component(0)->get_twin() != NULL) {
 			F2_cluster_node->add_child(F1->get_component(0)->get_twin());
 			skip = boost::any_cast<int>(F1->get_component(0)->get_twin()->
 					get_parameter(COMPONENT_NUMBER)); 
@@ -162,6 +161,8 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 			F2_root_node->cut_parent();
 		}
 		else {
+			// TODO: make a spot to put the component back
+			// do we need an extra var to remember this case?
 			old_F2_keep_components[cnumber] = false;
 		}
 		cluster_reduction_find_components(F1_root_node,
