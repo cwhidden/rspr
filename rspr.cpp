@@ -1571,6 +1571,7 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 		Forest F1 = Forest(T1);
 		F1.print_components();
 		Forest F2 = Forest(T2);
+		F2.print_components();
 		exact_spr = rSPR_branch_and_bound(&F1, &F2, k);
 		if (exact_spr >= 0 || k == end_k) {
 			F1.swap(T1);
@@ -1621,143 +1622,6 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		cout << endl;
 //		#endif
 
-		if (CLUSTER_REDUCTION) {
-			// clean up singletons
-			// TODO: this is duplication
-		while(!singletons->empty()) {
-			Node *T2_a = singletons->back();
-			singletons->pop_back();
-			// find twin in T1
-			Node *T1_a = T2_a->get_twin();
-			// if this is in the first component of T_2 then
-			// it is not really a singleton.
-			Node *T1_a_parent = T1_a->parent();
-			if (T1_a_parent == NULL)
-				continue;
-			bool potential_new_sibling_pair = T1_a_parent->is_sibling_pair();
-			if (T2_a == T2->get_component(0)) {
-				T1->add_rho();
-				T2->add_rho();
-				k--;
-			}
-
-			// cut the edge above T1_a
-			T1_a->cut_parent();
-			T1->add_component(T1_a);
-			Node *node = T1_a_parent->contract();
-			if (potential_new_sibling_pair && node->is_sibling_pair()){
-				sibling_pairs->push_front(node->lchild());
-				sibling_pairs->push_front(node->rchild());
-			}
-		}
-//			cout << "foo" << endl;
-//			cout << "foo2" << endl;
-			sync_interior_twins_real(T1, T2);
-			list<Node *> *cluster_points = find_cluster_points(T1);
-
-			// TODO: could this be faster by using the approx to allocate
-			// a certain amount of the k to different clusters?
-			// TODO: write pseudocode for what we need
-			// TODO: then implement it
-			// NOTE: need to make a list of ClusterInstances and then
-			// solve each.
-			// TODO: where should we do this? Just before we would
-			// normally branch?
-
-			cout << "k=" << k << endl;
-			cout << "cp=" << cluster_points->size() << endl;
-				cout << "\tT1: ";
-				T1->print_components();
-				cout << "\tT2: ";
-				T2->print_components();
-			if (!cluster_points->empty()) {
-				cout << "CLUSTERS" << endl;
-				for(int j = 0; j < 70; j++) {
-					cout << "*";
-				}
-				cout << endl;
-				for(list<Node *>::iterator i = cluster_points->begin();
-						i != cluster_points->end(); i++) {
-					cout << (*i)->str_subtree() << endl;
-					cout << (*i)->get_twin()->str_subtree() << endl;
-					for(int j = 0; j < 70; j++) {
-						cout << "*";
-					}
-					cout << endl;
-				}
-				cout << endl;
-
-				list<ClusterInstance> clusters =
-					cluster_reduction(T1, T2, cluster_points);
-
-				// TODO: make it so we don't need this?
-				T1->unsync_interior();
-				T2->unsync_interior();
-				while(!clusters.empty()) {
-					ClusterInstance cluster = clusters.front();
-					clusters.pop_front();
-					cluster.F1->unsync_interior();
-					cluster.F2->unsync_interior();
-					cout << "CLUSTER_START" << endl;
-//					cout << &(*cluster.F1->get_component(0)) << endl;
-//					cout << &(*clusters.front().F1->get_component(0)) << endl;
-					cout << "\tF1: ";
-					cluster.F1->print_components_with_twins();
-					cout << "\tF2: ";
-					cluster.F2->print_components_with_twins();
-					int cluster_spr = -1;
-					if (k >= 0)
-						cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
-								cluster.F2, k);
-					cout << "foo" << endl;
-					if (cluster_spr >= 0) {
-						cout << "cluster k=" << cluster_spr << endl;
-						cout << "\tF1: ";
-						cluster.F1->print_components();
-						cout << "\tF2: ";
-						cluster.F2->print_components();
-						k -= cluster_spr;
-					}
-					else {
-						k = -1;
-					}
-					cout << "\tF1: ";
-					T1->print_components();
-					cout << "\tF2: ";
-					T2->print_components();
-					if (!cluster.is_original()) {
-						cluster.join_cluster(T1, T2);
-
-//						cout << cluster.F1_cluster_node->str_subtree() << endl;
-//						cout << cluster.F2_cluster_node->str_subtree() << endl;
-//						Node *p = cluster.F1_cluster_node;
-//						while (p->parent() != NULL)
-//							p = p->parent();
-//						cout << &(*p) << endl;
-//						cout << p->str_subtree() << endl;
-
-
-						cout << "\tF1: ";
-						T1->print_components();
-						cout << "\tF2: ";
-						T2->print_components();
-					}
-					else {
-						cout << "original" << endl;
-					}
-				}
-				delete cluster_points;
-				cout << "returning k=" << k << endl;
-				return k;
-			}
-			else {
-				T1->unsync_interior();
-				T2->unsync_interior();
-			}
-			delete cluster_points;
-
-//			cout << "done" << endl;
-		}
 	
 	while(!singletons->empty() || !sibling_pairs->empty()) {
 		// Case 1 - Remove singletons
@@ -1941,6 +1805,148 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					return -1;
 				}
 				
+			if (CLUSTER_REDUCTION) {
+				// clean up singletons
+				// TODO: this is duplication
+				/*
+			while(!singletons->empty()) {
+				Node *T2_a = singletons->back();
+				singletons->pop_back();
+				// find twin in T1
+				Node *T1_a = T2_a->get_twin();
+				// if this is in the first component of T_2 then
+				// it is not really a singleton.
+				Node *T1_a_parent = T1_a->parent();
+				if (T1_a_parent == NULL)
+					continue;
+				bool potential_new_sibling_pair = T1_a_parent->is_sibling_pair();
+				if (T2_a == T2->get_component(0)) {
+					T1->add_rho();
+					T2->add_rho();
+					k--;
+				}
+	
+				// cut the edge above T1_a
+				T1_a->cut_parent();
+				T1->add_component(T1_a);
+				Node *node = T1_a_parent->contract();
+				if (potential_new_sibling_pair && node->is_sibling_pair()){
+					sibling_pairs->push_front(node->lchild());
+					sibling_pairs->push_front(node->rchild());
+				}
+			}
+			*/
+	//			cout << "foo" << endl;
+	//			cout << "foo2" << endl;
+				cout << "\tT1: ";
+				T1->print_components();
+				cout << "\tT2: ";
+				T2->print_components();
+				sync_interior_twins_real(T1, T2);
+				list<Node *> *cluster_points = find_cluster_points(T1);
+	
+				// TODO: could this be faster by using the approx to allocate
+				// a certain amount of the k to different clusters?
+				// TODO: write pseudocode for what we need
+				// TODO: then implement it
+				// NOTE: need to make a list of ClusterInstances and then
+				// solve each.
+				// TODO: where should we do this? Just before we would
+				// normally branch?
+	
+				cout << "k=" << k << endl;
+				cout << "cp=" << cluster_points->size() << endl;
+				if (!cluster_points->empty()) {
+					sibling_pairs->clear();
+					cout << "CLUSTERS" << endl;
+					for(int j = 0; j < 70; j++) {
+						cout << "*";
+					}
+					cout << endl;
+					for(list<Node *>::iterator i = cluster_points->begin();
+							i != cluster_points->end(); i++) {
+						cout << (*i)->str_subtree() << endl;
+						cout << (*i)->get_twin()->str_subtree() << endl;
+						for(int j = 0; j < 70; j++) {
+							cout << "*";
+						}
+						cout << endl;
+					}
+					cout << endl;
+	
+					list<ClusterInstance> clusters =
+						cluster_reduction(T1, T2, cluster_points);
+	
+					// TODO: make it so we don't need this?
+					T1->unsync_interior();
+					T2->unsync_interior();
+					while(!clusters.empty()) {
+						ClusterInstance cluster = clusters.front();
+						clusters.pop_front();
+						cluster.F1->unsync_interior();
+						cluster.F2->unsync_interior();
+						cout << "CLUSTER_START" << endl;
+	//					cout << &(*cluster.F1->get_component(0)) << endl;
+	//					cout << &(*clusters.front().F1->get_component(0)) << endl;
+						cout << "\tF1: ";
+						cluster.F1->print_components_with_twins();
+						cout << "\tF2: ";
+						cluster.F2->print_components_with_twins();
+						int cluster_spr = -1;
+						if (k >= 0)
+							cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
+									cluster.F2, k);
+						cout << "foo" << endl;
+						if (cluster_spr >= 0) {
+							cout << "cluster k=" << cluster_spr << endl;
+							cout << "\tF1: ";
+							cluster.F1->print_components();
+							cout << "\tF2: ";
+							cluster.F2->print_components();
+							k -= cluster_spr;
+						}
+						else {
+							k = -1;
+						}
+						if (k > -1) {
+							cout << "\tF1: ";
+							T1->print_components();
+							cout << "\tF2: ";
+							T2->print_components();
+						if (!cluster.is_original()) {
+							cluster.join_cluster(T1, T2);
+	
+	//						cout << cluster.F1_cluster_node->str_subtree() << endl;
+	//						cout << cluster.F2_cluster_node->str_subtree() << endl;
+	//						Node *p = cluster.F1_cluster_node;
+	//						while (p->parent() != NULL)
+	//							p = p->parent();
+	//						cout << &(*p) << endl;
+	//						cout << p->str_subtree() << endl;
+	
+	
+							//cout << "\tF1: ";
+							//T1->print_components();
+							//cout << "\tF2: ";
+							//T2->print_components();
+						}
+						}
+						else {
+							cout << "original" << endl;
+						}
+					}
+					delete cluster_points;
+					cout << "returning k=" << k << endl;
+					return k;
+				}
+				else {
+					T1->unsync_interior();
+					T2->unsync_interior();
+				}
+				delete cluster_points;
+	
+	//			cout << "done" << endl;
+			}
 
 				// make copies for the branching
 				copy_trees(&T1, &T2, &sibling_pairs, &T1_a, &T1_c, &T2_a, &T2_c,

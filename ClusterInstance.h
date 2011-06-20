@@ -38,27 +38,29 @@ class ClusterInstance {
 		Forest *F2;
 		Node *F1_cluster_node;
 		Node *F2_cluster_node;
+		bool F2_has_component_zero;
 
 	public:
 	ClusterInstance(){
-		init(NULL, NULL, NULL, NULL);
+		init(NULL, NULL, NULL, NULL, false);
 	}
 	ClusterInstance(Forest *f1, Forest *f2, Node *f1_cluster_node,
-			Node *f2_cluster_node) {
-		init (f1, f2, f1_cluster_node, f2_cluster_node);
+			Node *f2_cluster_node,bool f2_has_component_zero) {
+		init (f1, f2, f1_cluster_node, f2_cluster_node, f2_has_component_zero);
 	}
 	ClusterInstance(const ClusterInstance &c) {
-		init(c.F1,c.F2,c.F1_cluster_node,c.F2_cluster_node);
+		init(c.F1,c.F2,c.F1_cluster_node,c.F2_cluster_node,c.F2_has_component_zero);
 	}
 	~ClusterInstance() {
 	}
 
 	void init(Forest *f1, Forest *f2, Node *f1_cluster_node,
-			Node *f2_cluster_node) {
+			Node *f2_cluster_node, bool f2_has_component_zero) {
 		F1 = f1;
 		F2 = f2;
 		F1_cluster_node = f1_cluster_node;
 		F2_cluster_node = f2_cluster_node;
+		F2_has_component_zero = f2_has_component_zero;
 	}
 
 	bool is_original() {
@@ -84,13 +86,30 @@ class ClusterInstance {
 		}
 
 		int skip = -1;
-		if (F2->contains_rho()) {
+		Node *F2_cluster = F1->get_component(0)->get_twin();
+		// TODO: this is still not quite right. We should only add the cluster
+		//to the front if that is where it came from
+		cout << "F1_rho=" << F1->contains_rho() << endl;
+		cout << "F2_rho=" << F2->contains_rho() << endl;
+//		if (F2->contains_rho()) {
+		if (F1->contains_rho() || F2->contains_rho()) {
+			if (F2_has_component_zero) {
+				cout << "PROBLEM!!" << endl;
+			}
 			F2_cluster_node->contract();
 		}
-		else if (F2_cluster_node != NULL && F1->get_component(0)->get_twin() != NULL) {
-			F2_cluster_node->add_child(F1->get_component(0)->get_twin());
-			skip = boost::any_cast<int>(F1->get_component(0)->get_twin()->
+		else if (F2_cluster != NULL) {
+			skip = boost::any_cast<int>(F2_cluster->
 					get_parameter(COMPONENT_NUMBER)); 
+			if (F2_has_component_zero) {
+				original_F2->add_component(0, F2_cluster);
+			}
+			else if (F2_cluster_node == NULL) {
+				skip = -1;
+			}
+			else {
+				F2_cluster_node->add_child(F2_cluster);
+			}
 		}
 		// should we add these to a finished_components or something?
 		for(int i = 0; i < F2->num_components(); i++) {
@@ -98,11 +117,22 @@ class ClusterInstance {
 				original_F2->add_component(F2->get_component(i));
 		}
 
+		/*
+		cout << "Joined" << endl;
+		cout << F1_cluster_node << endl;
+		cout << F1->get_component(0) << endl;
+		if (!F1->contains_rho() && F1_cluster_node != NULL)
+			cout << F1_cluster_node->str_subtree() << endl;
+		else {
+			cout << F1->get_component(0)->str_subtree() << endl;
+		}
+		if (!F1->contains_rho() && !F2->contains_rho() && F2_cluster_node != NULL)
+			cout << F2_cluster_node->str_subtree() << endl;
+		else
+			cout << F2_cluster->str_subtree() << endl;
+			*/
 		F1->erase_components();
 		F2->erase_components();
-//		cout << "Joined" << endl;
-//		cout << F1_cluster_node->str_subtree() << endl;
-//		cout << F2_cluster_node->str_subtree() << endl;
 
 	}
 
@@ -140,7 +170,7 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 		// Cluster F1
 		Node *F1_root_node = *i;
 		Node *F1_cluster_node = F1_root_node->parent();
-		Node *p = F1_cluster_node;
+//		Node *p = F1_cluster_node;
 //		while (p->parent() != NULL)
 //			p = p->parent();
 //		cout << "root address=" << &(*p) << endl;
@@ -157,14 +187,16 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 			vector<bool>(old_F2->num_components(), false);
 		int cnumber = boost::any_cast<int>(
 				F2_root_node->get_parameter(COMPONENT_NUMBER)); 
+		bool F2_has_component_zero = false;
 		if (F2_root_node->parent() != NULL) {
 			F2_root_node->cut_parent();
 		}
 		else {
-			// TODO: make a spot to put the component back
-			// do we need an extra var to remember this case?
-			old_F2_keep_components[cnumber] = false;
+			old_F2_keep_components[cnumber] = false;		
+			if (cnumber == 0)
+				F2_has_component_zero = true;
 		}
+
 		cluster_reduction_find_components(F1_root_node,
 				&F2_cluster_copy_components, &old_F2_keep_components, cnumber);
 		vector<Node *> cluster_F2_components = vector<Node *>();
@@ -175,7 +207,7 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 		}
 		Forest *F2 = new Forest(cluster_F2_components);
 		clusters.push_back(ClusterInstance(F1, F2, F1_cluster_node,
-					F2_cluster_node));
+					F2_cluster_node, F2_has_component_zero));
 
 //		for(int i = 0; i < F2_cluster_copy_components.size(); i++) {
 //			if (F2_cluster_copy_components[i] == true) {
@@ -208,7 +240,7 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 	delete replace_old_F2;
 
 
-	clusters.push_back(ClusterInstance(old_F1, old_F2, NULL, NULL));
+	clusters.push_back(ClusterInstance(old_F1, old_F2, NULL, NULL, true));
 
 	return clusters;
 

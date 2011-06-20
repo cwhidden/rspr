@@ -166,6 +166,9 @@ class Forest {
 	inline void add_component(Node *head) {
 		components.push_back(head);
 	}
+	inline void add_component(int pos, Node *head) {
+		components.insert(components.begin() + pos, head);
+	}
 	inline void add_deleted_node(Node *n) {
 		deleted_nodes.push_back(n);
 	}
@@ -485,7 +488,10 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
 		// list of nodes that get deleted when a component is finished
 		F2_roots[i]->initialize_parameter(REMOVABLE_DESCENDANTS,list<list<Node *>::iterator>());
 		// sync the component with T1
-		sync_interior_twins(F2_roots[i], &T1_LCA);
+		if (F2_roots[i]->str() != "p" &&
+				!(F2_roots[i]->get_twin() != NULL && F2_roots[i]->get_twin()->parent() == NULL)) {
+			sync_interior_twins(F2_roots[i], &T1_LCA);
+		}
 		// keep reverse pointer for the root's twin
 		cout << "a" << endl;
 		/*
@@ -497,7 +503,10 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
 		cout << F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS) << endl;
 		cout << boost::any_cast<list<Node *> >(F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS))->size() << endl;
 		*/
-		boost::any_cast<list<Node *> >(F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS))->push_back(F2_roots[i]);
+		if (i > 0)
+			boost::any_cast<list<Node *> >(F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS))->push_back(F2_roots[i]);
+		else
+			boost::any_cast<list<Node *> >(T1_root->get_parameter_ref(ROOT_LCAS))->push_back(F2_roots[i]);
 //		cout << "b" << endl;
 	}
 	cout << "syncing" << endl;
