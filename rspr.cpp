@@ -1876,7 +1876,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 	
 //				cout << "k=" << k << endl;
 //				cout << "cp=" << cluster_points->size() << endl;
-				if (false && !cluster_points->empty()) {
+				if (!cluster_points->empty()) {
 					NUM_CLUSTERS++;
 					sibling_pairs->clear();
 //					cout << "CLUSTERS" << endl;

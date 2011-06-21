@@ -48,14 +48,6 @@ vector<Node *> find_sibling_pairs(Node *node);
 vector<Node *> find_leaves(Node *node);
 */
 
-// parameter types
-enum PARAMETER_TYPE {
-	COMPONENT_NUMBER,
-	ACTIVE_DESCENDANTS,
-	REMOVABLE_DESCENDANTS,
-	ROOT_LCAS,
-};
-
 class Node {
 	private:
 	Node *lc;			// left child
@@ -65,7 +57,12 @@ class Node {
 	string name;		// label
 	int depth;			//distance from root
 	int pre_num;	// preorder number
-	map <PARAMETER_TYPE, boost::any> parameter; // custom parameters
+
+	int component_number;
+	list <Node *> active_descendants;
+	list <Node *> root_lcas;
+	list<list <Node *>::iterator> removable_descendants;
+
 
 	public:
 	Node() {
@@ -88,7 +85,10 @@ class Node {
 		this->twin = NULL;
 		this->depth = d;
 		this->pre_num = -1;
-		this->parameter = map<PARAMETER_TYPE,boost::any>();
+		this->component_number = component_number;
+		this->active_descendants = list <Node *>();
+		this->root_lcas = list <Node *>();
+		this->removable_descendants = list< list<Node *>::iterator>();
 	}
 	// copy constructor
 	Node(const Node &n) {
@@ -96,7 +96,10 @@ class Node {
 		name = n.name;
 		twin = n.twin;
 		depth = n.depth;
-		parameter = map<PARAMETER_TYPE,boost::any>(n.parameter);
+		component_number = n.component_number;
+		active_descendants = n.active_descendants;
+		root_lcas = n.root_lcas;
+		removable_descendants = n.removable_descendants;
 		if (n.lc == NULL)
 			lc = NULL;
 		else
@@ -111,7 +114,10 @@ class Node {
 		name = n.name;
 		twin = n.twin;
 		depth = n.depth;
-		parameter = map<PARAMETER_TYPE,boost::any>(n.parameter);
+		component_number = n.component_number;
+		active_descendants = n.active_descendants;
+		root_lcas = n.root_lcas;
+		removable_descendants = n.removable_descendants;
 		if (n.lc == NULL)
 			lc = NULL;
 		else
@@ -134,7 +140,9 @@ class Node {
 			p->delete_child(this);
 			//p = NULL;
 		}
-		clear_parameters();
+		active_descendants.clear();
+		root_lcas.clear();
+		removable_descendants.clear();
 	}
 	// delete a subtree
 	void delete_tree() {
@@ -208,30 +216,48 @@ class Node {
 		return pre_num;
 	}
 
-	void set_parameter(PARAMETER_TYPE name, boost::any value) {
-		parameter[name] = value;
+	int set_component_number(int c) {
+		component_number = c;
 	}
-	void initialize_parameter(PARAMETER_TYPE name, boost::any value) {
-		parameter[name] = value;
+	int get_component_number() {
+		return component_number;
+	}
+	list <Node *> *get_active_descendants() {
+		return &active_descendants;
+	}
+	list <Node *> *get_root_lcas(){
+		return &root_lcas;
+	}
+	list<list <Node *>::iterator> *get_removable_descendants() {
+		return &removable_descendants;
+	}
+	void initialize_component_number(int value) {
+		component_number = value;
 		if (lc != NULL)
-			lc->initialize_parameter(name, value);
+			lc->initialize_component_number(value);
 		if (rc != NULL)
-			rc->initialize_parameter(name, value);
+			rc->initialize_component_number(value);
 	}
-	void clear_parameters() {
-		parameter.clear();
+	void initialize_active_descendants(list <Node *> value) {
+		active_descendants = value;
+		if (lc != NULL)
+			lc->initialize_active_descendants(value);
+		if (rc != NULL)
+			rc->initialize_active_descendants(value);
 	}
-	boost::any get_parameter(PARAMETER_TYPE name) {
-		map<PARAMETER_TYPE,boost::any>::iterator value = parameter.find(name);
-		if (value == parameter.end())
-			return boost::any();
-		else return (*value).second;
+	void initialize_root_lcas(list <Node *> value) {
+		root_lcas = value;
+		if (lc != NULL)
+			lc->initialize_root_lcas(value);
+		if (rc != NULL)
+			rc->initialize_root_lcas(value);
 	}
-	boost::any *get_parameter_ref(PARAMETER_TYPE name) {
-		map<PARAMETER_TYPE,boost::any>::iterator value = parameter.find(name);
-		if (value == parameter.end())
-			return NULL;
-		else return &((*value).second);
+	void initialize_removable_descendants(list<list <Node *>::iterator> value) {
+		removable_descendants = value;
+		if (lc != NULL)
+			lc->initialize_removable_descendants(value);
+		if (rc != NULL)
+			rc->initialize_removable_descendants(value);
 	}
 
 	/* contract:

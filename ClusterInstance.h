@@ -105,8 +105,7 @@ class ClusterInstance {
 			}
 		}
 		else if (F2_cluster != NULL) {
-			skip = boost::any_cast<int>(F2_cluster->
-					get_parameter(COMPONENT_NUMBER)); 
+			skip = F2_cluster->get_component_number();
 			if (F2_has_component_zero) {
 				original_F2->add_component(0, F2_cluster);
 			}
@@ -157,8 +156,7 @@ void cluster_reduction_find_components(Node *n,
 		cluster_reduction_find_components(rc, F2_cluster_copy_components,
 				old_F2_keep_components, cluster_component_number);
 	if (lc == NULL && rc == NULL) {
-		int cnumber = boost::any_cast<int>(
-				n->get_twin()->get_parameter(COMPONENT_NUMBER)); 
+		int cnumber = n->get_twin()->get_component_number();
 		if (cnumber != cluster_component_number) {
 			(*F2_cluster_copy_components)[cnumber] = true;
 			(*old_F2_keep_components)[cnumber] = false;
@@ -191,8 +189,7 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 		Node *F2_cluster_node = F2_root_node->parent();
 		vector<bool> F2_cluster_copy_components =
 			vector<bool>(old_F2->num_components(), false);
-		int cnumber = boost::any_cast<int>(
-				F2_root_node->get_parameter(COMPONENT_NUMBER)); 
+		int cnumber = F2_root_node->get_component_number();
 		bool F2_has_component_zero = false;
 		if (F2_root_node->parent() != NULL) {
 			F2_root_node->cut_parent();
