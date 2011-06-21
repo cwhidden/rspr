@@ -110,11 +110,11 @@ class Forest {
 		this->components = f->components;
 		f->components = components_temp;
 		
-		/*
+//		/*
 		vector<Node *> deleted_nodes_temp = this->deleted_nodes;
 		this->deleted_nodes = f->deleted_nodes;
 		f->deleted_nodes = deleted_nodes_temp;
-		*/
+//		*/
 
 		bool rho_temp = this->rho;
 		this->rho = f->rho;
@@ -264,6 +264,13 @@ void erase_components(int start, int end) {
 void erase_components() {
 	components.clear();
 }
+void clear_parameters() {
+	vector<Node *>::iterator i;
+	for(i = components.begin(); i != components.end(); i++) {
+		(*i)->clear_parameters();
+	}
+}
+
 };
 
 // Functions
@@ -327,14 +334,14 @@ void sync_twins(Forest *T1, Forest *T2) {
 		vector<Node *>::iterator j;
 		for(j = unsorted_labels.begin(); j != unsorted_labels.end(); j++) {
 			Node *leaf = *j;
-			cout << "T1: " << leaf->str() << endl;
+//			cout << "T1: " << leaf->str() << endl;
 			if (leaf->str() == "p") {
 				T1_rho = leaf;
 			}
 			else {
 				// find smallest number contained in the label
 				int number = stomini(leaf->str());
-				cout << "\t" << number << endl;
+//				cout << "\t" << number << endl;
 				if (number >= T1_labels.size())
 					T1_labels.resize(number+1, NULL);
 				T1_labels[number] = leaf;
@@ -347,14 +354,14 @@ void sync_twins(Forest *T1, Forest *T2) {
 		vector<Node *>::iterator j;
 		for(j = unsorted_labels.begin(); j != unsorted_labels.end(); j++) {
 			Node *leaf = *j;
-			cout << "T2: " << leaf->str() << endl;
+//			cout << "T2: " << leaf->str() << endl;
 			if (leaf->str() == "p") {
 				T2_rho = leaf;
 			}
 			else {
 				// find smallest number contained in the label
 				int number = stomini(leaf->str());
-				cout << "\t" << number << endl;
+//				cout << "\t" << number << endl;
 				if (number >= T2_labels.size())
 					T2_labels.resize(number+1, NULL);
 				T2_labels[number] = leaf;
@@ -369,7 +376,7 @@ void sync_twins(Forest *T1, Forest *T2) {
 	int size = T1_labels.size();
 	if (size > T2_labels.size())
 		size = T2_labels.size();
-	cout << "Syncing Twins" << endl;
+//	cout << "Syncing Twins" << endl;
 	for(int i = 0; i < size; i++) {
 		Node *T1_a = T1_labels[i];
 		Node *T2_a = T2_labels[i];
@@ -388,7 +395,7 @@ void sync_twins(Forest *T1, Forest *T2) {
 		if (T1_a != NULL && T2_a != NULL) {
 			T1_a->set_twin(T2_a);
 			T2_a->set_twin(T1_a);
-			cout << T1_a->str() << endl;
+//			cout << T1_a->str() << endl;
 		}
 	}
 	for(int i = size; i < T1_labels.size(); i++) {
@@ -473,7 +480,7 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
 //			cout << "fooc" << endl;
 //			continue;
 //		}
-		cout << "foo" << endl;
+//		cout << "foo" << endl;
 		// ignore rho components
 		if (F2_roots[i]->str() == "p") {
 		//	F2_LCAs.push_back(LCA());
@@ -481,7 +488,7 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
 		//F2_LCAs.push_back(NULL);//LCA(F2_roots[i]));
 			continue;
 		}
-		cout << "aa" << endl;
+//		cout << "aa" << endl;
 		F2_LCAs.push_back(LCA(F2_roots[i]));
 		// number the component
 		F2_roots[i]->initialize_parameter(COMPONENT_NUMBER,i);
@@ -493,7 +500,7 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
 			sync_interior_twins(F2_roots[i], &T1_LCA);
 		}
 		// keep reverse pointer for the root's twin
-		cout << "a" << endl;
+//		cout << "a" << endl;
 		/*
 		cout << F2_roots[i] << endl;
 		cout << F2_roots[i]->str_subtree() << endl;
@@ -503,13 +510,13 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
 		cout << F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS) << endl;
 		cout << boost::any_cast<list<Node *> >(F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS))->size() << endl;
 		*/
-		if (i > 0)
+		if (i > 0 || T1->contains_rho())
 			boost::any_cast<list<Node *> >(F2_roots[i]->get_twin()->get_parameter_ref(ROOT_LCAS))->push_back(F2_roots[i]);
 		else
 			boost::any_cast<list<Node *> >(T1_root->get_parameter_ref(ROOT_LCAS))->push_back(F2_roots[i]);
 //		cout << "b" << endl;
 	}
-	cout << "syncing" << endl;
+//	cout << "syncing" << endl;
 	sync_interior_twins(T1_root, &F2_LCAs); 
 }
 
@@ -544,10 +551,10 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 	// visit right subtree first
 	if (rc != NULL)
 		sync_interior_twins(rc, F2_LCAs);
-	cout << "SYNC_INTERIOR_TWINS()" << endl;
-	cout << n->str_subtree() << endl;
+//	cout << "SYNC_INTERIOR_TWINS()" << endl;
+//	cout << n->str_subtree() << endl;
 	if (lc == NULL && rc == NULL) {
-		cout << "leaf" << endl;
+//		cout << "leaf" << endl;
 		active_descendants->push_back(n->get_twin());
 		list<Node *>::iterator node_location = active_descendants->end();
 		node_location--;
@@ -555,41 +562,41 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 	}
 	// no lc so propogate up
 	if (lc == NULL && rc != NULL) {
-		cout << "no lc" << endl;
+//		cout << "no lc" << endl;
 		n->set_twin(rc->get_twin());
 		list<Node *> *rc_active_descendants = boost::any_cast<list<Node *> >(rc->get_parameter_ref(ACTIVE_DESCENDANTS));
 		active_descendants->splice(active_descendants->end(),*rc_active_descendants);
 	}
 	// no rc so propogate up
 	if (lc != NULL && rc == NULL) {
-		cout << "no rc" << endl;
+//		cout << "no rc" << endl;
 		n->set_twin(lc->get_twin());
 		list<Node *> *lc_active_descendants = boost::any_cast<list<Node *> >(lc->get_parameter_ref(ACTIVE_DESCENDANTS));
 		active_descendants->splice(active_descendants->end(),*lc_active_descendants);
 	}
 	// two children so put their info together
 	else if (lc != NULL && rc != NULL) {
-		cout << "two children" << endl;
+//		cout << "two children" << endl;
 		list<Node *> *lc_active_descendants = boost::any_cast<list<Node *> >(lc->get_parameter_ref(ACTIVE_DESCENDANTS));
 		list<Node *> *rc_active_descendants = boost::any_cast<list<Node *> >(rc->get_parameter_ref(ACTIVE_DESCENDANTS));
 
-	cout << "active_descendants lc" << endl;
-	for(list<Node *>::iterator i =  lc_active_descendants-> begin(); i != lc_active_descendants->end(); i++) {
-		cout << "\t" << (*i)->str_subtree() << endl;
-	}
-		cout << endl;
-	cout << "active_descendants rc" << endl;
-	for(list<Node *>::iterator i =  rc_active_descendants-> begin(); i != rc_active_descendants->end(); i++) {
-		cout << "\t" << (*i)->str_subtree() << endl;
-	}
-		cout << endl;
+//	cout << "active_descendants lc" << endl;
+//	for(list<Node *>::iterator i =  lc_active_descendants-> begin(); i != lc_active_descendants->end(); i++) {
+//		cout << "\t" << (*i)->str_subtree() << endl;
+//	}
+//		cout << endl;
+//	cout << "active_descendants rc" << endl;
+//	for(list<Node *>::iterator i =  rc_active_descendants-> begin(); i != rc_active_descendants->end(); i++) {
+//		cout << "\t" << (*i)->str_subtree() << endl;
+//	}
+//		cout << endl;
 
 		bool done = false;
 		if (lc_active_descendants->empty() || rc_active_descendants->empty())
 			done = true;
-		cout << active_descendants->size() << endl;
+//		cout << active_descendants->size() << endl;
 		active_descendants->splice(active_descendants->end(),*lc_active_descendants);
-		cout << active_descendants->size() << endl;
+//		cout << active_descendants->size() << endl;
 		list<Node *>::iterator node1_location = active_descendants->end();
 		node1_location--;
 		list<Node *>::iterator node2_location = node1_location;
@@ -599,11 +606,11 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 			leaves from the same component
 		*/
 //		cout << "foo" << endl;
-		cout << active_descendants->size() << endl;
+//		cout << active_descendants->size() << endl;
 		if (!done)
 			delete_and_merge_LCAs(active_descendants, F2_LCAs, node1_location,
 					node2_location);
-		cout << "done first merge" << endl;
+//		cout << "done first merge" << endl;
 
 		/* check to see if n is twinned by a root of F2
 			 if so, then remove each leaf twinned by that component
@@ -641,6 +648,8 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 			n->set_twin(twin);
 		}
 	}
+	if (n->parent() == NULL)
+		active_descendants->clear();
 }
 
 /* merge two nodes from a list into their LCA if they are from

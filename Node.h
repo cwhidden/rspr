@@ -314,8 +314,7 @@ class Node {
 	bool contract_sibling_pair() {
 		if (lc != NULL && lc->is_leaf()
 				&& rc != NULL && rc->is_leaf()) {
-//			#ifdef DEBUG
-			#if 1
+			#ifdef DEBUG
 				string new_name = "<" + lc->str() + "," + rc->str() + ">";
 			#else
 				string new_name = "(" + lc->str() + "," + rc->str() + ")";

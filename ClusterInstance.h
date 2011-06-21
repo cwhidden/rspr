@@ -89,14 +89,20 @@ class ClusterInstance {
 		Node *F2_cluster = F1->get_component(0)->get_twin();
 		// TODO: this is still not quite right. We should only add the cluster
 		//to the front if that is where it came from
-		cout << "F1_rho=" << F1->contains_rho() << endl;
-		cout << "F2_rho=" << F2->contains_rho() << endl;
+//		cout << "F1_rho=" << F1->contains_rho() << endl;
+//		cout << "F2_rho=" << F2->contains_rho() << endl;
 //		if (F2->contains_rho()) {
 		if (F1->contains_rho() || F2->contains_rho()) {
 			if (F2_has_component_zero) {
 				cout << "PROBLEM!!" << endl;
+				if (!original_F1->contains_rho())
+					original_F1->add_rho();
+				if (!original_F2->contains_rho())
+					original_F2->add_rho();
 			}
-			F2_cluster_node->contract();
+			else {
+				F2_cluster_node->contract();
+			}
 		}
 		else if (F2_cluster != NULL) {
 			skip = boost::any_cast<int>(F2_cluster->
@@ -209,15 +215,15 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 		clusters.push_back(ClusterInstance(F1, F2, F1_cluster_node,
 					F2_cluster_node, F2_has_component_zero));
 
-//		for(int i = 0; i < F2_cluster_copy_components.size(); i++) {
-//			if (F2_cluster_copy_components[i] == true) {
-//				cluster_F2_components.push_back(
-//						(old_F2->get_component(i)));
+		for(int i = 0; i < F2_cluster_copy_components.size(); i++) {
+			if (F2_cluster_copy_components[i] == true) {
+				cluster_F2_components.push_back(
+						(old_F2->get_component(i)));
 //				cout << "true " ;
-//			}
+			}
 //			else
 //				cout << "false " ;
-//		}
+		}
 //		cout << endl;
 	}
 	// remove any clustered components from old_F2
@@ -227,13 +233,13 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 		if (old_F2_keep_components[i] == true) {
 			old_F2_remaining_components.push_back(
 					(old_F2->get_component(i)));
-			cout << "true " ;
+//			cout << "true " ;
 		}
-		else
-			cout << "false " ;
+//		else
+//			cout << "false " ;
 	}
-	cout << endl;
-	cout << endl;
+//	cout << endl;
+//	cout << endl;
 	Forest *replace_old_F2 = new Forest(old_F2_remaining_components);
 	replace_old_F2->swap(old_F2);
 	replace_old_F2->erase_components();

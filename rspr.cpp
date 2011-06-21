@@ -157,6 +157,9 @@ bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool CLUSTER_REDUCTION = false;
 bool PREFER_RHO = false;
+bool MAIN_CALL = true;
+int NUM_CLUSTERS = 0;
+int MAX_CLUSTERS = -1;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -231,6 +234,7 @@ string USAGE =
 "*******************************************************************************\n";
 
 int main(int argc, char *argv[]) {
+	int max_args = argc-1;
 	while (argc > 1) {
 		char *arg = argv[--argc];
 		if (strcmp(arg, "-fpt") == 0) {
@@ -284,6 +288,12 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-cluster") == 0) {
 			CLUSTER_REDUCTION = true;
 			PREFER_RHO = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					MAX_CLUSTERS = atoi(arg2);
+				cout << "MAX_CLUSTERS=" << MAX_CLUSTERS << endl;
+			}
 		}
 		else if (strcmp(arg, "-cluster_test") == 0) {
 			CLUSTER_TEST = true;
@@ -952,19 +962,19 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
  */
 int rSPR_worse_3_approx(Forest *T1, Forest *T2) {
 	// match up nodes of T1 and T2
-	cout << "foo" << endl;
+//	cout << "foo" << endl;
 	sync_twins(T1, T2);
-	cout << "foo" << endl;
+//	cout << "foo" << endl;
 	// find sibling pairs of T1
 	deque<Node *> sibling_pairs = T1->find_sibling_pairs();
-	cout << "foo" << endl;
+//	cout << "foo" << endl;
 	// find singletons of T2
 	list<Node *> singletons = T2->find_singletons();
-	cout << "singletons:" << endl;
-	for(list<Node *>::iterator i = singletons.begin(); i != singletons.end(); i++) {
-		cout << " ";
-		(*i)->print_subtree();
-	}
+//	cout << "singletons:" << endl;
+//	for(list<Node *>::iterator i = singletons.begin(); i != singletons.end(); i++) {
+//		cout << " ";
+//		(*i)->print_subtree();
+//	}
 	return rSPR_worse_3_approx_hlpr(T1, T2, &singletons, &sibling_pairs);
 }
 
@@ -1567,19 +1577,29 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int end_k) {
 int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 		int end_k) {
 	int exact_spr = -1;
-	for(int k = start_k; k <= end_k; k++) {
+	bool in_main = MAIN_CALL;
+	MAIN_CALL = false;
+	int k;
+	for(k = start_k-1; k <= end_k; k++) {
+		if (in_main) {
+			cout << " " << k;
+			cout.flush();
+		}
 		Forest F1 = Forest(T1);
-		F1.print_components();
+//		F1.print_components();
 		Forest F2 = Forest(T2);
-		F2.print_components();
+//		F2.print_components();
 		exact_spr = rSPR_branch_and_bound(&F1, &F2, k);
-		if (exact_spr >= 0 || k == end_k) {
+		//if (exact_spr >= 0 || k == end_k) {
+		if (exact_spr >= 0) {
 			F1.swap(T1);
 			F2.swap(T2);
 			break;
 		}
 	}
-	return exact_spr;
+	if (in_main)
+		cout << endl;
+	return k;
 }
 
 /* rSPR_branch_and_bound
@@ -1591,17 +1611,17 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
  */
 int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 	// find sibling pairs of T1
-	cout << "foo1" << endl;
+//	cout << "foo1" << endl;
 	sync_twins(T1, T2);
-	cout << "foo2" << endl;
+//	cout << "foo2" << endl;
 	deque<Node *> sibling_pairs = T1->find_sibling_pairs();
-	cout << "foo3" << endl;
+//	cout << "foo3" << endl;
 	// find singletons of T2
 	list<Node *> singletons = T2->find_singletons();
-	cout << "foo4" << endl;
+//	cout << "foo4" << endl;
 	int final_k = 
 		rSPR_branch_and_bound_hlpr(T1, T2, k, &sibling_pairs, &singletons, false);
-		cout << "foo" << endl;
+//		cout << "foo" << endl;
 	if (final_k >= 0)
 		final_k = k - final_k;
 	return final_k;
@@ -1611,7 +1631,7 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		deque<Node *> *sibling_pairs, list<Node *> *singletons,
 		bool cut_b_only) {
-//		#ifdef DEBUG
+		#ifdef DEBUG
 		cout << "rSPR_branch_and_bound_hlpr()" << endl;
 		cout << "K=" << k << endl;
 		cout << "sibling pairs:";
@@ -1620,7 +1640,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			(*i)->print_subtree_hlpr();
 		}
 		cout << endl;
-//		#endif
+		#endif
 
 	
 	while(!singletons->empty() || !sibling_pairs->empty()) {
@@ -1805,7 +1825,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					return -1;
 				}
 				
-			if (CLUSTER_REDUCTION) {
+			if (CLUSTER_REDUCTION && (MAX_CLUSTERS < 0 || NUM_CLUSTERS < MAX_CLUSTERS)) {
 				// clean up singletons
 				// TODO: this is duplication
 				/*
@@ -1838,10 +1858,10 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			*/
 	//			cout << "foo" << endl;
 	//			cout << "foo2" << endl;
-				cout << "\tT1: ";
-				T1->print_components();
-				cout << "\tT2: ";
-				T2->print_components();
+//				cout << "\tT1: ";
+//				T1->print_components();
+//				cout << "\tT2: ";
+//				T2->print_components();
 				sync_interior_twins_real(T1, T2);
 				list<Node *> *cluster_points = find_cluster_points(T1);
 	
@@ -1854,25 +1874,26 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				// TODO: where should we do this? Just before we would
 				// normally branch?
 	
-				cout << "k=" << k << endl;
-				cout << "cp=" << cluster_points->size() << endl;
-				if (!cluster_points->empty()) {
+//				cout << "k=" << k << endl;
+//				cout << "cp=" << cluster_points->size() << endl;
+				if (false && !cluster_points->empty()) {
+					NUM_CLUSTERS++;
 					sibling_pairs->clear();
-					cout << "CLUSTERS" << endl;
-					for(int j = 0; j < 70; j++) {
-						cout << "*";
-					}
-					cout << endl;
-					for(list<Node *>::iterator i = cluster_points->begin();
-							i != cluster_points->end(); i++) {
-						cout << (*i)->str_subtree() << endl;
-						cout << (*i)->get_twin()->str_subtree() << endl;
-						for(int j = 0; j < 70; j++) {
-							cout << "*";
-						}
-						cout << endl;
-					}
-					cout << endl;
+//					cout << "CLUSTERS" << endl;
+//					for(int j = 0; j < 70; j++) {
+//						cout << "*";
+//					}
+//					cout << endl;
+//					for(list<Node *>::iterator i = cluster_points->begin();
+//							i != cluster_points->end(); i++) {
+//						cout << (*i)->str_subtree() << endl;
+//						cout << (*i)->get_twin()->str_subtree() << endl;
+//						for(int j = 0; j < 70; j++) {
+//							cout << "*";
+//						}
+//						cout << endl;
+//					}
+//					cout << endl;
 	
 					list<ClusterInstance> clusters =
 						cluster_reduction(T1, T2, cluster_points);
@@ -1885,36 +1906,37 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 						clusters.pop_front();
 						cluster.F1->unsync_interior();
 						cluster.F2->unsync_interior();
-						cout << "CLUSTER_START" << endl;
+//						cout << "CLUSTER_START" << endl;
 	//					cout << &(*cluster.F1->get_component(0)) << endl;
 	//					cout << &(*clusters.front().F1->get_component(0)) << endl;
-						cout << "\tF1: ";
-						cluster.F1->print_components_with_twins();
-						cout << "\tF2: ";
-						cluster.F2->print_components_with_twins();
+//						cout << "\tF1: ";
+//						cluster.F1->print_components_with_twins();
+//						cout << "\tF2: ";
+//						cluster.F2->print_components_with_twins();
 						int cluster_spr = -1;
-						if (k >= 0)
+						if (k >= 0) {
 							cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
 									cluster.F2, k);
-						cout << "foo" << endl;
-						if (cluster_spr >= 0) {
-							cout << "cluster k=" << cluster_spr << endl;
-							cout << "\tF1: ";
-							cluster.F1->print_components();
-							cout << "\tF2: ";
-							cluster.F2->print_components();
-							k -= cluster_spr;
-						}
-						else {
-							k = -1;
+//						cout << "foo" << endl;
+							if (cluster_spr >= 0) {
+//							cout << "cluster k=" << cluster_spr << endl;
+//							cout << "\tF1: ";
+//							cluster.F1->print_components();
+//							cout << "\tF2: ";
+//							cluster.F2->print_components();
+								k -= cluster_spr;
+							}
+							else {
+								k = -1;
+							}
 						}
 						if (k > -1) {
-							cout << "\tF1: ";
-							T1->print_components();
-							cout << "\tF2: ";
-							T2->print_components();
-						if (!cluster.is_original()) {
-							cluster.join_cluster(T1, T2);
+//							cout << "\tF1: ";
+//							T1->print_components();
+//							cout << "\tF2: ";
+//							T2->print_components();
+								if (!cluster.is_original()) {
+									cluster.join_cluster(T1, T2);
 	
 	//						cout << cluster.F1_cluster_node->str_subtree() << endl;
 	//						cout << cluster.F2_cluster_node->str_subtree() << endl;
@@ -1929,19 +1951,31 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 							//T1->print_components();
 							//cout << "\tF2: ";
 							//T2->print_components();
-						}
-						}
-						else {
-							cout << "original" << endl;
-						}
+								}
+//						else {
+//							cout << "original" << endl;
+//						}
+							}
+							else {
+								if (!cluster.is_original()) {
+									//if (cluster.F1_cluster_node != NULL)
+									//	cluster.F1_cluster_node->contract();
+									//if (cluster.F2_cluster_node != NULL)
+									//	cluster.F2_cluster_node->contract();
+									delete cluster.F1;
+									delete cluster.F2;
+								}
+							}
 					}
 					delete cluster_points;
-					cout << "returning k=" << k << endl;
+//					cout << "returning k=" << k << endl;
+					NUM_CLUSTERS--;
 					return k;
 				}
 				else {
 					T1->unsync_interior();
 					T2->unsync_interior();
+					NUM_CLUSTERS--;
 				}
 				delete cluster_points;
 	
