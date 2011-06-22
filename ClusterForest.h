@@ -116,6 +116,23 @@ class ClusterForest: public Forest {
 
 	}
 
+	void join_cluster(Forest *solved_cluster) {
+		int start = 0;
+		if (solved_cluster->contains_rho()) {
+			add_rho();
+		}
+		else {
+			add_component(0,new Node(*(solved_cluster->get_component(0))));
+			start = 1;
+		}
+		// should we add these to a finished_components or something?
+		for(int i = start; i < solved_cluster->num_components(); i++) {
+			if (solved_cluster->get_component(i)->str() != "p")
+				add_component(new Node(*(solved_cluster->get_component(i))));
+		}
+
+	}
+
 };
 
 // Functions

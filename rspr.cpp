@@ -96,6 +96,8 @@ exact BB drSPR=4
 *******************************************************************************/
 
 //#define DEBUG 1
+//#define DEBUG_APPROX 1
+//#define DEBUG_CLUSTERS 1
 #define MAX_SPR 1000
 
 #include <cstdio>
@@ -477,7 +479,6 @@ int main(int argc, char *argv[]) {
 //								cout << "foo2" << endl;
 								if (exact_spr >= 0) {
 //									cout << "foo3" << endl;
-									if (i < num_clusters - 1) {
 //										cout << "foo3a" << endl;
 //										cout << "rho=" << f1t.contains_rho() << endl;
 //										cout << i << endl;
@@ -486,14 +487,19 @@ int main(int argc, char *argv[]) {
 //										f1t.print_components();
 										// TODO: problem things getting
 										// deleted?
+									if ( i < num_clusters - 1) {
 										F1.join_cluster(i,&f1t);
 //										cout << "foo3b" << endl;
 //										cout << "rho=" << f2t.contains_rho() << endl;
-										//F2.print_components();
+//										F2.print_components();
 //										f2t.print_components();
 										F2.join_cluster(i,&f2t);
-									}
 //									cout << "foo4" << endl;
+									}
+									else {
+										F1.join_cluster(&f1t);
+										F2.join_cluster(&f2t);
+									}
 									//f1.numbers_to_labels(&reverse_label_map);
 									//f2.numbers_to_labels(&reverse_label_map);
 									cout << endl;
@@ -517,8 +523,14 @@ int main(int argc, char *argv[]) {
 				//}
 
 				if (BB) {
-					F1.erase_components(0, num_clusters-1);
-					F2.erase_components(0, num_clusters-1);
+					if (F1.contains_rho()) {
+						F1.erase_components(0, num_clusters);
+						F2.erase_components(0, num_clusters);
+					}
+					else {
+						F1.erase_components(1, num_clusters+1);
+						F2.erase_components(1, num_clusters+1);
+					}
 					cout << "F1: ";
 					F1.print_components();
 					cout << "F2: ";
@@ -995,18 +1007,24 @@ int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync) {
 int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		deque<Node *> *sibling_pairs) {
 	//return rSPR_3_approx_hlpr(T1, T2, singletons, sibling_pairs);
-	#ifdef DEBUG
+	#ifdef DEBUG_APPROX
 		cout << "rSPR_worse_3_approx_hlpr" << endl;
 					cout << "\tT1: ";
-					T1->print_components();
+					T1->print_components_with_twins();
 					cout << "\tT2: ";
-					T2->print_components();
+					T2->print_components_with_twins();
+					cout << "sibling pairs:";
+					for (deque<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+						cout << "  ";
+						(*i)->print_subtree_hlpr();
+					}
+					cout << endl;
 	#endif
 	int num_cut = 0;
 	while(!singletons->empty() || !sibling_pairs->empty()) {
 		// Case 1 - Remove singletons
 		while(!singletons->empty()) {
-			#ifdef DEBUG
+			#ifdef DEBUG_APPROX
 				cout << "Case 1" << endl;
 			#endif
 
@@ -1038,7 +1056,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				sibling_pairs->push_front(node->rchild());
 			}
 
-	#ifdef DEBUG
+	#ifdef DEBUG_APPROX
 					cout << "\tT1: ";
 					T1->print_components();
 					cout << "\tT2: ";
@@ -1058,7 +1076,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 			Node *T2_a = T1_a->get_twin();
 			Node *T2_c = T1_c->get_twin();
 
-			#ifdef DEBUG
+			#ifdef DEBUG_APPROX
 				cout << "Fetching sibling pair" << endl;
 				T1_ac->print_subtree();
 				cout << "T2_a" << ": ";
@@ -1073,7 +1091,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 
 			// Case 2 - Contract identical sibling pair
 			if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent()) {
-				#ifdef DEBUG
+				#ifdef DEBUG_APPROX
 					cout << "Case 2" << endl;
 					T1->print_components();
 					T2->print_components();
@@ -1099,7 +1117,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 			}
 			// Case 3
 			else {
-				#ifdef DEBUG
+				#ifdef DEBUG_APPROX
 					cout << "Case 3" << endl;
 				#endif
 				
@@ -1107,12 +1125,13 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				if ((T2_a->get_depth() < T2_c->get_depth()
 						&& T2_c->parent() != NULL)
 						|| T2_a->parent() == NULL) {
-					#ifdef DEBUG
+					#ifdef DEBUG_APPROX
 						cout << "swapping" << endl;
 					#endif
 				
 					swap(&T1_a, &T1_c);
 					swap(&T2_a, &T2_c);
+
 				}
 				else if (T2_a->get_depth() == T2_c->get_depth()) {
 					if (T2_a->parent() && T2_c->parent() &&
@@ -1126,13 +1145,14 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				// get T2_b
 				Node *T2_ab = T2_a->parent();
 				Node *T2_b = T2_ab->rchild();
-				#ifdef DEBUG
+				if (T2_b == T2_a)
+					T2_b = T2_ab->lchild();
+
+				#ifdef DEBUG_APPROX
 				cout << "T2_b" << ": ";
 				cout.flush();
 				T2_b->print_subtree();
 			#endif
-				if (T2_b == T2_a)
-					T2_b = T2_ab->lchild();
 				// cut T1_a, T1_c, T2_a, T2_b, T2_c
 
 				bool cut_b_only = false;
@@ -1218,9 +1238,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 			}
 		}
 	}
-		// if the first component of the forests differ then we have to cut p
+		// if the first component of the forests differ then we have cut p
 		if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
-			num_cut+=3;
 			T1->add_component(new Node("p"));
 			T2->add_component(new Node("p"));
 		}
@@ -1633,6 +1652,10 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		bool cut_b_only) {
 		#ifdef DEBUG
 		cout << "rSPR_branch_and_bound_hlpr()" << endl;
+		cout << "\tT1: ";
+		T1->print_components();
+		cout << "\tT2: ";
+		T2->print_components();
 		cout << "K=" << k << endl;
 		cout << "sibling pairs:";
 		for (deque<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
@@ -1649,10 +1672,6 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			Node *T2_a = singletons->back();
 			#ifdef DEBUG
 				cout << "Case 1" << endl;
-				cout << "\tT1: ";
-				T1->print_components();
-				cout << "\tT2: ";
-				T2->print_components();
 				cout << "a " << T2_a->str() << endl;
 			#endif
 
@@ -1682,6 +1701,12 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				sibling_pairs->push_front(node->lchild());
 				sibling_pairs->push_front(node->rchild());
 			}
+			#ifdef DEBUG
+				cout << "\tT1: ";
+				T1->print_components();
+				cout << "\tT2: ";
+				T2->print_components();
+			#endif
 		}
 		if(!sibling_pairs->empty()) {
 			Node *T1_a = sibling_pairs->back();
@@ -1719,6 +1744,12 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					sibling_pairs->push_back(T1_ac->parent()->lchild());
 					sibling_pairs->push_back(T1_ac->parent()->rchild());
 				}
+				#ifdef DEBUG
+					cout << "\tT1: ";
+					T1->print_components();
+					cout << "\tT2: ";
+					T2->print_components();
+				#endif
 			}
 			/* need to copy trees and lists for branching
 			 * use forest copy constructor for T1 and T2 giving T1' and T2'
@@ -1813,15 +1844,29 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				// make copies for the approx
 				// be careful we do not kill real T1 and T2
 				// ie use the copies
+				sibling_pairs->push_front(T1_c);
+				sibling_pairs->push_front(T1_a);
 				copy_trees(&T1, &T2, &sibling_pairs, &T1_a, &T1_c, &T2_a, &T2_c,
 						&T1_copy, &T2_copy, &sibling_pairs_copy,
 						&T1_a_copy, &T1_c_copy, &T2_a_copy, &T2_c_copy);
+				sibling_pairs->pop_front();
+				sibling_pairs->pop_front();
 				int approx_spr = rSPR_worse_3_approx_hlpr(T1_copy, T2_copy,
 						singletons, sibling_pairs_copy);
 				delete T1_copy;
 				delete T2_copy;
 				delete sibling_pairs_copy;
+				#ifdef DEBUG
+					cout << "\tT1: ";
+					T1->print_components();
+					cout << "\tT2: ";
+					T2->print_components();
+					cout << "approx =" << approx_spr << endl;
+				#endif
 				if (approx_spr  >  3*k){
+					#ifdef DEBUG
+						cout << "approx failed" << endl;
+					#endif
 					return -1;
 				}
 				
@@ -1879,21 +1924,23 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				if (!cluster_points->empty()) {
 					NUM_CLUSTERS++;
 					sibling_pairs->clear();
-//					cout << "CLUSTERS" << endl;
-//					for(int j = 0; j < 70; j++) {
-//						cout << "*";
-//					}
-//					cout << endl;
-//					for(list<Node *>::iterator i = cluster_points->begin();
-//							i != cluster_points->end(); i++) {
-//						cout << (*i)->str_subtree() << endl;
-//						cout << (*i)->get_twin()->str_subtree() << endl;
-//						for(int j = 0; j < 70; j++) {
-//							cout << "*";
-//						}
-//						cout << endl;
-//					}
-//					cout << endl;
+#ifdef DEBUG_CLUSTERS
+					cout << "CLUSTERS" << endl;
+					for(int j = 0; j < 70; j++) {
+						cout << "*";
+					}
+					cout << endl;
+					for(list<Node *>::iterator i = cluster_points->begin();
+							i != cluster_points->end(); i++) {
+						cout << (*i)->str_subtree() << endl;
+						cout << (*i)->get_twin()->str_subtree() << endl;
+						for(int j = 0; j < 70; j++) {
+							cout << "*";
+						}
+						cout << endl;
+					}
+					cout << endl;
+#endif
 	
 					list<ClusterInstance> clusters =
 						cluster_reduction(T1, T2, cluster_points);

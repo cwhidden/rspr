@@ -412,20 +412,19 @@ class Node {
 
 	void str_subtree_twin_hlpr(string *s) {
 		*s += name;
-		*s += "{";
-		if (twin == NULL)
-			*s += "*";
-		else
-			*s += twin->str();
-		*s += "}";
+		if (twin != NULL) {
+			*s += "{";
+				*s += twin->str();
+			*s += "}";
+		}
 		if (!is_leaf()) {
 			*s += "(";
 			if (lc != NULL) {
-				lc->str_subtree_hlpr(s);
+				lc->str_subtree_twin_hlpr(s);
 			}
 			*s += ",";
 			if (rc != NULL) {
-				rc->str_subtree_hlpr(s);
+				rc->str_subtree_twin_hlpr(s);
 			}
 			*s += ")";
 		}
