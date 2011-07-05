@@ -41,10 +41,10 @@ using namespace std;
 
 // representation of a component with no leaves
 #define DEAD_COMPONENT "*"
-/*void find_sibling_pairs_hlpr(Node *node, vector<Node *> &sibling_pairs);
+/*void find_sibling_pairs_hlpr(Node *node, list<Node *> &sibling_pairs);
 void find_leaves_hlpr(Node *node, vector<Node *> &leaves);
 void str_subtree_hlpr(string *s);
-vector<Node *> find_sibling_pairs(Node *node);
+list<Node *> find_sibling_pairs(Node *node);
 vector<Node *> find_leaves(Node *node);
 */
 
@@ -62,6 +62,8 @@ class Node {
 	list <Node *> active_descendants;
 	list <Node *> root_lcas;
 	list<list <Node *>::iterator> removable_descendants;
+	list <Node *>::iterator sibling_pair_loc;
+	int sibling_pair_status;
 
 
 	public:
@@ -89,6 +91,8 @@ class Node {
 		this->active_descendants = list <Node *>();
 		this->root_lcas = list <Node *>();
 		this->removable_descendants = list< list<Node *>::iterator>();
+		this->sibling_pair_loc = list<Node *>::iterator(); 
+		this->sibling_pair_status = 0;
 	}
 	// copy constructor
 	Node(const Node &n) {
@@ -100,6 +104,10 @@ class Node {
 		active_descendants = n.active_descendants;
 		root_lcas = n.root_lcas;
 		removable_descendants = n.removable_descendants;
+		//sibling_pair_loc = n.sibling_pair_loc;
+		//sibling_pair_status = n.sibling_pair_status;
+		this->sibling_pair_loc = list<Node *>::iterator(); 
+		this->sibling_pair_status = 0;
 		if (n.lc == NULL)
 			lc = NULL;
 		else
@@ -118,6 +126,10 @@ class Node {
 		active_descendants = n.active_descendants;
 		root_lcas = n.root_lcas;
 		removable_descendants = n.removable_descendants;
+		//sibling_pair_loc = n.sibling_pair_loc;
+		//sibling_pair_status = n.sibling_pair_status;
+		this->sibling_pair_loc = list<Node *>::iterator(); 
+		this->sibling_pair_status = 0;
 		if (n.lc == NULL)
 			lc = NULL;
 		else
@@ -228,6 +240,9 @@ class Node {
 	list <Node *> *get_root_lcas(){
 		return &root_lcas;
 	}
+	int get_sibling_pair_status(){
+		return sibling_pair_status;
+	}
 	list<list <Node *>::iterator> *get_removable_descendants() {
 		return &removable_descendants;
 	}
@@ -299,17 +314,24 @@ class Node {
 		}
 		// if no parent then take children of single child and remove it
 		else {
+
 			// dead component or singleton, will be cleaned up by the forest
 			if (lc == NULL && rc == NULL) {
 				if (name == "")
 					name = DEAD_COMPONENT;
-				
 			}
-			//else if (!(lc && rc)) {
 			else if ((bool)lc xor (bool)rc) {
 				child = lc;
-				if (child == NULL)
+				if (rc == NULL) {
+					child = lc;
+					lc->p = NULL;
+					lc = NULL;
+				}
+				else {
 					child = rc;
+					rc->p = NULL;
+					rc = NULL;
+				}
 		// if child is a leaf then get rid of this so we don't lose refs
 				// problem: if the child is not c, then we want to copy
 				// otherwise we don't
@@ -458,7 +480,7 @@ class Node {
 		return (parent() == NULL && is_leaf());
 	}
 
-	void find_sibling_pairs_hlpr(vector<Node *> &sibling_pairs) {
+	void find_sibling_pairs_hlpr(list<Node *> *sibling_pairs) {
 		Node *lchild = this->lchild();
 		Node *rchild = this->rchild();
 		bool lchild_leaf = false;
@@ -476,15 +498,20 @@ class Node {
 				rchild->find_sibling_pairs_hlpr(sibling_pairs);
 		}
 		if (lchild_leaf && rchild_leaf) {
-			sibling_pairs.push_back(lchild);
-			sibling_pairs.push_back(rchild);
+			lchild->add_to_sibling_pairs(sibling_pairs, 1);
+			rchild->add_to_sibling_pairs(sibling_pairs, 2);
 		}
 	}
 	
 	// find the sibling pairs in this node's subtree
-	vector<Node *> find_sibling_pairs() {
-		vector<Node *> sibling_pairs = vector<Node *>();
+	void append_sibling_pairs(list<Node *> *sibling_pairs) {
 		find_sibling_pairs_hlpr(sibling_pairs);
+	}
+
+	// find the sibling pairs in this node's subtree
+	list<Node *> find_sibling_pairs() {
+		list<Node *> sibling_pairs = list<Node *>();
+		find_sibling_pairs_hlpr(&sibling_pairs);
 		return sibling_pairs;
 	}
 	
@@ -644,6 +671,44 @@ class Node {
 			return get_preorder_number();
 	}
 
+void add_to_front_sibling_pairs(list<Node *> *sibling_pairs, int status) {
+	sibling_pairs->push_front(this);
+	remove_sibling_pair(sibling_pairs);
+	sibling_pair_status = status;
+	sibling_pair_loc = sibling_pairs->begin();
+}
+
+void add_to_sibling_pairs(list<Node *> *sibling_pairs, int status) {
+	sibling_pairs->push_back(this);
+	remove_sibling_pair(sibling_pairs);
+	sibling_pair_status = status;
+	sibling_pair_loc = sibling_pairs->end();
+	sibling_pair_loc--;
+}
+
+void remove_sibling_pair(list<Node *> *sibling_pairs) {
+	if (sibling_pair_status > 0) {
+		list<Node *>::iterator loc = sibling_pair_loc;
+		list<Node *>::iterator sibling_loc = loc;
+		if (sibling_pair_status == 1)
+			sibling_loc++;
+		else if (sibling_pair_status == 2)
+			sibling_loc--;
+
+		if (sibling_loc != sibling_pairs->end()) {
+			Node *old_sibling = *sibling_loc;
+			old_sibling->sibling_pair_status = 0;
+			sibling_pairs->erase(sibling_loc);
+		}
+		sibling_pairs->erase(loc);
+
+	}
+}
+
+void clear_sibling_pair_status() {
+	sibling_pair_status = 0;
+}
+
 };
 
 // function prototypes
@@ -719,6 +784,7 @@ void expand_contracted_nodes(Node *n) {
 		delete subtree;
 	}
 }
+
 
 /*
 void preorder_number(Node *node) {

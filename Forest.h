@@ -176,18 +176,20 @@ class Forest {
 	inline Node *get_component(int i) {
 		return components[i];
 	}
+	void set_component(int i, Node *head) {
+		components[i] = head;
+	}
 	inline int num_components() {
 		return components.size();
 	}
 
-	// return a deque of the sibling pairs
-	deque<Node *> find_sibling_pairs() {
-		deque<Node *> sibling_pairs = deque<Node *>();
+	// return a list of the sibling pairs
+	list<Node *> *find_sibling_pairs() {
+		list<Node *> *sibling_pairs = new list<Node *>();
 		vector<Node *>::iterator i;
 		for(i = components.begin(); i != components.end(); i++) {
 			Node *component = *i;
-			vector<Node *> new_sibling_pairs = component->find_sibling_pairs();
-			sibling_pairs.insert(sibling_pairs.end(), new_sibling_pairs.begin(), new_sibling_pairs.end());
+			component->append_sibling_pairs(sibling_pairs);
 		}
 		return sibling_pairs;
 	}
@@ -401,10 +403,12 @@ void sync_twins(Forest *T1, Forest *T2) {
 	}
 	for(int i = size; i < T2_labels.size(); i++) {
 		Node *T2_a = T2_labels[i];
-		Node *node = T2_a->parent();
-		delete T2_a;
-		if (node != NULL)
-			node->contract();
+		if (T2_a != NULL) {
+			Node *node = T2_a->parent();
+			delete T2_a;
+			if (node != NULL)
+				node->contract();
+		}
 	}
 //	cout << "Finished Syncing Twins" << endl;
 	return;

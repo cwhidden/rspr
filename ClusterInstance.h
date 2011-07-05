@@ -71,6 +71,8 @@ class ClusterInstance {
 	}
 
 	void join_cluster(Forest *original_F1, Forest *original_F2) {
+		int rho_1 = -1;
+		int rho_2 = -1;
 		int start = 0;
 		if (F1->contains_rho()) {
 			F1_cluster_node->contract();
@@ -83,6 +85,9 @@ class ClusterInstance {
 		for(int i = start; i < F1->num_components(); i++) {
 			if (F1->get_component(i)->str() != "p")
 				original_F1->add_component(F1->get_component(i));
+			else {
+				rho_1 = i;
+			}
 		}
 
 		int skip = -1;
@@ -91,23 +96,28 @@ class ClusterInstance {
 		//to the front if that is where it came from
 //		cout << "F1_rho=" << F1->contains_rho() << endl;
 //		cout << "F2_rho=" << F2->contains_rho() << endl;
-//		if (F2->contains_rho()) {
-		if (F1->contains_rho() || F2->contains_rho()) {
-			if (F2_has_component_zero) {
-				cout << "PROBLEM!!" << endl;
-				if (!original_F1->contains_rho())
-					original_F1->add_rho();
-				if (!original_F2->contains_rho())
-					original_F2->add_rho();
-			}
-			else {
+		if ((F1->contains_rho() || F2->contains_rho()) && !F2_has_component_zero) {
+//			if (F2_has_component_zero) {
+//				cout << "PROBLEM!!" << endl;
+				//if (!original_F1->contains_rho())
+				//	original_F1->add_rho();
+				//if (!original_F2->contains_rho())
+					//original_F2->add_rho();
+//			}
+			//else {
 				F2_cluster_node->contract();
-			}
+			//}
 		}
 		else if (F2_cluster != NULL) {
 			skip = F2_cluster->get_component_number();
 			if (F2_has_component_zero) {
 				original_F2->add_component(0, F2_cluster);
+				if (F1->contains_rho() || F2->contains_rho()) {
+					if (!original_F1->contains_rho())
+						original_F1->add_rho();
+					if (!original_F2->contains_rho())
+						original_F2->add_rho();
+				}
 			}
 			else if (F2_cluster_node == NULL) {
 				skip = -1;
@@ -118,8 +128,12 @@ class ClusterInstance {
 		}
 		// should we add these to a finished_components or something?
 		for(int i = 0; i < F2->num_components(); i++) {
-			if (i != skip && F2->get_component(i)->str() != "p")
-				original_F2->add_component(F2->get_component(i));
+			if (i != skip) {
+				if (F2->get_component(i)->str() != "p")
+					original_F2->add_component(F2->get_component(i));
+				else
+					rho_2 = i;
+			}
 		}
 
 		/*
@@ -136,6 +150,15 @@ class ClusterInstance {
 		else
 			cout << F2_cluster->str_subtree() << endl;
 			*/
+
+		if (rho_1 >= 0) {
+			F1->get_component(rho_1)->delete_tree();
+			F1->set_component(rho_1,NULL);
+		}
+		if (rho_2 >= 0) {
+			F2->get_component(rho_2)->delete_tree();
+			F2->set_component(rho_2,NULL);
+		}
 		F1->erase_components();
 		F2->erase_components();
 

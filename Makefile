@@ -5,7 +5,8 @@ C64FLAGS=$(CFLAGS)
 BOOST_GRAPH=-lboost_graph-mt
 BOOST_ANY=-L/lib/libboost*
 LFLAGS=$(BOOST_GRAPH) $(BOOST_ANY)
-DEBUGFLAGS=-g -pg -O0
+DEBUGFLAGS=-g -O0
+PROFILEFLAGS=-pg
 all:
 	$(CC) $(CFLAGS) -o rspr rspr.cpp
 .PHONY: test
@@ -26,6 +27,8 @@ bb-test:
 	./rspr.exe -bb <test_trees/trees6.txt;
 debug:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o rspr rspr.cpp
+profile:
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) IF rspr rspr.cpp
 hyb:
 	$(CC64) $(LFLAGS) $(C64FLAGS) -o hyb hyb.cpp
 w32:
