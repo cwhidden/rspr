@@ -39,7 +39,7 @@ using namespace std;
 
 int mylog2 (int val) {
     int ret = -1;
-    while (val != 0) {
+    while (val > 0) {
         val >>= 1;
         ret++;
     }

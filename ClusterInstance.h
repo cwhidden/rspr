@@ -74,8 +74,32 @@ class ClusterInstance {
 		int rho_1 = -1;
 		int rho_2 = -1;
 		int start = 0;
+		#ifdef DEBUG_CLUSTERS
+			cout << "join_cluster" << endl;
+			cout << "original_F1: ";
+			original_F1->print_components();
+			cout << "original_F2: ";
+			original_F2->print_components();
+			cout << "cluster_F1: ";
+			F1->print_components();
+			cout << "cluster_F2: ";
+			F2->print_components();
+		#endif
+		if (F1_cluster_node != NULL)
+			F1_cluster_node->decrease_clustered_children();
+		if (F2_cluster_node != NULL)
+			F2_cluster_node->decrease_clustered_children();
+
 		if (F1->contains_rho()) {
-			F1_cluster_node->contract();
+			if (!F1_cluster_node->is_leaf()) {
+				F1_cluster_node->contract();
+			}
+			else {
+				F1_cluster_node->add_child(F1->get_component(0));
+				if (F1_cluster_node->get_num_clustered_children() <= 0)
+					F1_cluster_node->contract();
+				start = 1;
+			}
 		}
 		else {
 			F1_cluster_node->add_child(F1->get_component(0));
@@ -105,19 +129,32 @@ class ClusterInstance {
 					//original_F2->add_rho();
 //			}
 			//else {
-				F2_cluster_node->contract();
+			// TODO: F2_cluster_node = NULL?
+			if (F2_cluster_node != NULL) {
+				if (!F2_cluster_node->is_leaf()) {
+					F2_cluster_node->contract();
+				}
+				else {
+					skip = F2_cluster->get_component_number();
+					//F2_cluster_node->add_child(F2->get_component(0));
+					F2_cluster_node->add_child(F2_cluster);
+					if (F2_cluster_node->get_num_clustered_children() <= 0)
+						F2_cluster_node->contract();
+				}
+			}
 			//}
 		}
 		else if (F2_cluster != NULL) {
 			skip = F2_cluster->get_component_number();
+			// TODO: this is not right yet
 			if (F2_has_component_zero) {
-				original_F2->add_component(0, F2_cluster);
-				if (F1->contains_rho() || F2->contains_rho()) {
-					if (!original_F1->contains_rho())
-						original_F1->add_rho();
-					if (!original_F2->contains_rho())
-						original_F2->add_rho();
-				}
+				F1_cluster_node->get_forest()->get_twin()->add_component(0, F2_cluster);
+				//if (F1->contains_rho() || F2->contains_rho()) {
+				//	if (!original_F1->contains_rho())
+				//		original_F1->add_rho();
+				//	if (!original_F2->contains_rho())
+				//		original_F2->add_rho();
+				//}
 			}
 			else if (F2_cluster_node == NULL) {
 				skip = -1;
@@ -162,6 +199,12 @@ class ClusterInstance {
 		F1->erase_components();
 		F2->erase_components();
 
+		#ifdef DEBUG_CLUSTERS
+			cout << "original_F1: ";
+			original_F1->print_components();
+			cout << "original_F2: ";
+			original_F2->print_components();
+		#endif
 	}
 
 };
@@ -214,11 +257,17 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 			vector<bool>(old_F2->num_components(), false);
 		int cnumber = F2_root_node->get_component_number();
 		bool F2_has_component_zero = false;
+		bool skip_F2_cluster = false;
 		if (F2_root_node->parent() != NULL) {
 			F2_root_node->cut_parent();
 		}
 		else {
-			old_F2_keep_components[cnumber] = false;		
+			if (old_F2_keep_components[cnumber] == false) {
+				skip_F2_cluster = true;
+			}
+			else {
+				old_F2_keep_components[cnumber] = false;		
+			}
 			if (cnumber == 0)
 				F2_has_component_zero = true;
 		}
@@ -226,7 +275,8 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 		cluster_reduction_find_components(F1_root_node,
 				&F2_cluster_copy_components, &old_F2_keep_components, cnumber);
 		vector<Node *> cluster_F2_components = vector<Node *>();
-		cluster_F2_components.push_back(F2_root_node);
+		if (!skip_F2_cluster)
+			cluster_F2_components.push_back(F2_root_node);
 		for(int i = 0; i < F2_cluster_copy_components.size(); i++) {
 			if (F2_cluster_copy_components[i] == true)
 				cluster_F2_components.push_back(old_F2->get_component(i));
@@ -234,6 +284,14 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 		Forest *F2 = new Forest(cluster_F2_components);
 		clusters.push_back(ClusterInstance(F1, F2, F1_cluster_node,
 					F2_cluster_node, F2_has_component_zero));
+		if (F1_cluster_node != NULL)
+			F1_cluster_node->increase_clustered_children();
+		if (F2_cluster_node != NULL)
+			F2_cluster_node->increase_clustered_children();
+		F1->label_nodes_with_forest();
+		F2->label_nodes_with_forest();
+		F1->set_twin(F2);
+		F2->set_twin(F1);
 
 		for(int i = 0; i < F2_cluster_copy_components.size(); i++) {
 			if (F2_cluster_copy_components[i] == true) {
@@ -267,6 +325,10 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 
 
 	clusters.push_back(ClusterInstance(old_F1, old_F2, NULL, NULL, true));
+	old_F1->label_nodes_with_forest();
+	old_F2->label_nodes_with_forest();
+	old_F1->set_twin(old_F2);
+	old_F2->set_twin(old_F1);
 
 	return clusters;
 

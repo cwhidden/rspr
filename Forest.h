@@ -50,6 +50,7 @@ class Forest {
 		vector<Node *> components;
 		vector<Node *> deleted_nodes;
 		bool rho;
+		Forest *twin;
 
 	public:
 	Forest() {
@@ -63,6 +64,7 @@ class Forest {
 		components.push_back(new Node(*head));
 		deleted_nodes = vector<Node *>();
 		rho = false;
+		twin = NULL;
 	}
 	Forest(const Forest &f) {
 		components = vector<Node *>(f.components.size());
@@ -72,6 +74,7 @@ class Forest {
 		}
 		deleted_nodes = vector<Node *>();
 		rho = f.rho;
+		twin = NULL;
 	}
 
 	Forest(Forest *f) {
@@ -82,12 +85,14 @@ class Forest {
 		}
 		deleted_nodes = vector<Node *>();
 		rho = f->rho;
+		twin = NULL;
 	}
 
 	void init(vector<Node *> components) {
 		this->components = vector<Node *>(components);
 		deleted_nodes = vector<Node *>();
 		rho = false;
+		twin = NULL;
 	}
 	~Forest() {
 		for(int i = 0; i < components.size(); i++) {
@@ -182,6 +187,12 @@ class Forest {
 	inline int num_components() {
 		return components.size();
 	}
+	void set_twin(Forest *f) {
+		twin = f;
+	}
+	Forest *get_twin() {
+		return twin;
+	}
 
 	// return a list of the sibling pairs
 	list<Node *> *find_sibling_pairs() {
@@ -197,8 +208,11 @@ class Forest {
 	// return a deque of the singleton leaves
 	list<Node *> find_singletons() {
 		list<Node *> singletons = list<Node *>();
-		vector<Node *>::iterator i;
-		for(i = components.begin(); i != components.end(); i++) {
+		vector<Node *>::iterator i = components.begin();
+		// TODO: is this a hack or correct? We don't want the first
+		// component to be a singleton because of rho!
+		i++;
+		for(; i != components.end(); i++) {
 			Node *component = *i;
 			if (component->is_leaf()) {
 				singletons.push_back(component);
@@ -265,6 +279,13 @@ void erase_components(int start, int end) {
 }
 void erase_components() {
 	components.clear();
+}
+
+// tell the nodes what forest they are in
+void label_nodes_with_forest() {
+	for(int i = 0; i < size(); i++) {
+		get_component(i)->set_forest_rec(this);
+	}
 }
 
 };
@@ -456,7 +477,7 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
 	for(int i = 0; i < F2->num_components(); i++) {
 //		cout << "starting i" << endl;
 		F2_roots.push_back(F2->get_component(i));
-#ifdef DEBUG
+#ifdef DEBUG_SYNC
 		cout << "COMPONENT " << i << ": " << F2_roots[i]->str_subtree() << endl;
 		cout << "foo" << endl;
 		cout << F2_roots[i]->get_twin() << endl;
@@ -656,7 +677,7 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 void delete_and_merge_LCAs(list<Node *> *active_descendants,
 		vector<LCA> *F2_LCAs, list<Node *>:: iterator node1_location,
 		list<Node *>:: iterator node2_location) {
-#ifdef DEBUG
+#ifdef DEBUG_SYNC
 	cout << "DELETE_AND_MERGE FIRST" << endl;
 	cout << "active_descendants before" << endl;
 	for(list<Node *>::iterator i =  active_descendants-> begin(); i != active_descendants->end(); i++) {
@@ -668,18 +689,18 @@ void delete_and_merge_LCAs(list<Node *> *active_descendants,
 //	while(active_descendants->size() > 1) {
 	Node *n1 = *node1_location;
 	Node *n2 = *node2_location;
-#ifdef DEBUG
+#ifdef DEBUG_SYNC
 	cout << "n1=" << n1->str_subtree() << endl;
 	cout << "n2=" << n2->str_subtree() << endl;
 #endif
 	int component1 = n1->get_component_number();
 	int component2 = n2->get_component_number();
-#ifdef DEBUG
+#ifdef DEBUG_SYNC
 	cout << "c1=" << component1 << endl;
 	cout << "c2=" << component2 << endl;
 #endif
 	if (component1 == component2) {
-#ifdef DEBUG
+#ifdef DEBUG_SYNC
 		cout << "size=" << (*F2_LCAs).size() << endl;
 		for(int i = 0; i < (*F2_LCAs).size(); i++) {
 			if ((*F2_LCAs)[i].get_tree() == NULL)
@@ -690,7 +711,7 @@ void delete_and_merge_LCAs(list<Node *> *active_descendants,
 		cout << (*F2_LCAs)[component1].get_tree()->str_subtree() << endl;
 #endif
 		Node *lca = (*F2_LCAs)[component1].get_lca(n1,n2);
-#ifdef DEBUG
+#ifdef DEBUG_SYNC
 		cout << lca->str_subtree() << endl;
 #endif
 //		cout << "xa" << endl;
@@ -712,7 +733,7 @@ void delete_and_merge_LCAs(list<Node *> *active_descendants,
 //			break;
 //		}
 //	}
-#ifdef DEBUG
+#ifdef DEBUG_SYNC
 	cout << "active_descendants after" << endl;
 	for(list<Node *>::iterator i =  active_descendants-> begin(); i != active_descendants->end(); i++) {
 		cout << "\t" << (*i)->str_subtree() << endl;

@@ -48,6 +48,8 @@ list<Node *> find_sibling_pairs(Node *node);
 vector<Node *> find_leaves(Node *node);
 */
 
+class Forest;
+
 class Node {
 	private:
 	Node *lc;			// left child
@@ -64,7 +66,8 @@ class Node {
 	list<list <Node *>::iterator> removable_descendants;
 	list <Node *>::iterator sibling_pair_loc;
 	int sibling_pair_status;
-
+	int num_clustered_children;
+	Forest *forest;
 
 	public:
 	Node() {
@@ -93,6 +96,8 @@ class Node {
 		this->removable_descendants = list< list<Node *>::iterator>();
 		this->sibling_pair_loc = list<Node *>::iterator(); 
 		this->sibling_pair_status = 0;
+		this->num_clustered_children = 0;
+		this->forest = NULL;
 	}
 	// copy constructor
 	Node(const Node &n) {
@@ -101,13 +106,15 @@ class Node {
 		twin = n.twin;
 		depth = n.depth;
 		component_number = n.component_number;
-		active_descendants = n.active_descendants;
-		root_lcas = n.root_lcas;
-		removable_descendants = n.removable_descendants;
+		this->active_descendants = list <Node *>();
+		this->removable_descendants = list< list<Node *>::iterator>();
+		this->root_lcas = list <Node *>();
 		//sibling_pair_loc = n.sibling_pair_loc;
 		//sibling_pair_status = n.sibling_pair_status;
 		this->sibling_pair_loc = list<Node *>::iterator(); 
 		this->sibling_pair_status = 0;
+		this->num_clustered_children = 0;
+		this->forest = NULL;
 		if (n.lc == NULL)
 			lc = NULL;
 		else
@@ -123,13 +130,15 @@ class Node {
 		twin = n.twin;
 		depth = n.depth;
 		component_number = n.component_number;
-		active_descendants = n.active_descendants;
-		root_lcas = n.root_lcas;
-		removable_descendants = n.removable_descendants;
+		this->active_descendants = list <Node *>();
+		this->removable_descendants = list< list<Node *>::iterator>();
+		this->root_lcas = list <Node *>();
 		//sibling_pair_loc = n.sibling_pair_loc;
 		//sibling_pair_status = n.sibling_pair_status;
 		this->sibling_pair_loc = list<Node *>::iterator(); 
 		this->sibling_pair_status = 0;
+		this->num_clustered_children = 0;
+		this->forest = NULL;
 		if (n.lc == NULL)
 			lc = NULL;
 		else
@@ -234,6 +243,18 @@ class Node {
 	int get_component_number() {
 		return component_number;
 	}
+	void increase_clustered_children() {
+		num_clustered_children++;
+	}
+	void decrease_clustered_children() {
+		num_clustered_children--;
+	}
+	int set_num_clustered_children(int c) {
+		num_clustered_children = c;
+	}
+	int get_num_clustered_children() {
+		return num_clustered_children;
+	}
 	list <Node *> *get_active_descendants() {
 		return &active_descendants;
 	}
@@ -242,6 +263,19 @@ class Node {
 	}
 	int get_sibling_pair_status(){
 		return sibling_pair_status;
+	}
+	void set_forest(Forest *f) {
+		forest = f;
+	}
+	void set_forest_rec(Forest *f) {
+		forest = f;
+		if (lc != NULL)
+			lc->set_forest_rec(f);
+		if (rc != NULL)
+			rc->set_forest_rec(f);
+	}
+	Forest *get_forest() {
+		return forest;
 	}
 	list<list <Node *>::iterator> *get_removable_descendants() {
 		return &removable_descendants;
