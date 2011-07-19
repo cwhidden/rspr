@@ -2084,7 +2084,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 							}
 					}
 					delete cluster_points;
-//					cout << "returning k=" << k << endl;
+					cout << "returning k=" << k << endl;
 					NUM_CLUSTERS--;
 					return k;
 				}

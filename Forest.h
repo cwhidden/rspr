@@ -135,6 +135,8 @@ class Forest {
 			Node *root = *it;
 			if (root == NULL)
 				cout << "!";
+			else if (root->is_leaf() && root->str() == "")
+				cout << "*";
 			else
 				root->print_subtree_hlpr();
 			cout << " ";

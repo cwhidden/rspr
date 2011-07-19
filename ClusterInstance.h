@@ -74,6 +74,8 @@ class ClusterInstance {
 		int rho_1 = -1;
 		int rho_2 = -1;
 		int start = 0;
+		Forest *F1_cluster_node_forest = NULL;
+		Forest *F2_cluster_node_forest = NULL;
 		#ifdef DEBUG_CLUSTERS
 			cout << "join_cluster" << endl;
 			cout << "original_F1: ";
@@ -84,8 +86,6 @@ class ClusterInstance {
 			F1->print_components();
 			cout << "cluster_F2: ";
 			F2->print_components();
-			Forest *F1_cluster_node_forest = NULL;
-			Forest *F2_cluster_node_forest = NULL;
 			if (F1_cluster_node != NULL) {
 				cout << "F1_cluster_node: ";
 				F1_cluster_node->print_subtree();
@@ -101,8 +101,10 @@ class ClusterInstance {
 				F2_cluster_node_forest = F2_cluster_node->get_forest();
 			}
 		#endif
-		if (F1_cluster_node != NULL)
+		if (F1_cluster_node != NULL) {
 			F1_cluster_node->decrease_clustered_children();
+			F1_cluster_node_forest = F1_cluster_node->get_forest();
+		}
 		if (F2_cluster_node != NULL)
 			F2_cluster_node->decrease_clustered_children();
 
@@ -120,12 +122,12 @@ class ClusterInstance {
 			if (F1_cluster_node->parent() == NULL) {
 				if (F1_cluster_node->lchild() != NULL &&
 					 F1_cluster_node->lchild()->get_num_clustered_children() > 0) {
-					F1_cluster_node->get_forest()->update_component(
+					F1_cluster_node_forest->update_component(
 							F1_cluster_node, F1_cluster_node->lchild());
 				}
 				if (F1_cluster_node->rchild() != NULL &&
 					 F1_cluster_node->rchild()->get_num_clustered_children() > 0) {
-					F1_cluster_node->get_forest()->update_component(
+					F1_cluster_node_forest->update_component(
 							F1_cluster_node, F1_cluster_node->rchild());
 				}
 			}
@@ -149,11 +151,13 @@ class ClusterInstance {
 
 		bool skip = false;
 		Node *F2_cluster = F1->get_component(0)->get_twin();
+		cout << F2_cluster << endl;
 		// TODO: this is still not quite right. We should only add the cluster
 		//to the front if that is where it came from
 //		cout << "F1_rho=" << F1->contains_rho() << endl;
 //		cout << "F2_rho=" << F2->contains_rho() << endl;
 		if ((F1->contains_rho() || F2->contains_rho()) && !F2_has_component_zero && F2_cluster_node != NULL) {
+			cout << __LINE__ << endl;
 //			if (F2_has_component_zero) {
 //				cout << "PROBLEM!!" << endl;
 				//if (!original_F1->contains_rho())
@@ -187,27 +191,29 @@ class ClusterInstance {
 			if (contract)
 				F2_cluster_node->contract();
 		}
-		else if (F2_cluster != NULL) {
-//			cout << __LINE__ << endl;
+		else { // if (F2_cluster != NULL) {
+			if (F2_cluster == NULL)
+				F2_cluster = F2->get_component(0);
+			cout << __LINE__ << endl;
 			skip = true;
 //			cout << "skip=" << skip << endl;
 			// TODO: this is not right yet
 			if (F2_has_component_zero) {
 //				cout << __LINE__ << endl;
-				F1_cluster_node->get_forest()->get_twin()->add_component(0, F2_cluster);
+				F1_cluster_node_forest->get_twin()->add_component(0, F2_cluster);
 				if (F1->contains_rho() || F2->contains_rho()) {
-					if (!F1_cluster_node->get_forest()->contains_rho())
-						F1_cluster_node->get_forest()->add_rho();
-					if (!F1_cluster_node->get_forest()->get_twin()->contains_rho())
-						F1_cluster_node->get_forest()->get_twin()->add_rho();
+					if (!F1_cluster_node_forest->contains_rho())
+						F1_cluster_node_forest->add_rho();
+					if (!F1_cluster_node_forest->get_twin()->contains_rho())
+						F1_cluster_node_forest->get_twin()->add_rho();
 				}
 			}
 			else if (F2_cluster_node == NULL) {
-//			cout << __LINE__ << endl;
+			cout << __LINE__ << endl;
 				skip = false;
 			}
 			else {
-//			cout << __LINE__ << endl;
+			cout << __LINE__ << endl;
 				// TODO: check this
 				F2_cluster_node->add_child(F2->get_component(0));
 				F2_cluster = F2->get_component(0);
