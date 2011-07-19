@@ -84,6 +84,22 @@ class ClusterInstance {
 			F1->print_components();
 			cout << "cluster_F2: ";
 			F2->print_components();
+			Forest *F1_cluster_node_forest = NULL;
+			Forest *F2_cluster_node_forest = NULL;
+			if (F1_cluster_node != NULL) {
+				cout << "F1_cluster_node: ";
+				F1_cluster_node->print_subtree();
+				cout << "F1_cluster_node_forest: ";
+				F1_cluster_node->get_forest()->print_components();
+				F1_cluster_node_forest = F1_cluster_node->get_forest();
+			}
+			if (F2_cluster_node != NULL) {
+				cout << "F2_cluster_node: ";
+				F2_cluster_node->print_subtree();
+				cout << "F2_cluster_node_forest: ";
+				F2_cluster_node->get_forest()->print_components();
+				F2_cluster_node_forest = F2_cluster_node->get_forest();
+			}
 		#endif
 		if (F1_cluster_node != NULL)
 			F1_cluster_node->decrease_clustered_children();
@@ -91,18 +107,35 @@ class ClusterInstance {
 			F2_cluster_node->decrease_clustered_children();
 
 		if (F1->contains_rho()) {
-			if (!F1_cluster_node->is_leaf()) {
+			bool contract = true;
+			if (F1_cluster_node->is_leaf()) {
+				if (F1_cluster_node->get_num_clustered_children() >= 1) {
+					contract = false;
+				}
+				else {
+					F1_cluster_node->add_child(F1->get_component(0));
+					start = 1;
+				}
+			}
+			if (F1_cluster_node->parent() == NULL) {
+				if (F1_cluster_node->lchild() != NULL &&
+					 F1_cluster_node->lchild()->get_num_clustered_children() > 0) {
+					F1_cluster_node->get_forest()->update_component(
+							F1_cluster_node, F1_cluster_node->lchild());
+				}
+				if (F1_cluster_node->rchild() != NULL &&
+					 F1_cluster_node->rchild()->get_num_clustered_children() > 0) {
+					F1_cluster_node->get_forest()->update_component(
+							F1_cluster_node, F1_cluster_node->rchild());
+				}
+			}
+			if (contract)
 				F1_cluster_node->contract();
-			}
-			else {
-				F1_cluster_node->add_child(F1->get_component(0));
-				if (F1_cluster_node->get_num_clustered_children() <= 0)
-					F1_cluster_node->contract();
-				start = 1;
-			}
 		}
 		else {
 			F1_cluster_node->add_child(F1->get_component(0));
+			if (F1_cluster_node->get_num_clustered_children() <= 0)
+				F1_cluster_node->contract();
 			start = 1;
 		}
 		// should we add these to a finished_components or something?
@@ -114,13 +147,13 @@ class ClusterInstance {
 			}
 		}
 
-		int skip = -1;
+		bool skip = false;
 		Node *F2_cluster = F1->get_component(0)->get_twin();
 		// TODO: this is still not quite right. We should only add the cluster
 		//to the front if that is where it came from
 //		cout << "F1_rho=" << F1->contains_rho() << endl;
 //		cout << "F2_rho=" << F2->contains_rho() << endl;
-		if ((F1->contains_rho() || F2->contains_rho()) && !F2_has_component_zero) {
+		if ((F1->contains_rho() || F2->contains_rho()) && !F2_has_component_zero && F2_cluster_node != NULL) {
 //			if (F2_has_component_zero) {
 //				cout << "PROBLEM!!" << endl;
 				//if (!original_F1->contains_rho())
@@ -128,44 +161,64 @@ class ClusterInstance {
 				//if (!original_F2->contains_rho())
 					//original_F2->add_rho();
 //			}
-			//else {
-			// TODO: F2_cluster_node = NULL?
-			if (F2_cluster_node != NULL) {
-				if (!F2_cluster_node->is_leaf()) {
-					F2_cluster_node->contract();
+			bool contract = true;
+			if (F2_cluster_node->is_leaf()) {
+				if (F2_cluster_node->get_num_clustered_children() >= 1) {
+					contract = false;
 				}
 				else {
-					skip = F2_cluster->get_component_number();
 					//F2_cluster_node->add_child(F2->get_component(0));
 					F2_cluster_node->add_child(F2_cluster);
-					if (F2_cluster_node->get_num_clustered_children() <= 0)
-						F2_cluster_node->contract();
+					skip = true;
 				}
 			}
-			//}
+			if (F2_cluster_node->parent() == NULL) {
+				if (F2_cluster_node->lchild() != NULL &&
+					 F2_cluster_node->lchild()->get_num_clustered_children() > 0) {
+					F2_cluster_node->get_forest()->update_component(
+							F2_cluster_node, F2_cluster_node->lchild());
+				}
+				if (F2_cluster_node->rchild() != NULL &&
+					 F2_cluster_node->rchild()->get_num_clustered_children() > 0) {
+					F2_cluster_node->get_forest()->update_component(
+							F2_cluster_node, F2_cluster_node->rchild());
+				}
+			}
+			if (contract)
+				F2_cluster_node->contract();
 		}
 		else if (F2_cluster != NULL) {
-			skip = F2_cluster->get_component_number();
+//			cout << __LINE__ << endl;
+			skip = true;
+//			cout << "skip=" << skip << endl;
 			// TODO: this is not right yet
 			if (F2_has_component_zero) {
+//				cout << __LINE__ << endl;
 				F1_cluster_node->get_forest()->get_twin()->add_component(0, F2_cluster);
-				//if (F1->contains_rho() || F2->contains_rho()) {
-				//	if (!original_F1->contains_rho())
-				//		original_F1->add_rho();
-				//	if (!original_F2->contains_rho())
-				//		original_F2->add_rho();
-				//}
+				if (F1->contains_rho() || F2->contains_rho()) {
+					if (!F1_cluster_node->get_forest()->contains_rho())
+						F1_cluster_node->get_forest()->add_rho();
+					if (!F1_cluster_node->get_forest()->get_twin()->contains_rho())
+						F1_cluster_node->get_forest()->get_twin()->add_rho();
+				}
 			}
 			else if (F2_cluster_node == NULL) {
-				skip = -1;
+//			cout << __LINE__ << endl;
+				skip = false;
 			}
 			else {
-				F2_cluster_node->add_child(F2_cluster);
+//			cout << __LINE__ << endl;
+				// TODO: check this
+				F2_cluster_node->add_child(F2->get_component(0));
+				F2_cluster = F2->get_component(0);
+				if ((F2_cluster_node->lchild() == NULL || F2_cluster_node->rchild() == NULL) && F2_cluster_node->get_num_clustered_children() <= 0) {
+					F2_cluster_node->contract();
+				}
 			}
 		}
 		// should we add these to a finished_components or something?
 		for(int i = 0; i < F2->num_components(); i++) {
-			if (i != skip) {
+			if (!skip || F2->get_component(i) != F2_cluster) {
 				if (F2->get_component(i)->str() != "p")
 					original_F2->add_component(F2->get_component(i));
 				else
@@ -200,10 +253,19 @@ class ClusterInstance {
 		F2->erase_components();
 
 		#ifdef DEBUG_CLUSTERS
+			cout << "join_cluster finished" << endl;
 			cout << "original_F1: ";
 			original_F1->print_components();
 			cout << "original_F2: ";
 			original_F2->print_components();
+			if (F1_cluster_node_forest != NULL) {
+				cout << "F1_cluster_node_forest: ";
+				F1_cluster_node_forest->print_components();
+			}
+			if (F2_cluster_node_forest != NULL) {
+				cout << "F2_cluster_node_forest: ";
+				F2_cluster_node_forest->print_components();
+			}
 		#endif
 	}
 
@@ -265,11 +327,13 @@ list<ClusterInstance> cluster_reduction(Forest *old_F1, Forest *old_F2,
 			if (old_F2_keep_components[cnumber] == false) {
 				skip_F2_cluster = true;
 			}
-			else {
+			else if (old_F2->get_component(cnumber) == F2_root_node){
 				old_F2_keep_components[cnumber] = false;		
+				if (cnumber == 0)
+					F2_has_component_zero = true;
 			}
-			if (cnumber == 0)
-				F2_has_component_zero = true;
+			else
+				skip_F2_cluster = true;
 		}
 
 		cluster_reduction_find_components(F1_root_node,

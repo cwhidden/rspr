@@ -95,9 +95,9 @@ exact BB drSPR=4
 
 *******************************************************************************/
 
-//#define DEBUG 1
+#define DEBUG 1
 //#define DEBUG_APPROX 1
-//#define DEBUG_CLUSTERS 1
+#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
 #define MAX_SPR 1000
 
@@ -2021,8 +2021,12 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 						int cluster_spr = -1;
 						if (k >= 0) {
 							// hack for clusters with no rho
+//							cout << __LINE__ << endl;
+//							cout << cluster.F2_cluster_node << endl;
+//							cout << cluster.F2_has_component_zero << endl;
 							if (cluster.F2_cluster_node == NULL &&
 									cluster.F2_has_component_zero == false) {
+//							cout << __LINE__ << endl;
 								cluster.F1->add_rho();
 								cluster.F2->add_rho();
 							}

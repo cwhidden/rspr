@@ -36,6 +36,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <sstream>
 #include <map>
 #include <boost/any.hpp>
+#include "Forest.h"
 
 using namespace std;
 
@@ -90,7 +91,7 @@ class Node {
 		this->twin = NULL;
 		this->depth = d;
 		this->pre_num = -1;
-		this->component_number = component_number;
+		this->component_number = -2;
 		this->active_descendants = list <Node *>();
 		this->root_lcas = list <Node *>();
 		this->removable_descendants = list< list<Node *>::iterator>();
@@ -366,24 +367,36 @@ class Node {
 					rc->p = NULL;
 					rc = NULL;
 				}
-		// if child is a leaf then get rid of this so we don't lose refs
-				// problem: if the child is not c, then we want to copy
-				// otherwise we don't
-				// copy other parameters and join the twin
-				//to this if the child is a label
-				Node *new_lc = child->lchild();
-				Node *new_rc = child->rchild();
-				if (child->is_leaf()) {
-					set_twin(child->get_twin());
-					child->get_twin()->set_twin(this);
-					name = child->str();
+				/* cluster hack - if we delete a cluster node then
+				 * we may try to use it later. This only happens once
+				 * per cluster so we can spend linear time to update
+				 * the forest
+				 */
+				if (child->num_clustered_children > 0) {
+					delete_child(child);
+					delete this;
+					ret = child;
 				}
-				delete child;
-				if (new_lc != NULL)
-					add_child(new_lc);
-				if (new_rc != NULL)
-					add_child(new_rc);
-				ret = this;
+				else {
+					// if child is a leaf then get rid of this so we don't lose refs
+					// problem: if the child is not c, then we want to copy
+					// otherwise we don't
+					// copy other parameters and join the twin
+					//to this if the child is a label
+					Node *new_lc = child->lchild();
+					Node *new_rc = child->rchild();
+					if (child->is_leaf()) {
+						set_twin(child->get_twin());
+						child->get_twin()->set_twin(this);
+						name = child->str();
+					}
+					delete child;
+					if (new_lc != NULL)
+						add_child(new_lc);
+					if (new_rc != NULL)
+						add_child(new_rc);
+					ret = this;
+				}
 			}
 		}
 

@@ -75,6 +75,7 @@ class Forest {
 		deleted_nodes = vector<Node *>();
 		rho = f.rho;
 		twin = NULL;
+		//label_nodes_with_forest();
 	}
 
 	Forest(Forest *f) {
@@ -86,6 +87,7 @@ class Forest {
 		deleted_nodes = vector<Node *>();
 		rho = f->rho;
 		twin = NULL;
+		//label_nodes_with_forest();
 	}
 
 	void init(vector<Node *> components) {
@@ -192,6 +194,14 @@ class Forest {
 	}
 	Forest *get_twin() {
 		return twin;
+	}
+	void update_component(Node *old_c, Node *new_c) {
+		vector<Node *>::iterator i;
+		for(i = components.begin(); i != components.end(); i++) {
+			Node *component = *i;
+			if (&(*component) == &(*old_c))
+				*i = new_c;
+		}
 	}
 
 	// return a list of the sibling pairs
@@ -417,10 +427,12 @@ void sync_twins(Forest *T1, Forest *T2) {
 	}
 	for(int i = size; i < T1_labels.size(); i++) {
 		Node *T1_a = T1_labels[i];
-		Node *node = T1_a->parent();
-		delete T1_a;
-		if (node != NULL)
-			node->contract();
+		if (T1_a != NULL) {
+			Node *node = T1_a->parent();
+			delete T1_a;
+			if (node != NULL)
+				node->contract();
+		}
 	}
 	for(int i = size; i < T2_labels.size(); i++) {
 		Node *T2_a = T2_labels[i];
