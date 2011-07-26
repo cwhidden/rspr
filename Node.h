@@ -106,6 +106,7 @@ class Node {
 		name = n.name;
 		twin = n.twin;
 		depth = n.depth;
+		pre_num = n.pre_num;
 		component_number = n.component_number;
 		this->active_descendants = list <Node *>();
 		this->removable_descendants = list< list<Node *>::iterator>();
@@ -130,6 +131,7 @@ class Node {
 		name = n.name;
 		twin = n.twin;
 		depth = n.depth;
+		pre_num = n.pre_num;
 		component_number = n.component_number;
 		this->active_descendants = list <Node *>();
 		this->removable_descendants = list< list<Node *>::iterator>();
@@ -459,7 +461,8 @@ class Node {
 	}
 
 	void str_subtree_hlpr(string *s) {
-		*s += name;
+		if (!name.empty())
+			*s += name;
 		if (!is_leaf()) {
 			*s += "(";
 			if (lc != NULL) {
@@ -783,6 +786,13 @@ Node *build_tree(string s, int start_depth) {
 // build_tree recursive helper function
 int build_tree_helper(int start, const string& s, Node *parent) {
 	int loc = s.find_first_of("(,)", start);
+	if (loc == string::npos) {
+		string name = s.substr(start, s.size() - start);
+		Node *node = new Node(name);
+		parent->add_child(node);
+		loc = s.size()-1;
+		return loc;
+	}
 	while(s[start] == ' ' || s[start] == '\t')
 		start++;
 	int end = loc;

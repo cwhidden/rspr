@@ -95,9 +95,9 @@ exact BB drSPR=4
 
 *******************************************************************************/
 
-#define DEBUG 1
+//#define DEBUG 1
 //#define DEBUG_APPROX 1
-#define DEBUG_CLUSTERS 1
+//#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
 #define MAX_SPR 1000
 
@@ -110,6 +110,7 @@ exact BB drSPR=4
 #include <climits>
 #include <vector>
 #include <map>
+#include <unordered_map>
 #include <list>
 #include "Forest.h"
 #include "ClusterForest.h"
@@ -160,6 +161,7 @@ bool CLUSTER_TEST = false;
 bool CLUSTER_REDUCTION = false;
 bool PREFER_RHO = false;
 bool MAIN_CALL = true;
+bool MEMOIZE = false;
 int NUM_CLUSTERS = 0;
 int MAX_CLUSTERS = -1;
 
@@ -235,6 +237,21 @@ string USAGE =
 "-q          Quiet; Do not output the input trees or approximation\n"
 "*******************************************************************************\n";
 
+	class ProblemSolution {
+		public:
+		string T1;
+		string T2;
+		int k;
+
+		ProblemSolution(Forest *t1, Forest *t2, int new_k) {
+			T1 = t1->str();
+			T2 = t2->str();
+			k = new_k;
+		}
+	};
+
+	unordered_map<string, ProblemSolution> memoized_clusters = unordered_map<string, ProblemSolution>();
+
 int main(int argc, char *argv[]) {
 	int max_args = argc-1;
 	while (argc > 1) {
@@ -303,6 +320,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-prefer_rho") == 0) {
 			PREFER_RHO = true;
+		}
+		else if (strcmp(arg, "-memoize") == 0) {
+			MEMOIZE = true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -1620,11 +1640,41 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2) {
 
 
 int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int end_k) {
+	string problem_key;
+	unordered_map<string,ProblemSolution>::iterator i;
+
+	if (MEMOIZE) {
+		problem_key = T1->str() + ":" + T2->str();
+		i = memoized_clusters.find(problem_key);
+		if (i != memoized_clusters.end()) {
+			//cout << "already solved: " << endl;
+			//cout << problem_key << endl;
+			//cout << i->second.T2 << endl;
+			//cout << "start" << endl;
+			Forest *new_T1 = build_finished_forest(i->second.T1);
+			//cout << "middle" << endl;
+			Forest *new_T2 = build_finished_forest(i->second.T2);
+			//cout << "end" << endl;
+			T1->swap(new_T1);
+			T2->swap(new_T2);
+			sync_twins(T1, T2);
+			delete new_T1;
+			delete new_T2;
+			return i->second.k;
+		}
+	}
 	Forest F1 = Forest(T1);
 	Forest F2 = Forest(T2);
 	int approx_spr = rSPR_worse_3_approx(&F1, &F2);
 	int min_spr = approx_spr / 3;
-	return rSPR_branch_and_bound_range(T1, T2, min_spr, end_k);
+	int exact_spr = rSPR_branch_and_bound_range(T1, T2, min_spr, end_k);
+	if (MEMOIZE && exact_spr >= 0 && i == memoized_clusters.end()) {
+		//string solution_key = T1->str() + ":" + T2->str();
+		memoized_clusters.insert(make_pair(problem_key,
+				ProblemSolution(T1,T2,exact_spr)));
+	}
+
+	return exact_spr;
 }
 	
 int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
@@ -1639,9 +1689,7 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 			cout.flush();
 		}
 		Forest F1 = Forest(T1);
-//		F1.print_components();
 		Forest F2 = Forest(T2);
-//		F2.print_components();
 		exact_spr = rSPR_branch_and_bound(&F1, &F2, k);
 		//if (exact_spr >= 0 || k == end_k) {
 		if (exact_spr >= 0) {
@@ -1652,6 +1700,8 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 	}
 	if (in_main)
 		cout << endl;
+	if (k > end_k)
+		k = -1;
 	return k;
 }
 
@@ -1963,6 +2013,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 //				T2->print_components();
 				sync_interior_twins_real(T1, T2);
 				list<Node *> *cluster_points = find_cluster_points(T1);
+				//cluster_points->erase(++cluster_points->begin(),cluster_points->end());
 	
 				// TODO: could this be faster by using the approx to allocate
 				// a certain amount of the k to different clusters?
@@ -2024,8 +2075,15 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 //							cout << __LINE__ << endl;
 //							cout << cluster.F2_cluster_node << endl;
 //							cout << cluster.F2_has_component_zero << endl;
-							if (cluster.F2_cluster_node == NULL &&
-									cluster.F2_has_component_zero == false) {
+							if ((cluster.F2_cluster_node == NULL
+										|| (cluster.F2_cluster_node->is_leaf()
+												&& cluster.F2_cluster_node->parent() == NULL
+												&& cluster.F2_cluster_node->
+												get_num_clustered_children() <= 1
+												&& (cluster.F2_cluster_node !=
+														cluster.F2_cluster_node->get_forest()->
+															get_component(0))))
+										&& cluster.F2_has_component_zero == false) {
 //							cout << __LINE__ << endl;
 								cluster.F1->add_rho();
 								cluster.F2->add_rho();
@@ -2050,7 +2108,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 //							cout << "\tF2: ";
 //							T2->print_components();
 								if (!cluster.is_original()) {
-									cluster.join_cluster(T1, T2);
+									int adjustment = cluster.join_cluster(T1, T2);
+									k -= adjustment;
 									delete cluster.F1;
 									delete cluster.F2;
 	
@@ -2084,7 +2143,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 							}
 					}
 					delete cluster_points;
-					cout << "returning k=" << k << endl;
+//					cout << "returning k=" << k << endl;
 					NUM_CLUSTERS--;
 					return k;
 				}
