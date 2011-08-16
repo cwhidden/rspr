@@ -481,7 +481,7 @@ int main(int argc, char *argv[]) {
 
 						cout << endl;
 
-						if (BB) {
+						if (FPT || BB) {
 							int min_spr = approx_spr / 3;
 							for(k = min_spr; k <= MAX_SPR; k++) {
 								Forest f1t = Forest(f1);
@@ -541,7 +541,7 @@ int main(int argc, char *argv[]) {
 					}
 				//}
 
-				if (BB) {
+				if (BB | FPT) {
 					if (F1.contains_rho()) {
 						F1.erase_components(0, num_clusters);
 						F2.erase_components(0, num_clusters);
@@ -577,6 +577,9 @@ int main(int argc, char *argv[]) {
 				cout << "\n";
 			}
 	
+			int k = min_spr;
+
+			/*
 			// FPT ALGORITHM
 			int exact_spr = -1;
 			int k = min_spr;
@@ -605,12 +608,13 @@ int main(int argc, char *argv[]) {
 					cout << "exact drSPR=?  " << "k=" << k << " too large" << endl;
 				cout << "\n";
 			}
+			*/
 		
-			if (BB) {
+			if (BB || FPT) {
 				// BRANCH AND BOUND FPT ALGORITHM
 				Forest F1 = Forest(F3);
 				Forest F2 = Forest(F4);
-				exact_spr = rSPR_branch_and_bound(&F1, &F2);
+				int exact_spr = rSPR_branch_and_bound(&F1, &F2);
 				if (exact_spr >= 0) {
 					cout << "F1: ";
 					F1.print_components();
@@ -1946,6 +1950,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				// make copies for the approx
 				// be careful we do not kill real T1 and T2
 				// ie use the copies
+				if (BB) {
 				T1_c->add_to_front_sibling_pairs(sibling_pairs, 2);
 				T1_a->add_to_front_sibling_pairs(sibling_pairs, 1);
 				copy_trees(&T1, &T2, &sibling_pairs, &T1_a, &T1_c, &T2_a, &T2_c,
@@ -1972,6 +1977,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 						cout << "approx failed" << endl;
 					#endif
 					return -1;
+				}
 				}
 				
 			if (CLUSTER_REDUCTION && (MAX_CLUSTERS < 0 || NUM_CLUSTERS < MAX_CLUSTERS)) {
