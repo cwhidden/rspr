@@ -95,7 +95,7 @@ exact BB drSPR=4
 
 *******************************************************************************/
 
-#define DEBUG 1
+//#define DEBUG 1
 #define DEBUG_CONTRACTED
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
@@ -1797,7 +1797,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			Node *T2_a = singletons->back();
 			#ifdef DEBUG
 				cout << "Case 1" << endl;
-				cout << "a " << T2_a->str() << endl;
+				cout << "a " << T2_a->str_subtree() << endl;
 			#endif
 
 			singletons->pop_back();
@@ -1934,6 +1934,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			else {
 				if (k <= 0) {
 					if ((T2_c->parent() != NULL && T2_a->parent() != NULL)|| !T2->contains_rho()) {
+						singletons->clear();
 						um.undo_all();
 						return k-1;
 					}
@@ -2000,6 +2001,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 
 				// copy elements
+					/*
 				Forest *T1_copy;
 				Forest *T2_copy;
 				list<Node *> *sibling_pairs_copy;
@@ -2007,11 +2009,13 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				Node *T1_c_copy;
 				Node *T2_a_copy;
 				Node *T2_c_copy;
+				*/
 				//list<Node *> *singletons_copy = new list<Node *>();
 
 				// make copies for the approx
 				// be careful we do not kill real T1 and T2
 				// ie use the copies
+				/*
 				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
 				T1_c->add_to_front_sibling_pairs(sibling_pairs, 2);
 				T1_a->add_to_front_sibling_pairs(sibling_pairs, 1);
@@ -2038,6 +2042,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					//um.undo_all();
 					return -1;
 				}
+				*/
 				
 			if (CLUSTER_REDUCTION && (MAX_CLUSTERS < 0 || NUM_CLUSTERS < MAX_CLUSTERS)) {
 				// clean up singletons
@@ -2222,9 +2227,11 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 	//			cout << "done" << endl;
 			}
 				 // make copies for the branching
+			/*
 				copy_trees(&T1, &T2, &sibling_pairs, &T1_a, &T1_c, &T2_a, &T2_c,
 						&T1_copy, &T2_copy, &sibling_pairs_copy,
 					&T1_a_copy, &T1_c_copy, &T2_a_copy, &T2_c_copy);
+					*/
 
 				// cut T2_a
 				Node *T2_ab = T2_a->parent();
@@ -2235,20 +2242,22 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				if (node != NULL && node->is_singleton() &&
 						node != T2->get_component(0))
 					singletons->push_back(node);
-				singletons->push_back(T2_a);
 				um.add_event(new AddComponent(T2));
 				T2->add_component(T2_a);
-				if (cut_b_only == false)
+				if (cut_b_only == false) {
+					singletons->push_back(T2_a);
 					answer_a =
 						rSPR_branch_and_bound_hlpr(T1, T2, k-1,
 								sibling_pairs, singletons, false, AFs);
+				}
 				best_k = answer_a;
 				best_T1 = T1;
 				best_T2 = T2;
 
-				um.clear_to(undo_state);
+				um.undo_to(undo_state);
 
 				//load the copy
+				/*
 				T1 = T1_copy;
 				T2 = T2_copy;
 				T1_a = T1_a_copy;
@@ -2257,12 +2266,15 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				T2_c = T2_c_copy;
 				sibling_pairs = sibling_pairs_copy;
 				singletons = new list<Node *>();
+				*/
 
 
 				// make copies for the branching
+				/*
 				copy_trees(&T1, &T2, &sibling_pairs, &T1_a, &T1_c, &T2_a, &T2_c,
 						&T1_copy, &T2_copy, &sibling_pairs_copy,
 						&T1_a_copy, &T1_c_copy, &T2_a_copy, &T2_c_copy);
+						*/
 
 				// get T2_b
 				T2_ab = T2_a->parent();
@@ -2303,19 +2315,22 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 							&& PREFER_RHO
 							&& T2->contains_rho() )) {
 					best_k = answer_b;
-					swap(&best_T1, &T1);
-					swap(&best_T2, &T2);
+					//swap(&best_T1, &T1);
+					//swap(&best_T2, &T2);
 				}
 
-				um.clear_to(undo_state);
+				um.undo_to(undo_state);
 
+				/*
 				delete T1;
 				delete T2;
 				delete sibling_pairs;
 				delete singletons;
+				*/
 
 
 				// load the copy
+				/*
 				T1 = T1_copy;
 				T2 = T2_copy;
 				T1_a = T1_a_copy;
@@ -2324,6 +2339,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				T2_c = T2_c_copy;
 				sibling_pairs = sibling_pairs_copy;
 				singletons = new list<Node *>();
+				*/
 
 				if (T2_c->parent() != NULL) {
 					Node *T2_c_parent = T2_c->parent();
@@ -2341,30 +2357,34 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					// don't decrease k
 					k++;
 				}
-				singletons->push_back(T2_c);
-				if (cut_b_only == false && cut_ab_only == false)
+				if (cut_b_only == false && cut_ab_only == false) {
+					singletons->push_back(T2_c);
 					answer_c =
 						rSPR_branch_and_bound_hlpr(T1, T2, k-1,
 								sibling_pairs, singletons, false, AFs);
+				}
 				if (answer_c > best_k
 						|| (answer_c == best_k
 							&& PREFER_RHO
 							&& T2->contains_rho() )) {
 					best_k = answer_c;
-					swap(&best_T1, &T1);
-					swap(&best_T2, &T2);
+					//swap(&best_T1, &T1);
+					//swap(&best_T2, &T2);
 				}
+				/*
 				delete T1;
 				delete T2;
 				delete sibling_pairs;
 				delete singletons;
+				*/
 
-				um.clear_to(undo_state);
+				um.undo_to(undo_state);
 
-				T1 = best_T1;
-				T2 = best_T2;
+				//T1 = best_T1;
+				//T2 = best_T2;
 
-				//um.undo_all();
+				um.undo_all();
+				singletons->clear();
 				return best_k;
 			}
 			cut_b_only = false;
@@ -2382,7 +2402,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		}
 	}
 
-	//um.undo_all();
+	um.undo_all();
 
 	return k;
 }

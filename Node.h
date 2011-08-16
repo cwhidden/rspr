@@ -30,7 +30,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define INCLUDE_NODE
 
-//#define COPY_CONTRACTED
+#define COPY_CONTRACTED
 
 #include <cstdio>
 #include <string>
@@ -574,11 +574,11 @@ class Node {
 				*s += "(";
 			#endif
 			if (contracted_lc != NULL) {
-				contracted_lc->str_subtree_hlpr(s);
+				contracted_lc->str_c_subtree_hlpr(s);
 			}
 			*s += ",";
 			if (contracted_rc != NULL) {
-				contracted_rc->str_subtree_hlpr(s);
+				contracted_rc->str_c_subtree_hlpr(s);
 			}
 			#ifdef DEBUG_CONTRACTED
 				*s += ">";
@@ -618,11 +618,11 @@ class Node {
 				*s += "(";
 			#endif
 			if (lc != NULL) {
-				lc->str_subtree_hlpr(s);
+				lc->str_c_subtree_hlpr(s);
 			}
 			*s += ",";
 			if (rc != NULL) {
-				rc->str_subtree_hlpr(s);
+				rc->str_c_subtree_hlpr(s);
 			}
 			#ifdef DEBUG_CONTRACTED
 				*s += ">";
