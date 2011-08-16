@@ -942,6 +942,16 @@ Node *get_sibling(list<Node *> *sibling_pairs) {
 		return NULL;
 }
 
+void set_sibling(Node *sibling) {
+	if (sibling->sibling_pair_status > 0) {
+		sibling_pair_loc = sibling->sibling_pair_loc;
+		if (sibling->sibling_pair_status == 1)
+			sibling_pair_loc++;
+		else if (sibling->sibling_pair_status == 2)
+			sibling_pair_loc--;
+	}
+}
+
 void clear_sibling_pair_status() {
 	sibling_pair_status = 0;
 }

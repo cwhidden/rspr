@@ -121,8 +121,11 @@ class ClearSiblingPair : public Undoable {
 	public:
 		Node *a;
 		Node *c;
+		int a_status;
+		int c_status;
 		ClearSiblingPair(Node *x, Node *y) {
-			if (x->get_sibling_pair_status() == 1) {
+			if (x->get_sibling_pair_status() == 1 ||
+					y->get_sibling_pair_status() == 2) {
 				a = x;
 				c = y;
 			}
@@ -130,11 +133,20 @@ class ClearSiblingPair : public Undoable {
 				a = y;
 				c = x;
 			}
+			a_status = a->get_sibling_pair_status();
+			c_status = c->get_sibling_pair_status();
 		}
 
 		void undo() {
 			a->set_sibling_pair_status(1);
 			c->set_sibling_pair_status(2);
+			if (a_status == 0) {
+				c->set_sibling(a);
+			}
+			else if (c_status == 0) {
+				a->set_sibling(c);
+			}
+
 		}
 };
 
@@ -142,16 +154,33 @@ class PopClearedSiblingPair : public Undoable {
 	public:
 		Node *a;
 		Node *c;
+		int a_status;
+		int c_status;
+
 		list<Node *> *sibling_pairs;
 		PopClearedSiblingPair(Node *x, Node *y, list<Node *> *s) {
 			sibling_pairs = s;
 			a = x;
 			c = y;
+			a_status = a->get_sibling_pair_status();
+			c_status = c->get_sibling_pair_status();
 		}
 
 		void undo() {
-			sibling_pairs->push_back(c);
-			sibling_pairs->push_back(a);
+			//sibling_pairs->push_back(c);
+			//sibling_pairs->push_back(a);
+			if (c_status == 0) {
+				c->add_to_sibling_pairs(sibling_pairs, 1);
+				c->set_sibling_pair_status(0);
+			}
+			else
+				sibling_pairs->push_back(c);
+			if (a_status == 0) {
+				a->add_to_sibling_pairs(sibling_pairs, 2);
+				a->set_sibling_pair_status(0);
+			}
+			else
+				sibling_pairs->push_back(a);
 		}
 };
 

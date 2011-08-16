@@ -95,7 +95,7 @@ exact BB drSPR=4
 
 *******************************************************************************/
 
-//#define DEBUG 1
+#define DEBUG 1
 #define DEBUG_CONTRACTED
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
@@ -1803,6 +1803,16 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			singletons->pop_back();
 			// find twin in T1
 			Node *T1_a = T2_a->get_twin();
+			cout << T1_a->str_subtree() << endl;
+
+	cout << "sibling pairs:";
+	for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+		cout << "  ";
+		cout << &(*i);
+	}
+	cout << endl;
+			if (T1_a->get_sibling_pair_status() > 0)
+				cout << T1_a->get_sibling(sibling_pairs) << endl;
 			// if this is in the first component of T_2 then
 			// it is not really a singleton.
 			Node *T1_a_parent = T1_a->parent();
@@ -2235,16 +2245,17 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 				// cut T2_a
 				Node *T2_ab = T2_a->parent();
-				um.add_event(new CutParent(T2_a));
-				T2_a->cut_parent();
-				ContractEvent(&um, T2_ab);
-				Node *node = T2_ab->contract();
-				if (node != NULL && node->is_singleton() &&
-						node != T2->get_component(0))
-					singletons->push_back(node);
-				um.add_event(new AddComponent(T2));
-				T2->add_component(T2_a);
+				Node *node;
 				if (cut_b_only == false) {
+					um.add_event(new CutParent(T2_a));
+					T2_a->cut_parent();
+					ContractEvent(&um, T2_ab);
+					node = T2_ab->contract();
+					if (node != NULL && node->is_singleton() &&
+							node != T2->get_component(0))
+						singletons->push_back(node);
+					um.add_event(new AddComponent(T2));
+					T2->add_component(T2_a);
 					singletons->push_back(T2_a);
 					answer_a =
 						rSPR_branch_and_bound_hlpr(T1, T2, k-1,
@@ -2341,28 +2352,27 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				singletons = new list<Node *>();
 				*/
 
-				if (T2_c->parent() != NULL) {
-					Node *T2_c_parent = T2_c->parent();
-					um.add_event(new CutParent(T2_c));
-					T2_c->cut_parent();
-					ContractEvent(&um, T2_c_parent);
-					node = T2_c_parent->contract();
-					if (node != NULL && node->is_singleton()
-							&& node != T2->get_component(0))
-						singletons->push_back(node);
-					um.add_event(new AddComponent(T2));
-					T2->add_component(T2_c);
-				}
-				else {
-					// don't decrease k
-					k++;
-				}
+					if (T2_c->parent() != NULL) {
+						Node *T2_c_parent = T2_c->parent();
+						um.add_event(new CutParent(T2_c));
+						T2_c->cut_parent();
+						ContractEvent(&um, T2_c_parent);
+						node = T2_c_parent->contract();
+						if (node != NULL && node->is_singleton()
+								&& node != T2->get_component(0))
+							singletons->push_back(node);
+						um.add_event(new AddComponent(T2));
+						T2->add_component(T2_c);
+					}
+					else {
+						// don't decrease k
+						k++;
+					}
 				if (cut_b_only == false && cut_ab_only == false) {
 					singletons->push_back(T2_c);
 					answer_c =
 						rSPR_branch_and_bound_hlpr(T1, T2, k-1,
 								sibling_pairs, singletons, false, AFs);
-				}
 				if (answer_c > best_k
 						|| (answer_c == best_k
 							&& PREFER_RHO
@@ -2370,6 +2380,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					best_k = answer_c;
 					//swap(&best_T1, &T1);
 					//swap(&best_T2, &T2);
+				}
 				}
 				/*
 				delete T1;
