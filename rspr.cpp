@@ -95,8 +95,8 @@ exact BB drSPR=4
 
 *******************************************************************************/
 
-#define DEBUG 1
-#define DEBUG_CONTRACTED
+//#define DEBUG 1
+//#define DEBUG_CONTRACTED
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -1803,16 +1803,9 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			singletons->pop_back();
 			// find twin in T1
 			Node *T1_a = T2_a->get_twin();
-			cout << T1_a->str_subtree() << endl;
 
-	cout << "sibling pairs:";
-	for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
-		cout << "  ";
-		cout << &(*i);
-	}
-	cout << endl;
-			if (T1_a->get_sibling_pair_status() > 0)
-				cout << T1_a->get_sibling(sibling_pairs) << endl;
+			//if (T1_a->get_sibling_pair_status() > 0)
+			//	cout << T1_a->get_sibling(sibling_pairs) << endl;
 			// if this is in the first component of T_2 then
 			// it is not really a singleton.
 			Node *T1_a_parent = T1_a->parent();
@@ -1839,16 +1832,16 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 			um.add_event(new AddComponent(T1));
 			T1->add_component(T1_a);
-			if (T1_a->get_sibling_pair_status() > 0) {
-				um.add_event(new ClearSiblingPair(T1_a, T1_a->get_sibling(sibling_pairs)));
-				T1_a->clear_sibling_pair(sibling_pairs);
-			}
+			//if (T1_a->get_sibling_pair_status() > 0) {
+			//	um.add_event(new ClearSiblingPair(T1_a, T1_a->get_sibling(sibling_pairs)));
+			//	T1_a->clear_sibling_pair(sibling_pairs);
+			//}
 			ContractEvent(&um, T1_a_parent);
 			Node *node = T1_a_parent->contract();
 			if (potential_new_sibling_pair && node->is_sibling_pair()){
 				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
-				node->rchild()->add_to_front_sibling_pairs(sibling_pairs,2);
-				node->lchild()->add_to_front_sibling_pairs(sibling_pairs,1);
+				sibling_pairs->push_front(node->rchild());
+				sibling_pairs->push_front(node->lchild());
 			}
 			#ifdef DEBUG
 				cout << "\tT1: ";
@@ -1863,14 +1856,14 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			Node *T1_c = sibling_pairs->back();
 			sibling_pairs->pop_back();
 			
-			if (T1_a->get_sibling_pair_status() == 0 ||
-					T1_c->get_sibling_pair_status() == 0) {
-				um.add_event(new PopClearedSiblingPair(T1_a, T1_c, sibling_pairs));
-				continue;
-			}
+			//if (T1_a->get_sibling_pair_status() == 0 ||
+			//		T1_c->get_sibling_pair_status() == 0) {
+			//	um.add_event(new PopClearedSiblingPair(T1_a, T1_c, sibling_pairs));
+			//	continue;
+			//}
 			um.add_event(new PopSiblingPair(T1_a, T1_c, sibling_pairs));
-			T1_a->clear_sibling_pair_status();
-			T1_c->clear_sibling_pair_status();
+			//T1_a->clear_sibling_pair_status();
+			//T1_c->clear_sibling_pair_status();
 
 			//if (T1->get_component(0)->str() != "") {
 			//	cout << "FOO!!!" << endl;
@@ -1915,8 +1908,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				// check if T1_ac is part of a sibling pair
 				if (T1_ac->parent() != NULL && T1_ac->parent()->is_sibling_pair()) {
 					um.add_event(new AddToSiblingPairs(sibling_pairs));
-					T1_ac->parent()->lchild()->add_to_sibling_pairs(sibling_pairs,1);
-					T1_ac->parent()->rchild()->add_to_sibling_pairs(sibling_pairs,2);
+					sibling_pairs->push_back(T1_ac->parent()->lchild());
+					sibling_pairs->push_back(T1_ac->parent()->rchild());
 				}
 				#ifdef DEBUG
 					cout << "\tT1: ";
@@ -2308,8 +2301,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					if (T2_b->is_leaf())
 						singletons->push_back(T2_b);
 					um.add_event(new AddToSiblingPairs(sibling_pairs));
-					T1_a->add_to_sibling_pairs(sibling_pairs, 1);
-					T1_c->add_to_sibling_pairs(sibling_pairs, 2);
+					sibling_pairs->push_back(T1_a);
+					sibling_pairs->push_back(T1_c);
 					if (CUT_ALL_B) {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,

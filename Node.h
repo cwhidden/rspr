@@ -806,6 +806,10 @@ class Node {
 			lc->labels_to_numbers(label_map, reverse_label_map);
 		if (rc != NULL)
 			rc->labels_to_numbers(label_map, reverse_label_map);
+		if (contracted_lc != NULL)
+			contracted_lc->labels_to_numbers(label_map, reverse_label_map);
+		if (contracted_rc != NULL)
+			contracted_rc->labels_to_numbers(label_map, reverse_label_map);
 	}
 	
 	void numbers_to_labels(map<int, string> *reverse_label_map) {
@@ -842,6 +846,10 @@ class Node {
 			lc->numbers_to_labels(reverse_label_map);
 		if (rc != NULL)
 			rc->numbers_to_labels(reverse_label_map);
+		if (contracted_lc != NULL)
+			contracted_lc->numbers_to_labels(reverse_label_map);
+		if (contracted_rc != NULL)
+			contracted_rc->numbers_to_labels(reverse_label_map);
 	}
 
 	void preorder_number() {

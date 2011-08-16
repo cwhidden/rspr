@@ -162,25 +162,11 @@ class PopClearedSiblingPair : public Undoable {
 			sibling_pairs = s;
 			a = x;
 			c = y;
-			a_status = a->get_sibling_pair_status();
-			c_status = c->get_sibling_pair_status();
 		}
 
 		void undo() {
-			//sibling_pairs->push_back(c);
-			//sibling_pairs->push_back(a);
-			if (c_status == 0) {
-				c->add_to_sibling_pairs(sibling_pairs, 1);
-				c->set_sibling_pair_status(0);
-			}
-			else
-				sibling_pairs->push_back(c);
-			if (a_status == 0) {
-				a->add_to_sibling_pairs(sibling_pairs, 2);
-				a->set_sibling_pair_status(0);
-			}
-			else
-				sibling_pairs->push_back(a);
+			sibling_pairs->push_back(c);
+			sibling_pairs->push_back(a);
 		}
 };
 
@@ -191,19 +177,13 @@ class PopSiblingPair : public Undoable {
 		list<Node *> *sibling_pairs;
 		PopSiblingPair(Node *x, Node *y, list<Node *> *s) {
 			sibling_pairs = s;
-			if (x->get_sibling_pair_status() == 1) {
 				a = x;
 				c = y;
-			}
-			else {
-				a = y;
-				c = x;
-			}
 		}
 
 		void undo() {
-			a->add_to_sibling_pairs(sibling_pairs, 1);
-			c->add_to_sibling_pairs(sibling_pairs, 2);
+			sibling_pairs->push_back(a);
+			sibling_pairs->push_back(c);
 		}
 };
 
@@ -227,9 +207,7 @@ class AddToFrontSiblingPairs : public Undoable {
 		}
 		void undo() {
 			if (!sibling_pairs->empty()) {
-				sibling_pairs->front()->clear_sibling_pair_status();
 				sibling_pairs->pop_front();
-				sibling_pairs->front()->clear_sibling_pair_status();
 				sibling_pairs->pop_front();
 			}
 		}
@@ -243,9 +221,7 @@ class AddToSiblingPairs : public Undoable {
 		}
 		void undo() {
 			if (!sibling_pairs->empty()) {
-				sibling_pairs->back()->clear_sibling_pair_status();
 				sibling_pairs->pop_back();
-				sibling_pairs->back()->clear_sibling_pair_status();
 				sibling_pairs->pop_back();
 			}
 		}
