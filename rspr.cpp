@@ -97,7 +97,7 @@ exact BB drSPR=4
 
 //#define DEBUG 1
 //#define DEBUG_CONTRACTED
-//#define DEBUG_APPROX 1
+#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
 #define MAX_SPR 1000
@@ -124,8 +124,7 @@ using namespace std;
 int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		list<Node *> *sibling_pairs);
 int rSPR_3_approx(Forest *T1, Forest *T2);
-int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
-		list<Node *> *sibling_pairs);
+int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
 int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync);
 int rSPR_worse_3_approx(Forest *T1, Forest *T2);
 int rSPR_FPT_hlpr(Forest *T1, Forest *T2, int k, list<Node *> *sibling_pairs,
@@ -490,7 +489,7 @@ int main(int argc, char *argv[]) {
 
 						cout << endl;
 
-						if (BB) {
+						if (FPT || BB) {
 							int min_spr = approx_spr / 3;
 							for(k = min_spr; k <= MAX_SPR; k++) {
 								Forest f1t = Forest(f1);
@@ -550,7 +549,7 @@ int main(int argc, char *argv[]) {
 					}
 				//}
 
-				if (BB) {
+				if (BB | FPT) {
 					if (F1.contains_rho()) {
 						F1.erase_components(0, num_clusters);
 						F2.erase_components(0, num_clusters);
@@ -586,6 +585,9 @@ int main(int argc, char *argv[]) {
 				cout << "\n";
 			}
 	
+			int k = min_spr;
+
+			/*
 			// FPT ALGORITHM
 			int exact_spr = -1;
 			int k = min_spr;
@@ -614,12 +616,13 @@ int main(int argc, char *argv[]) {
 					cout << "exact drSPR=?  " << "k=" << k << " too large" << endl;
 				cout << "\n";
 			}
+			*/
 		
-			if (BB) {
+			if (BB || FPT) {
 				// BRANCH AND BOUND FPT ALGORITHM
 				Forest F1 = Forest(F3);
 				Forest F2 = Forest(F4);
-				exact_spr = rSPR_branch_and_bound(&F1, &F2);
+				int exact_spr = rSPR_branch_and_bound(&F1, &F2);
 				if (exact_spr >= 0) {
 					cout << "F1: ";
 					F1.print_components();
@@ -1016,23 +1019,7 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
  * NOTE: destructive. The computed forests replace T1 and T2.
  */
 int rSPR_worse_3_approx(Forest *T1, Forest *T2) {
-	// match up nodes of T1 and T2
-//	cout << "foo" << endl;
-	sync_twins(T1, T2);
-//	cout << "foo" << endl;
-	// find sibling pairs of T1
-	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
-//	cout << "foo" << endl;
-	// find singletons of T2
-	list<Node *> singletons = T2->find_singletons();
-//	cout << "singletons:" << endl;
-//	for(list<Node *>::iterator i = singletons.begin(); i != singletons.end(); i++) {
-//		cout << " ";
-//		(*i)->print_subtree();
-//	}
-	int ans = rSPR_worse_3_approx_hlpr(T1, T2, &singletons, sibling_pairs);
-	delete sibling_pairs;
-	return ans;
+	return rSPR_worse_3_approx(T1, T2, true);
 }
 
 int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync) {
@@ -1044,16 +1031,26 @@ int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync) {
 	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
 	// find singletons of T2
 	list<Node *> singletons = T2->find_singletons();
+	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
 
-	int ans = rSPR_worse_3_approx_hlpr(T1, T2, &singletons, sibling_pairs);
+	Forest *F1;
+	Forest *F2;
+
+	int ans = rSPR_worse_3_approx_hlpr(T1, T2, &singletons, sibling_pairs, &F1, &F2, true);
+
+	F1->swap(T1);
+	F2->swap(T2);
+	sync_twins(T1,T2);
+
+
 	delete sibling_pairs;
+	delete F1;
+	delete F2;
 	return ans;
 }
 
 // rSPR_worse_3_approx recursive helper function
-int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
-		list<Node *> *sibling_pairs) {
-	//return rSPR_3_approx_hlpr(T1, T2, singletons, sibling_pairs);
+int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests) {
 	#ifdef DEBUG_APPROX
 		cout << "rSPR_worse_3_approx_hlpr" << endl;
 					cout << "\tT1: ";
@@ -1068,6 +1065,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 					cout << endl;
 	#endif
 	int num_cut = 0;
+	UndoMachine um = UndoMachine();
 	while(!singletons->empty() || !sibling_pairs->empty()) {
 		// Case 1 - Remove singletons
 		while(!singletons->empty()) {
@@ -1093,16 +1091,20 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				continue;
 			bool potential_new_sibling_pair = T1_a_parent->is_sibling_pair();
 			// cut the edge above T1_a
+			um.add_event(new CutParent(T1_a));
 			T1_a->cut_parent();
+			um.add_event(new AddComponent(T1));
 			T1->add_component(T1_a);
-			if (T1_a->get_sibling_pair_status() > 0)
-				T1_a->clear_sibling_pair(sibling_pairs);
+			//if (T1_a->get_sibling_pair_status() > 0)
+			//	T1_a->clear_sibling_pair(sibling_pairs);
 			//delete(T1_a);
 
+			ContractEvent(&um, T1_a_parent);
 			Node *node = T1_a_parent->contract();
 			if (potential_new_sibling_pair && node->is_sibling_pair()){
-				node->rchild()->add_to_front_sibling_pairs(sibling_pairs,2);
-				node->lchild()->add_to_front_sibling_pairs(sibling_pairs,1);
+				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
+				sibling_pairs->push_front(node->rchild());
+				sibling_pairs->push_front(node->lchild());
 			}
 
 	#ifdef DEBUG_APPROX
@@ -1117,14 +1119,15 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 			sibling_pairs->pop_back();
 			Node *T1_c = sibling_pairs->back();
 			sibling_pairs->pop_back();
+			um.add_event(new PopSiblingPair(T1_a, T1_c, sibling_pairs));
 
-			if (T1_a->get_sibling_pair_status() == 0 ||
-					T1_c->get_sibling_pair_status() == 0) {
-				continue;
-			}
+			//if (T1_a->get_sibling_pair_status() == 0 ||
+			//		T1_c->get_sibling_pair_status() == 0) {
+			//	continue;
+			//}
 
-			T1_a->clear_sibling_pair_status();
-			T1_c->clear_sibling_pair_status();
+			//T1_a->clear_sibling_pair_status();
+			//T1_c->clear_sibling_pair_status();
 			if (T1_a->parent() == NULL || T1_c->parent() == NULL || T1_a->parent() != T1_c->parent()) {
 				continue;
 			}
@@ -1154,22 +1157,27 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 					T2->print_components();
 				#endif
 				Node *T2_ac = T2_a->parent();
-				T1_ac->contract_sibling_pair();
-				T2_ac->contract_sibling_pair();
+				um.add_event(new ContractSiblingPair(T1_ac));
+				um.add_event(new ContractSiblingPair(T2_ac));
+				T1_ac->contract_sibling_pair_undoable();
+				T2_ac->contract_sibling_pair_undoable();
+				um.add_event(new SetTwin(T1_ac));
+				um.add_event(new SetTwin(T2_ac));
 				T1_ac->set_twin(T2_ac);
 				T2_ac->set_twin(T1_ac);
-				T1->add_deleted_node(T1_a);
-				T1->add_deleted_node(T1_c);
-				T2->add_deleted_node(T2_a);
-				T2->add_deleted_node(T2_c);
+				//T1->add_deleted_node(T1_a);
+				//T1->add_deleted_node(T1_c);
+				//T2->add_deleted_node(T2_a);
+				//T2->add_deleted_node(T2_c);
 
 				// check if T2_ac is a singleton
 				if (T2_ac->is_singleton() && !T1_ac->is_singleton() && T2_ac != T2->get_component(0))
 					singletons->push_back(T2_ac);
 				// check if T1_ac is part of a sibling pair
 				if (T1_ac->parent() != NULL && T1_ac->parent()->is_sibling_pair()) {
-						T1_ac->parent()->lchild()->add_to_sibling_pairs(sibling_pairs,1);
-						T1_ac->parent()->rchild()->add_to_sibling_pairs(sibling_pairs,2);
+					um.add_event(new AddToSiblingPairs(sibling_pairs));
+					sibling_pairs->push_back(T1_ac->parent()->lchild());
+					sibling_pairs->push_back(T1_ac->parent()->rchild());
 				}
 			}
 			// Case 3
@@ -1215,19 +1223,33 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				bool cut_b_only = false;
 				if (T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()) {
 					cut_b_only = true;
-					T1_a->add_to_sibling_pairs(sibling_pairs,1);
-					T1_c->add_to_sibling_pairs(sibling_pairs,2);
+					um.add_event(new AddToSiblingPairs(sibling_pairs));
+					sibling_pairs->push_back(T1_a);
+					sibling_pairs->push_back(T1_c);
 				}
 
+				Node *node;
+
 				if (!cut_b_only) {
+					um.add_event(new CutParent(T1_a));
 					T1_a->cut_parent();
+
+					ContractEvent(&um, T1_ac);
+					node = T1_ac->contract();
+
+					um.add_event(new CutParent(T1_c));
 					T1_c->cut_parent();
+
+
+					ContractEvent(&um, node);
+					node = node->contract();
+
 					// contract parents
-					Node *node = T1_ac->contract();
 					// check for T1_ac sibling pair
 					if (node && node->is_sibling_pair()){
-						node->lchild()->add_to_sibling_pairs(sibling_pairs,1);
-						node->rchild()->add_to_sibling_pairs(sibling_pairs,2);
+						um.add_event(new AddToSiblingPairs(sibling_pairs));
+						sibling_pairs->push_back(node->lchild());
+						sibling_pairs->push_back(node->rchild());
 					}
 				}
 
@@ -1235,20 +1257,30 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				if (APPROX_CHECK_COMPONENT)
 					same_component = (T2_a->find_root() == T2_c->find_root());
 
+				Node *T2_ab_parent = T2_ab->parent();
+				node = T2_ab;
 				if (!cut_b_only) {
+					um.add_event(new CutParent(T2_a));
 					T2_a->cut_parent();
+
+					//ContractEvent(&um, T2_ab);
+					//node = T2_ab->contract();
 				}
 				bool cut_b = false;
-				if (same_component && T2_ab->parent() != NULL) {
+				if (same_component && T2_ab_parent != NULL) {
+					um.add_event(new CutParent(T2_b));
 					T2_b->cut_parent();
+					//ContractEvent(&um, node);
+					//node = node->contract();
 					cut_b = true;
 				}
 				// T2_b will move up after contraction
-				else if (T2_ab->parent() == NULL) {
+				else if (T2_ab_parent == NULL) {
 					T2_b = T2_b->parent();
 				}
+					ContractEvent(&um, node);
+					node = node->contract();
 				// check for T2 parents as singletons
-				Node *node = T2_ab->contract();
 				if (node != NULL && node->is_singleton()
 						&& node != T2->get_component(0))
 					singletons->push_back(node);
@@ -1261,7 +1293,9 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				if (T2_c != node && T2_c->parent() != NULL && !cut_b_only) {
 
 					Node *T2_c_parent = T2_c->parent();
+					um.add_event(new CutParent(T2_c));
 					T2_c->cut_parent();
+					ContractEvent(&um, T2_c_parent);
 					node = T2_c_parent->contract();
 					if (node != NULL && node->is_singleton()
 							&& node != T2->get_component(0))
@@ -1272,25 +1306,31 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				}
 
 				
-				if (!cut_b_only)
+				if (!cut_b_only) {
+					um.add_event(new AddComponent(T1));
 					T1->add_component(T1_a);
-				if (!cut_b_only)
+					um.add_event(new AddComponent(T1));
 					T1->add_component(T1_c);
-				// put T2 cut parts into T2
-				if (!cut_b_only)
+					// put T2 cut parts into T2
+					um.add_event(new AddComponent(T2));
 					T2->add_component(T2_a);
-				// may have already been added
-				if (cut_b)
+					// may have already been added
+				}
+				if (cut_b) {
+					um.add_event(new AddComponent(T2));
 					T2->add_component(T2_b);
+				}
 				// problem if c is deleted
-				if (add_T2_c)
+				if (add_T2_c) {
+					um.add_event(new AddComponent(T2));
 					T2->add_component(T2_c);
+				}
 
 				// may have already been added
 				if (T2_b->is_leaf())
 					singletons->push_back(T2_b);
 
-					num_cut+=3;
+				num_cut+=3;
 
 			}
 		}
@@ -1298,6 +1338,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		// if the first component of the forests differ then we have cut p
 		if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
 			if (!T1->contains_rho()) {
+				um.add_event(new AddRho(T1));
+				um.add_event(new AddRho(T2));
 				T1->add_rho();
 				T2->add_rho();
 			}
@@ -1305,6 +1347,11 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 				// hack to ignore rho when it shouldn't be in a cluster
 				num_cut -=3;
 		}
+		if (save_forests) {
+			*F1 = new Forest(T1);
+			*F2 = new Forest(T2);
+		}
+		 um.undo_all();
 		return num_cut;
 }
 
@@ -2018,19 +2065,42 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				// make copies for the approx
 				// be careful we do not kill real T1 and T2
 				// ie use the copies
-				/*
+				if (BB) {
 				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
-				T1_c->add_to_front_sibling_pairs(sibling_pairs, 2);
-				T1_a->add_to_front_sibling_pairs(sibling_pairs, 1);
-				copy_trees(&T1, &T2, &sibling_pairs, &T1_a, &T1_c, &T2_a, &T2_c,
-						&T1_copy, &T2_copy, &sibling_pairs_copy,
-						&T1_a_copy, &T1_c_copy, &T2_a_copy, &T2_c_copy);
-				um.undo_to(undo_state);
-				int approx_spr = rSPR_worse_3_approx_hlpr(T1_copy, T2_copy,
-						singletons, sibling_pairs_copy);
-				delete T1_copy;
-				delete T2_copy;
-				delete sibling_pairs_copy;
+				sibling_pairs->push_front(T1_c);
+				sibling_pairs->push_front(T1_a);
+				//copy_trees(&T1, &T2, &sibling_pairs, &T1_a, &T1_c, &T2_a, &T2_c,
+				//		&T1_copy, &T2_copy, &sibling_pairs_copy,
+				//		&T1_a_copy, &T1_c_copy, &T2_a_copy, &T2_c_copy);
+				//Forest T1_copy = Forest(T1);
+				//Forest T2_copy = Forest(T2);
+				//list<Node *> *sibling_pairs_copy = T1->find_sibling_pairs();
+				//sync_twins(&T1_copy, &T2_copy);
+				//int approx_spr = rSPR_worse_3_approx(&T1_copy, &T2_copy);
+				cout << "FOO" << endl;
+				cout << "T1: ";
+				T1->print_components();
+				cout << "T2: ";
+				T2->print_components();
+					cout << "sibling pairs:";
+					for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+						cout << "  ";
+						(*i)->print_subtree_hlpr();
+					}
+					cout << endl;
+				int approx_spr = rSPR_worse_3_approx_hlpr(T1, T2,
+						singletons, sibling_pairs, NULL, NULL, false);
+				cout << "T1: ";
+				T1->print_components();
+				cout << "T2: ";
+				T2->print_components();
+					cout << "sibling pairs:";
+					for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+						cout << "  ";
+						(*i)->print_subtree_hlpr();
+					}
+					cout << endl;
+				cout << endl;
 				#ifdef DEBUG
 					cout << "\tT1: ";
 					T1->print_components();
@@ -2038,14 +2108,15 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					T2->print_components();
 					cout << "approx =" << approx_spr << endl;
 				#endif
-				if (approx_spr  >  3*k){
-					#ifdef DEBUG
-						cout << "approx failed" << endl;
-					#endif
-					//um.undo_all();
-					return -1;
+					if (approx_spr  >  3*k){
+						#ifdef DEBUG
+							cout << "approx failed" << endl;
+						#endif
+						um.undo_all();
+						return -1;
+					}
+				um.undo_to(undo_state);
 				}
-				*/
 				
 			if (CLUSTER_REDUCTION && (MAX_CLUSTERS < 0 || NUM_CLUSTERS < MAX_CLUSTERS)) {
 				// clean up singletons

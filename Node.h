@@ -600,10 +600,14 @@ class Node {
 			*s += "(";
 			if (lc != NULL) {
 				lc->str_subtree_hlpr(s);
+				if (lc->parent() != this)
+					cout << "#";
 			}
 			*s += ",";
 			if (rc != NULL) {
 				rc->str_subtree_hlpr(s);
+				if (rc->parent() != this)
+					cout << "#";
 			}
 			*s += ")";
 		}
@@ -704,8 +708,10 @@ class Node {
 				rchild->find_sibling_pairs_hlpr(sibling_pairs);
 		}
 		if (lchild_leaf && rchild_leaf) {
-			lchild->add_to_sibling_pairs(sibling_pairs, 1);
-			rchild->add_to_sibling_pairs(sibling_pairs, 2);
+			sibling_pairs->push_back(lchild);
+			sibling_pairs->push_back(rchild);
+			//lchild->add_to_sibling_pairs(sibling_pairs, 1);
+			//rchild->add_to_sibling_pairs(sibling_pairs, 2);
 		}
 	}
 	

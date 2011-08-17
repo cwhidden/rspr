@@ -182,8 +182,8 @@ class PopSiblingPair : public Undoable {
 		}
 
 		void undo() {
-			sibling_pairs->push_back(a);
 			sibling_pairs->push_back(c);
+			sibling_pairs->push_back(a);
 		}
 };
 
@@ -308,8 +308,10 @@ void ContractEvent(UndoMachine *um, Node *n) {
 				um->add_event(new CutParent(n));
 			}
 			else if (lc == NULL && rc == NULL) {
-				um->add_event(new CutParent(n));
-				ContractEvent(um, parent);
+//				um->add_event(new CutParent(n));
+				um->add_event(new CutParent(parent));
+				um->add_event(new CutParent(parent->lchild()));
+				um->add_event(new CutParent(parent->rchild()));
 			}
 		}
 		// if no parent then take children of single child and remove it
