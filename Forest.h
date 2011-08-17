@@ -42,11 +42,8 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include "LCA.h"
 #include <map>
 #include <limits>
-//#include "ClusterInstance.h"
 
 using namespace std;
-
-class ClusterInstance;
 
 class Forest {
 	public:
@@ -54,7 +51,6 @@ class Forest {
 		vector<Node *> deleted_nodes;
 		bool rho;
 		Forest *twin;
-		ClusterInstance *cluster;
 
 	public:
 	Forest() {
@@ -69,7 +65,6 @@ class Forest {
 		deleted_nodes = vector<Node *>();
 		rho = false;
 		twin = NULL;
-		cluster = NULL;
 	}
 	Forest(const Forest &f) {
 		components = vector<Node *>(f.components.size());
@@ -80,7 +75,6 @@ class Forest {
 		deleted_nodes = vector<Node *>();
 		rho = f.rho;
 		twin = NULL;
-		cluster = f.cluster;
 		//label_nodes_with_forest();
 	}
 
@@ -93,34 +87,14 @@ class Forest {
 		deleted_nodes = vector<Node *>();
 		rho = f->rho;
 		twin = NULL;
-		cluster = f->cluster;
 		//label_nodes_with_forest();
 	}
-
-	Forest(Forest *f, bool b) {
-		components = vector<Node *>(f->components.size());
-		for(int i = 0; i < f->components.size(); i++) {
-			//if (f->components[i] != NULL)
-			components[i] = new Node(*f->components[i]);
-		}
-		deleted_nodes = vector<Node *>();
-		rho = f->rho;
-		twin = NULL;
-		cluster = f->cluster;
-		//label_nodes_with_forest();
-	}
-
 
 	void init(vector<Node *> components) {
 		this->components = vector<Node *>(components);
 		deleted_nodes = vector<Node *>();
 		rho = false;
-		for(int i = 0; i < components.size(); i++) {
-				if (components[i]->str() == "p")
-					rho = true;
-		}
 		twin = NULL;
-		cluster = NULL;
 	}
 	~Forest() {
 		for(int i = 0; i < components.size(); i++) {
@@ -152,10 +126,6 @@ class Forest {
 		bool rho_temp = this->rho;
 		this->rho = f->rho;
 		f->rho = rho_temp;
-
-		ClusterInstance *c_temp = this->cluster;
-		this->cluster = f->cluster;
-		f->cluster = c_temp;
 	}
 
 	// print the forest
@@ -202,21 +172,6 @@ class Forest {
 		cout << endl;
 	}
 
-	// return the string for this forest
-	string str() {
-		string s = "";
-		vector<Node *>::iterator it;
-		for(it = components.begin(); it != components.end(); it++) {
-			Node *root = *it;
-			if (root == NULL)
-				s += "!";
-			else
-				s += root->str_subtree();
-			s += " ";
-		}
-		return s;
-	}
-
 	inline void add_component(Node *head) {
 		components.push_back(head);
 	}
@@ -241,15 +196,6 @@ class Forest {
 	}
 	Forest *get_twin() {
 		return twin;
-	}
-	ClusterInstance *get_cluster() {
-		return cluster;
-	}
-	void set_cluster(ClusterInstance *c) {
-		cluster = c;
-	}
-	void set_cluster(ClusterInstance &c) {
-		cluster = &c;
 	}
 	void update_component(Node *old_c, Node *new_c) {
 		vector<Node *>::iterator i;
@@ -336,10 +282,6 @@ bool add_rho() {
 	return true;
 }
 
-void set_rho(bool b) {
-	rho = b;
-}
-
 bool contains_rho() {
 	return rho;
 }
@@ -358,11 +300,6 @@ void label_nodes_with_forest() {
 	}
 }
 
-void move_first_component_to_end() {
-	Node *temp = components[0];
-	components[0] = components[components.size()-1];
-	components[components.size()-1] = temp;
-}
 };
 
 // Functions
@@ -647,10 +584,8 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 	// visit right subtree first
 	if (rc != NULL)
 		sync_interior_twins(rc, F2_LCAs);
-	#ifdef DEBUG_SYNC
-	cout << "SYNC_INTERIOR_TWINS()" << endl;
-	cout << n->str_subtree() << endl;
-	#endif
+//	cout << "SYNC_INTERIOR_TWINS()" << endl;
+//	cout << n->str_subtree() << endl;
 	if (lc == NULL && rc == NULL) {
 //		cout << "leaf" << endl;
 		active_descendants->push_back(n->get_twin());
@@ -678,18 +613,16 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 		list<Node *> *lc_active_descendants = lc->get_active_descendants();
 		list<Node *> *rc_active_descendants = rc->get_active_descendants();
 
-	#ifdef DEBUG_SYNC
-	cout << "active_descendants lc" << endl;
-	for(list<Node *>::iterator i =  lc_active_descendants-> begin(); i != lc_active_descendants->end(); i++) {
-		cout << "\t" << (*i)->str_subtree() << endl;
-	}
-		cout << endl;
-	cout << "active_descendants rc" << endl;
-	for(list<Node *>::iterator i =  rc_active_descendants-> begin(); i != rc_active_descendants->end(); i++) {
-		cout << "\t" << (*i)->str_subtree() << endl;
-	}
-		cout << endl;
-	#endif
+//	cout << "active_descendants lc" << endl;
+//	for(list<Node *>::iterator i =  lc_active_descendants-> begin(); i != lc_active_descendants->end(); i++) {
+//		cout << "\t" << (*i)->str_subtree() << endl;
+//	}
+//		cout << endl;
+//	cout << "active_descendants rc" << endl;
+//	for(list<Node *>::iterator i =  rc_active_descendants-> begin(); i != rc_active_descendants->end(); i++) {
+//		cout << "\t" << (*i)->str_subtree() << endl;
+//	}
+//		cout << endl;
 
 		bool done = false;
 		if (lc_active_descendants->empty() || rc_active_descendants->empty())
@@ -706,15 +639,11 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 			leaves from the same component
 		*/
 //		cout << "foo" << endl;
-		#ifdef DEBUG_SYNC
-		cout << active_descendants->size() << endl;
-		#endif
+//		cout << active_descendants->size() << endl;
 		if (!done)
 			delete_and_merge_LCAs(active_descendants, F2_LCAs, node1_location,
 					node2_location);
-		#ifdef DEBUG_SYNC
-		cout << "done first merge" << endl;
-		#endif
+//		cout << "done first merge" << endl;
 
 		/* check to see if n is twinned by a root of F2
 			 if so, then remove each leaf twinned by that component
@@ -730,30 +659,24 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 				 problem
 				 */
 			if (n->parent() != NULL) {
-			#ifdef DEBUG_SYNC
-			cout << "deleting from component " << endl;
-			#endif
+//			cout << "deleting from component " << 
+//	boost::any_cast<int>(root_lca->get_parameter(COMPONENT_NUMBER))
+//			<< endl;
 				delete_and_merge_LCAs(root_lca, active_descendants, F2_LCAs);
 			}
 		}
-		#ifdef DEBUG_SYNC
-		cout << "done checking component" << endl;
-		#endif
+//		cout << "done checking component" << endl;
 
 		/* If we have a single element in n's active descendants
 			 list then set twin pointers appropriately
 		*/
 
-	#ifdef DEBUG_SYNC
-	cout << "active_descendants done" << endl;
-	for(list<Node *>::iterator i =  active_descendants->begin(); i != active_descendants->end(); i++) {
-		cout << "\t" << (*i)->str_subtree() << endl;
-	}
-	#endif
+//	cout << "active_descendants done" << endl;
+//	for(list<Node *>::iterator i =  active_descendants->begin(); i != active_descendants->end(); i++) {
+//		cout << "\t" << (*i)->str_subtree() << endl;
+//	}
 		if (active_descendants->size() == 1) {
-			#ifdef DEBUG_SYNC
-			cout << "found twin" << endl;
-			#endif
+//			cout << "found twin" << endl;
 			Node *twin = active_descendants->front();
 			n->set_twin(twin);
 		}
@@ -809,41 +732,13 @@ void delete_and_merge_LCAs(list<Node *> *active_descendants,
 		list<Node *>::iterator lca_location =
 			active_descendants->insert(node1_location,lca);
 //		cout << "xb" << endl;
-//		active_descendants->erase(node1_location);
+		active_descendants->erase(node1_location);
 //		cout << "xc" << endl;
-
-// TODO: could this be faster?
-		bool remove = false;
-		list<list<Node *>::iterator>::iterator i;
-		for(i = n1->get_removable_descendants()->begin(); i != n1->get_removable_descendants()->end(); i++) {
-			if (*i == node1_location) {
-				//active_descendants->erase(*i);
-				remove = true;
-				break;
-			}
-		}
-		if (remove) {
-			active_descendants->erase(*i);
-			n1->get_removable_descendants()->erase(i);
-		}
-//		n1->get_removable_descendants()->clear();
-		// TODO: delete each when clearing?
+		n1->get_removable_descendants()->clear();
 //		cout << "xd" << endl;
-//		active_descendants->erase(node2_location);
+		active_descendants->erase(node2_location);
 //		cout << "xe" << endl;
-		remove = false;
-		for(i = n2->get_removable_descendants()->begin(); i != n2->get_removable_descendants()->end(); i++) {
-			if (*i == node2_location) {
-				//active_descendants->erase(*i);
-				remove = true;
-				break;
-			}
-		}
-		if (remove) {
-			active_descendants->erase(*i);
-			n2->get_removable_descendants()->erase(i);
-		}
-//		n2->get_removable_descendants()->clear();
+		n2->get_removable_descendants()->clear();
 //		cout << "xf" << endl;
 		lca->get_removable_descendants()->push_back(lca_location);
 //		cout << "xg" << endl;
@@ -867,22 +762,15 @@ void delete_and_merge_LCAs(list<Node *> *active_descendants,
 	 */
 void delete_and_merge_LCAs(Node *n, list<Node *>
 		*active_descendants, vector<LCA> *F2_LCAs) {
+//	cout << n->str_subtree() << endl;
 	int component = n->get_component_number();
 	list<list<Node *>::iterator> *removable_descendants	=
 			n->get_removable_descendants();
 
-	if (n->lchild() != NULL)
-		delete_and_merge_LCAs(n->lchild(), active_descendants, F2_LCAs);
-	if (n->rchild() != NULL)
-		delete_and_merge_LCAs(n->rchild(), active_descendants, F2_LCAs);
-	#ifdef DEBUG_SYNC
-
-	cout << n->str_subtree() << endl;
-	cout << "removable_descendants" << endl;
-	for(list<list<Node *>::iterator>::iterator i =  removable_descendants-> begin(); i != removable_descendants->end(); i++) {
-		cout << "\t" << (**i)->str_subtree() << endl;
-	}	
-	#endif
+//	cout << "removable_descendants" << endl;
+//	for(list<list<Node *>::iterator>::iterator i =  removable_descendants-> begin(); i != removable_descendants->end(); i++) {
+//		cout << "\t" << (**i)->str_subtree() << endl;
+//	}
 //	cout << "foo" << endl;
 	while (!removable_descendants->empty()) {
 //		cout << "fooa" << endl;
@@ -894,12 +782,8 @@ void delete_and_merge_LCAs(Node *n, list<Node *>
 //		cout << (*leaf_location)->str_subtree() << endl;
 //		cout << "food" << endl;
 
-// TODO: problem here
-		if (leaf_location != active_descendants->begin() &&
-				leaf_location != active_descendants->end() &&
-				leaf_location != -- active_descendants->end()) {
-//		if (active_descendants->front() != *leaf_location
-//				&& active_descendants->back() != *leaf_location) {
+		if (active_descendants->front() != *leaf_location
+				&& active_descendants->back() != *leaf_location) {
 			list<Node *>::iterator node1_location = leaf_location;
 //		cout << "fooe" << endl;
 			list<Node *>::iterator node2_location = leaf_location;
@@ -917,13 +801,17 @@ void delete_and_merge_LCAs(Node *n, list<Node *>
 						node2_location);
 //		cout << "fook" << endl;
 		}
-		else {//if (active_descendants->size() > 1){
+		else if (active_descendants->size() > 1){
 			active_descendants->erase(leaf_location);
 		}
 
 	}
 //	cout << "foo end" << endl;
 	// TODO: continue to lc and rc?
+	if (n->lchild() != NULL)
+		delete_and_merge_LCAs(n->lchild(), active_descendants, F2_LCAs);
+	if (n->rchild() != NULL)
+		delete_and_merge_LCAs(n->rchild(), active_descendants, F2_LCAs);
 }
 
 list<Node *> *find_cluster_points(Forest *F) {
@@ -986,25 +874,5 @@ void expand_contracted_nodes(Forest *F) {
 	for(int i = 0; i < F->size(); i++) {
 		expand_contracted_nodes(F->get_component(i));
 	}
-}
-
-Forest *build_finished_forest(string &name) {
-	Forest *new_forest = new Forest();
-	string::iterator i = name.begin();
-		size_t old_loc = 0;
-		size_t loc = 0;
-		while ((loc = name.find(" ", old_loc)) != string::npos) {
-			//cout << "old_loc=" << old_loc << endl;
-			//cout << "loc=" << loc << endl;
-			//cout << name.substr(old_loc,loc-old_loc) << endl;
-			//new_forest->add_component(build_tree(name.substr(old_loc,loc-old_loc)));
-			new_forest->add_component(new Node(name.substr(old_loc,loc-old_loc)));
-			if (name.substr(old_loc,loc-old_loc) == "p")
-				new_forest->set_rho(true);
-			//new_forest->print_components();
-			old_loc = loc+1;
-		}
-		return new_forest;
-		//new_forest->add_component(build_tree(name.substr(old_loc,loc-old_loc)));
 }
 #endif

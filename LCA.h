@@ -38,19 +38,11 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 
 int mylog2 (int val) {
-	if (val <= 0)
-		return -1;
-	return 31 - __builtin_clz(val);
-	cout << "start" << ",";
-	cout << val << ",";
-	cout <<  31 - __builtin_clz(val) << ",";;
     int ret = -1;
     while (val > 0) {
         val >>= 1;
         ret++;
     }
-		cout << ret << endl;
-		cout << endl;
     return ret;
 }
 
