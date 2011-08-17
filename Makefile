@@ -1,18 +1,17 @@
 CC=g++
 CC64=x86_64-w64-mingw32-g++
-CFLAGS=-O2 -std=c++0x
+CFLAGS=-O2
 C64FLAGS=$(CFLAGS)
 BOOST_GRAPH=-lboost_graph-mt
 BOOST_ANY=-L/lib/libboost*
 LFLAGS=$(BOOST_GRAPH) $(BOOST_ANY)
-DEBUGFLAGS=-g -O0 -std=c++0x
+DEBUGFLAGS=-g -O0
 PROFILEFLAGS=-pg
 all:
 	$(CC) $(CFLAGS) -o rspr rspr.cpp
 .PHONY: test
 .PHONY: debug
 .PHONY: hyb
-.PHONY: profile
 test:
 	./rspr.exe -fpt <test_trees/trees2.txt;
 	./rspr.exe -fpt <test_trees/trees3.txt;
@@ -29,7 +28,7 @@ bb-test:
 debug:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o rspr rspr.cpp
 profile:
-	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o rspr rspr.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) IF rspr rspr.cpp
 hyb:
 	$(CC64) $(LFLAGS) $(C64FLAGS) -o hyb hyb.cpp
 w32:
