@@ -31,6 +31,7 @@ class UndoMachine {
 	void undo() {
 		if (!events.empty()) {
 			Undoable *event = events.back();
+			//cout << typeid(*event).name() << endl;
 			events.pop_back();
 			event->undo();
 			delete event;
@@ -95,10 +96,12 @@ class CutParent : public Undoable {
 	Node *child;
 	Node *parent;
 	int branch;
+	int depth;
 	CutParent(Node *c) {
 		child = c;
 		parent = c->parent();
 		branch = 0;
+		depth = c->get_depth();
 		if (parent != NULL) {
 			if (parent->lchild() == child)
 				branch = 1;
@@ -110,10 +113,11 @@ class CutParent : public Undoable {
 	void undo() {
 		if (branch > 0)
 		child->set_parent(parent);
+		child->set_depth(depth);
 		if (branch == 1)
-			parent->set_lchild(child);
+			parent->set_lchild_keep_depth(child);
 		else if (branch == 2)
-			parent->set_rchild(child);
+			parent->set_rchild_keep_depth(child);
 	}
 };
 
@@ -268,7 +272,7 @@ class ChangeRightChild : public Undoable {
 		}
 
 		void undo() {
-			node->set_rchild(rchild);
+			node->set_rchild_keep_depth(rchild);
 		}
 };
 
@@ -283,7 +287,7 @@ class ChangeLeftChild : public Undoable {
 		}
 
 		void undo() {
-			node->set_lchild(lchild);
+			node->set_lchild_keep_depth(lchild);
 		}
 };
 
@@ -308,10 +312,10 @@ void ContractEvent(UndoMachine *um, Node *n) {
 				um->add_event(new CutParent(n));
 			}
 			else if (lc == NULL && rc == NULL) {
-//				um->add_event(new CutParent(n));
-				um->add_event(new CutParent(parent));
-				um->add_event(new CutParent(parent->lchild()));
-				um->add_event(new CutParent(parent->rchild()));
+				um->add_event(new CutParent(n));
+				parent->delete_child(n);
+				ContractEvent(um, parent);
+				parent->add_child(n);
 			}
 		}
 		// if no parent then take children of single child and remove it

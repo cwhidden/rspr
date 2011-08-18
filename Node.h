@@ -275,11 +275,26 @@ class Node {
 		}
 		return lc;
 	}
+
+	Node *set_lchild_keep_depth(Node *n) {
+		this->lc = n;
+		if (n != NULL) {
+			n->p = this;
+		}
+		return lc;
+	}
 	Node *set_rchild(Node *n) {
 		this->rc = n;
 		if (n != NULL) {
 			n->p = this;
 			n->depth = depth+1;
+		}
+		return rc;
+	}
+	Node *set_rchild_keep_depth(Node *n) {
+		this->rc = n;
+		if (n != NULL) {
+			n->p = this;
 		}
 		return rc;
 	}
@@ -970,6 +985,20 @@ void clear_sibling_pair_status() {
 	sibling_pair_status = 0;
 }
 
+// fix parents
+void fix_parents() {
+	if (lc != NULL) {
+		if (lc->parent() != this)
+			lc->set_parent(this);
+		lc->fix_parents();
+	}
+	if (rc != NULL) {
+		if (rc->parent() != this)
+			rc->set_parent(this);
+		rc->fix_parents();
+	}
+}
+
 };
 
 // function prototypes
@@ -1070,4 +1099,5 @@ int preorder_number(Node *node, int next) {
 	return next;
 }
 */
+
 #endif
