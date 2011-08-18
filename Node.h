@@ -214,10 +214,25 @@ class Node {
 		n->depth = depth+1;
 		return lc;
 	}
+
+	Node *set_lchild_keep_depth(Node *n) {
+		this->lc = n;
+		if (n != NULL) {
+			n->p = this;
+		}
+		return lc;
+	}
 	Node *set_rchild(Node *n) {
 		this->rc = n;
 		n->p = this;
 		n->depth = depth+1;
+		return rc;
+	}
+	Node *set_rchild_keep_depth(Node *n) {
+		this->rc = n;
+		if (n != NULL) {
+			n->p = this;
+		}
 		return rc;
 	}
 	Node *set_parent(Node *n) {
@@ -467,10 +482,14 @@ class Node {
 			*s += "(";
 			if (lc != NULL) {
 				lc->str_subtree_hlpr(s);
+				if (lc->parent() != this)
+					cout << "#";
 			}
 			*s += ",";
 			if (rc != NULL) {
 				rc->str_subtree_hlpr(s);
+				if (rc->parent() != this)
+					cout << "#";
 			}
 			*s += ")";
 		}
@@ -548,8 +567,10 @@ class Node {
 				rchild->find_sibling_pairs_hlpr(sibling_pairs);
 		}
 		if (lchild_leaf && rchild_leaf) {
-			lchild->add_to_sibling_pairs(sibling_pairs, 1);
-			rchild->add_to_sibling_pairs(sibling_pairs, 2);
+			sibling_pairs->push_back(lchild);
+			sibling_pairs->push_back(rchild);
+			//lchild->add_to_sibling_pairs(sibling_pairs, 1);
+			//rchild->add_to_sibling_pairs(sibling_pairs, 2);
 		}
 	}
 	
@@ -759,6 +780,20 @@ void clear_sibling_pair_status() {
 	sibling_pair_status = 0;
 }
 
+// fix parents
+void fix_parents() {
+	if (lc != NULL) {
+		if (lc->parent() != this)
+			lc->set_parent(this);
+		lc->fix_parents();
+	}
+	if (rc != NULL) {
+		if (rc->parent() != this)
+			rc->set_parent(this);
+		rc->fix_parents();
+	}
+}
+
 };
 
 // function prototypes
@@ -859,4 +894,5 @@ int preorder_number(Node *node, int next) {
 	return next;
 }
 */
+
 #endif
