@@ -37,7 +37,6 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 #include <sstream>
 #include <map>
-#include <boost/any.hpp>
 #include "Forest.h"
 
 using namespace std;

@@ -4,7 +4,7 @@ CFLAGS=-O2 -std=c++0x
 C64FLAGS=$(CFLAGS)
 BOOST_GRAPH=-lboost_graph-mt
 BOOST_ANY=-L/lib/libboost*
-LFLAGS=$(BOOST_GRAPH) $(BOOST_ANY)
+LFLAGS=#$(BOOST_GRAPH) $(BOOST_ANY)
 DEBUGFLAGS=-g -O0 -std=c++0x
 PROFILEFLAGS=-pg
 all:
