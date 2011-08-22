@@ -1,18 +1,10 @@
 /*******************************************************************************
-rspr.cpp
+spr_supertree.cpp
 
-Usage: rspr [OPTIONS]
-Calculate approximate and exact Subtree Prune and Regraft (rSPR)
-distances and the associated maximum agreement forests (MAFs) between pairs
-of rooted binary trees from STDIN in newick format. By default, computes a
-3-approximation of the rSPR distance. Supports arbitrary labels. See the
-README for more information.
-
-Copyright 2009-2010 Chris Whidden
+Copyright 2011 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-March 22, 2010
-Version 1.01
+August 22, 2011
 
 This file is part of rspr.
 
@@ -28,6 +20,8 @@ GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
 along with rspr.  If not, see <http://www.gnu.org/licenses/>.
+
+TODO:
 
 *******************************************************************************
 ALGORITHM
@@ -302,6 +296,29 @@ int main(int argc, char *argv[]) {
 		while (getline(cin, T1_line) && getline(cin, T2_line)) {
 			Node *T1 = build_tree(T1_line);
 			Node *T2 = build_tree(T2_line);
+
+
+			vector<Node *> leaves = T1->find_leaves();
+			int n = leaves.size();
+			cout << "T1: ";
+			T1->print_subtree();
+			T1->preorder_number();
+			cout << endl;
+			for(int i = 0; i <  2*n - 3  + 1; i++) {
+				T1->next_rooting();
+				cout << "T1: ";
+				cout << T1->str_subtree();
+	//			cout << endl;
+				cout << "\t" << T1->lchild()->get_preorder_number() << "  " << T1->rchild()->get_preorder_number();
+				if ( T1->lchild()->get_preorder_number() > T1->rchild()->get_preorder_number())
+					cout << " * ";
+				cout << endl;
+			}
+
+			cout << endl;
+
+
+
 			// TODO: should we sync here to prune out additional leaves?
 			if (!QUIET) {
 				cout << "T1: ";

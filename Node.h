@@ -72,6 +72,8 @@ class Node {
 	Forest *forest;
 	Node *contracted_lc;
 	Node *contracted_rc;
+	bool last_rotate_right;
+	bool was_root_child;
 
 	public:
 	Node() {
@@ -104,6 +106,8 @@ class Node {
 		this->forest = NULL;
 		this->contracted_lc = NULL;
 		this->contracted_rc = NULL;
+		this->last_rotate_right = false;
+		this->was_root_child = false;
 	}
 	// copy constructor
 	Node(const Node &n) {
@@ -142,6 +146,8 @@ class Node {
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
+		this->last_rotate_right = n.last_rotate_right;
+		this->was_root_child = n.was_root_child
 #endif
 	}
 	Node(const Node &n, Node *parent) {
@@ -181,6 +187,8 @@ class Node {
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
 #endif
+		this->last_rotate_right = n.last_rotate_right;
+		this->was_root_child = n.was_root_child;
 	}
 	~Node() {
 		if (lc != NULL) {
@@ -996,6 +1004,65 @@ void fix_parents() {
 			rc->set_parent(this);
 		rc->fix_parents();
 	}
+}
+
+
+void left_rotate() {
+	if (lc->lc != NULL) {
+		Node *new_lc = lc->lc;
+		Node *new_rc = lc;
+		Node *new_rc_lc = lc->rc;
+		Node *new_rc_rc = rc;
+		lc->was_root_child = true;
+		rc->was_root_child = true;
+		lc = new_lc;
+		lc->p = this;
+		rc = new_rc;
+		rc->p = this;
+		rc->lc = new_rc_lc;
+		rc->lc->p = rc;
+		rc->rc = new_rc_rc;
+		rc->rc->p = rc;
+		last_rotate_right = false;
+	}
+}
+
+void right_rotate() {
+	if (rc->lc != NULL) {
+		Node *new_lc = rc->lc;
+		Node *new_rc = rc;
+		Node *new_rc_lc = rc->rc;
+		Node *new_rc_rc = lc;
+		lc = new_lc;
+		lc->p = this;
+		rc = new_rc;
+		rc->p = this;
+		rc->lc = new_rc_lc;
+		rc->lc->p = rc;
+		rc->rc = new_rc_rc;
+		rc->rc->p = rc;
+		last_rotate_right = true;
+	}
+}
+
+void next_rooting() {
+	if (lc->lc != NULL)
+		left_rotate();
+	else if (rc->lc != NULL)
+			right_rotate();
+	if (lc->pre_num < rc->pre_num && (lc->pre_num != 1 || rc->pre_num != 2 || !lc->is_leaf()))
+		next_rooting();
+	/*
+	if (lc->lc != NULL)
+		left_rotate();
+	else if (rc->lc != NULL)
+		if (last_rotate_right) {
+			right_rotate();
+			next_rooting();
+		}
+		else
+			right_rotate();
+			*/
 }
 
 };
