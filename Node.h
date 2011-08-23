@@ -228,7 +228,6 @@ class Node {
 	void delete_tree() {
 		Node *lc = this->lc;
 		Node *rc = this->rc;
-		delete this;
 		if (lc != NULL) {
 			lc->delete_tree();
 		}
@@ -247,6 +246,7 @@ class Node {
 		}
 		contracted_rc = NULL;
 #endif
+		delete this;
 	}
 
 	// cut edge between parent and child
