@@ -49,6 +49,7 @@ void str_subtree_hlpr(string *s);
 list<Node *> find_sibling_pairs(Node *node);
 vector<Node *> find_leaves(Node *node);
 */
+int stomini(string s);
 
 class Forest;
 
@@ -72,8 +73,6 @@ class Node {
 	Forest *forest;
 	Node *contracted_lc;
 	Node *contracted_rc;
-	bool last_rotate_right;
-	bool was_root_child;
 
 	public:
 	Node() {
@@ -106,15 +105,14 @@ class Node {
 		this->forest = NULL;
 		this->contracted_lc = NULL;
 		this->contracted_rc = NULL;
-		this->last_rotate_right = false;
-		this->was_root_child = false;
 	}
 	// copy constructor
 	Node(const Node &n) {
 		p = NULL;
 		name = n.name;
 		twin = n.twin;
-		depth = n.depth;
+//		depth = n.depth;
+		depth = 0;
 		pre_num = n.pre_num;
 		component_number = n.component_number;
 		this->active_descendants = list <Node *>();
@@ -146,15 +144,16 @@ class Node {
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
-		this->last_rotate_right = n.last_rotate_right;
-		this->was_root_child = n.was_root_child
 #endif
 	}
 	Node(const Node &n, Node *parent) {
 		p = parent;
 		name = n.name;
 		twin = n.twin;
-		depth = n.depth;
+		if (p != NULL)
+			depth = p->depth+1;
+		else
+			depth = 0;
 		pre_num = n.pre_num;
 		component_number = n.component_number;
 		this->active_descendants = list <Node *>();
@@ -187,8 +186,6 @@ class Node {
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
 #endif
-		this->last_rotate_right = n.last_rotate_right;
-		this->was_root_child = n.was_root_child;
 	}
 	~Node() {
 		if (lc != NULL) {
@@ -228,7 +225,6 @@ class Node {
 	void delete_tree() {
 		Node *lc = this->lc;
 		Node *rc = this->rc;
-		delete this;
 		if (lc != NULL) {
 			lc->delete_tree();
 		}
@@ -247,16 +243,20 @@ class Node {
 		}
 		contracted_rc = NULL;
 #endif
+		delete this;
 	}
 
 	// cut edge between parent and child
 	// should really be cut_child, no deleting occurs
 	void delete_child(Node *n) {
+
 		if (lc != NULL && lc == n) {
 			lc = NULL;
 		}
 		else if (rc != NULL && rc == n) {
 			rc = NULL;
+		}
+		else {
 		}
 	}
 
@@ -319,6 +319,16 @@ class Node {
 	int set_depth(int d) {
 		depth = d;
 		return depth;
+	}
+	void fix_depths() {
+		if (lc != NULL) {
+			lc->depth = depth+1;
+			lc->fix_depths();
+		}
+		if (rc != NULL) {
+			rc->depth = depth+1;
+			rc->fix_depths();
+		}
 	}
 	int set_preorder_number(int p) {
 		pre_num = p;
@@ -410,7 +420,7 @@ class Node {
 	 * was no contraction
 	 */
 	// TODO: check handling twins for interior nodes
-	Node *contract() {
+	Node *contract(bool remove) {
 		Node *parent = p;
 		Node *child;
 		Node *ret = NULL;
@@ -419,7 +429,8 @@ class Node {
 		//cout << p->str_subtree() << endl;
 			if (lc && !rc) {
 				child = lc;
-				//delete this;
+				if (remove)
+					delete this;
 				//this->fake_delete();
 				parent->delete_child(this);
 				parent->add_child(child);
@@ -427,7 +438,8 @@ class Node {
 			}
 			else if (rc && !lc) {
 				child = rc;
-				//delete this;
+				if (remove)
+					delete this;
 				//this->fake_delete();
 				parent->delete_child(this);
 				parent->add_child(child);
@@ -435,9 +447,10 @@ class Node {
 			}
 			else if (lc == NULL && rc == NULL) {
 				parent->delete_child(this);
-				//delete this;
+				if (remove)
+					delete this;
 				//this->fake_delete();
-				ret = parent->contract();
+				ret = parent->contract(remove);
 			}
 			else
 				ret = this;
@@ -470,7 +483,8 @@ class Node {
 				 */
 				if (child->num_clustered_children > 0) {
 					delete_child(child);
-					//delete this;
+					if (remove)
+						delete this;
 					//this->fake_delete();
 					ret = child;
 				}
@@ -483,12 +497,15 @@ class Node {
 					Node *new_lc = child->lchild();
 					Node *new_rc = child->rchild();
 					if (child->is_leaf()) {
-						set_twin(child->get_twin());
-						child->get_twin()->set_twin(this);
+						if (child->get_twin() != NULL) {
+							set_twin(child->get_twin());
+							child->get_twin()->set_twin(this);
+						}
 						name = child->str();
 					}
-					//delete child;
 					delete_child(child);
+					if (remove)
+						delete child;
 					//child->fake_delete();
 					if (new_lc != NULL)
 						add_child(new_lc);
@@ -500,6 +517,10 @@ class Node {
 		}
 
 		return ret;
+	}
+
+	Node *contract() {
+		return contract(false);
 	}
 
 	/* contract_sibling_pair:
@@ -665,10 +686,10 @@ class Node {
 	}
 
 	void str_subtree_twin_hlpr(string *s) {
-		*s += str();
+		*s += name;//str_hlpr(s);
 		if (twin != NULL) {
 			*s += "{";
-				*s += twin->str();
+				twin->str_subtree_hlpr(s);
 			*s += "}";
 		}
 		if (!is_leaf()) {
@@ -880,6 +901,24 @@ class Node {
 			contracted_rc->numbers_to_labels(reverse_label_map);
 	}
 
+	void count_numbered_labels(vector<int> *label_counts) {
+		if (name != "") {
+			int label = stomini(name);
+			if (label_counts->size() <= label)
+				label_counts->resize(label+1,0);
+			(*label_counts)[label]++;
+		}
+
+		if (lc != NULL)
+			lc->count_numbered_labels(label_counts);
+		if (rc != NULL)
+			rc->count_numbered_labels(label_counts);
+		if (contracted_lc != NULL)
+			contracted_lc->count_numbered_labels(label_counts);
+		if (contracted_rc != NULL)
+			contracted_rc->count_numbered_labels(label_counts);
+	}
+
 	void preorder_number() {
 		preorder_number(0);
 	}
@@ -1013,8 +1052,6 @@ void left_rotate() {
 		Node *new_rc = lc;
 		Node *new_rc_lc = lc->rc;
 		Node *new_rc_rc = rc;
-		lc->was_root_child = true;
-		rc->was_root_child = true;
 		lc = new_lc;
 		lc->p = this;
 		rc = new_rc;
@@ -1023,7 +1060,6 @@ void left_rotate() {
 		rc->lc->p = rc;
 		rc->rc = new_rc_rc;
 		rc->rc->p = rc;
-		last_rotate_right = false;
 	}
 }
 
@@ -1041,7 +1077,6 @@ void right_rotate() {
 		rc->lc->p = rc;
 		rc->rc = new_rc_rc;
 		rc->rc->p = rc;
-		last_rotate_right = true;
 	}
 }
 
@@ -1052,17 +1087,62 @@ void next_rooting() {
 			right_rotate();
 	if (lc->pre_num < rc->pre_num && (lc->pre_num != 1 || rc->pre_num != 2 || !lc->is_leaf()))
 		next_rooting();
-	/*
-	if (lc->lc != NULL)
-		left_rotate();
-	else if (rc->lc != NULL)
-		if (last_rotate_right) {
-			right_rotate();
-			next_rooting();
-		}
-		else
-			right_rotate();
-			*/
+}
+
+Node *expand_parent_edge(Node *n) {
+	if (p != NULL) {
+		Node *old_p = p;
+		cut_parent();
+		p = new Node();
+		p->add_child(n);
+		old_p->add_child(p);
+		return p;
+	}
+	else {
+		Node *new_child = new Node(name);
+		new_child->add_child(lc);
+		new_child->add_child(rc);
+		new_child->contracted_lc = contracted_lc;
+		new_child->contracted_rc = contracted_rc;
+		name = "";
+		lc = NULL;
+		rc = NULL;
+		contracted_lc = NULL;
+		contracted_rc = NULL;
+		add_child(new_child);
+		return this;
+	}
+}
+
+Node *undo_expand_parent_edge() {
+	if (p != NULL) {
+		Node *old_p = p;
+		cut_parent();
+		Node *child = lc;
+		if (lc == NULL)
+			child = rc;
+		delete_child(child);
+		old_p->add_child(child);
+		return this;
+	}
+	else {
+		Node *child = lc;
+		if (lc == NULL)
+			child = rc;
+		name = child->name;
+		Node *new_lc = child->lc;
+		Node *new_rc = child->rc;
+		contracted_lc = child->contracted_lc;
+		contracted_rc = child->contracted_rc;
+		child->lc = NULL;
+		child->rc = NULL;
+		child->contracted_lc = NULL;
+		child->contracted_rc = NULL;
+		child->name = "";
+		set_lchild(new_lc);
+		set_rchild(new_rc);
+		return child;
+	}
 }
 
 };
@@ -1070,7 +1150,8 @@ void next_rooting() {
 // function prototypes
 Node *build_tree(string s);
 Node *build_tree(string s, int start_depth);
-int build_tree_helper(int start, const string& s, Node *parent);
+int build_tree_helper(int start, const string& s, Node *parent,
+		bool &valid);
 //void preorder_number(Node *node);
 //int preorder_number(Node *node, int next);
 
@@ -1083,14 +1164,23 @@ Node *build_tree(string s, int start_depth) {
 	if (s == "")
 		return new Node();
 	Node *dummy_head = new Node("p", start_depth-1);
-	build_tree_helper(0, s, dummy_head);
+	bool valid = true;
+	build_tree_helper(0, s, dummy_head, valid);
 	Node *head = dummy_head->lchild();
-	delete dummy_head;
-	return head;
+	if (valid) {
+		delete dummy_head;
+		return head;
+	}
+	else {
+		head->delete_tree();
+		return dummy_head;
+	}
+
 }
 
 // build_tree recursive helper function
-int build_tree_helper(int start, const string& s, Node *parent) {
+int build_tree_helper(int start, const string& s, Node *parent,
+		bool &valid) {
 	int loc = s.find_first_of("(,)", start);
 	if (loc == string::npos) {
 		string name = s.substr(start, s.size() - start);
@@ -1108,8 +1198,16 @@ int build_tree_helper(int start, const string& s, Node *parent) {
 	Node *node = new Node(name);
 	parent->add_child(node);
 	if (s[loc] == '(') {
-			loc = build_tree_helper(loc + 1, s, node);
-			loc = build_tree_helper(loc + 1, s, node);
+			loc = build_tree_helper(loc + 1, s, node, valid);
+			loc = build_tree_helper(loc + 1, s, node, valid);
+//			int loc_check = s.find_first_of("(,)", loc);
+//			if (loc_check != string::npos &&
+//					s[loc_check] == ','
+			if (s[loc] != ')') {
+				valid = false;
+					return s.size()-1;
+			}
+			//loc = build_tree_helper(loc + 1, s, node);
 			loc++;
 	}
 	return loc;
@@ -1165,5 +1263,34 @@ int preorder_number(Node *node, int next) {
 	return next;
 }
 */
+// return the smallest number in s
+
+int stomini(string s) {
+//	cout << "stomini" << endl;
+	string number_characters = "+-0123456789";
+	int i = 0;
+	int min = INT_MAX;
+	string current = "";
+	for(int i = 0; i < s.size(); i++) {
+		if (number_characters.find(s[i]) != string::npos) {
+			current += s[i];
+		}
+		else if (current.size() > 0) {
+			int num = atoi(current.c_str());
+			if (num < min)
+				min = num;
+			current = "";
+		}
+	}
+	if (current.size() > 0) {
+		int num = atoi(current.c_str());
+		if (num < min)
+			min = num;
+		current = "";
+	}
+//	cout << "returning " << min << endl;
+	return min;
+}
+
 
 #endif

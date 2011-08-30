@@ -128,6 +128,7 @@ bool UNROOTED = false;
 bool UNROOTED_MIN_APPROX = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
+bool TOTAL = false;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -276,6 +277,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-all_mafs") == 0) {
 			ALL_MAFS= true;
 		}
+		else if (strcmp(arg, "-total") == 0) {
+			TOTAL= true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -296,7 +300,7 @@ int main(int argc, char *argv[]) {
 	map<int, string> reverse_label_map = map<int, string>();
 
 	// Normal operation
-	if (!UNROOTED && !UNROOTED_MIN_APPROX) {
+	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL) {
 		string T1_line = "";
 		string T2_line = "";
 		while (getline(cin, T1_line) && getline(cin, T2_line)) {
@@ -344,175 +348,10 @@ int main(int argc, char *argv[]) {
 			Forest F4 = Forest(T2);
 
 			if (CLUSTER_TEST) {
-				int approx_spr = rSPR_3_approx(&F3, &F4);
-					cout << "approx drSPR=" << approx_spr << endl;
-					cout << "\n";
-
-				sync_twins(&F1, &F2);
-				//sync_interior_twins_real(&F1, &F2);
-				sync_interior_twins(&F1, &F2);
-				list<Node *> *cluster_points = find_cluster_points(&F1);
-//				if (!cluster_points->empty()) {
-					/*
-					cout << "CLUSTER POINTS:" << endl;
-					for(list<Node *>::iterator i = cluster_points->begin();
-							i != cluster_points->end(); i++) {
-						string s1 = (*i)->str_subtree();
-						string s2 = (*i)->get_twin()->str_subtree();
-						if (s1 != s2)
-							cout << s1 << "\t" << s2 << endl;
-					}
-					cout << endl;
-					*/
-					// TODO: not quite right because we need to put
-					// in the leaf with a ref and not do contractions
-					for(list<Node *>::iterator i = cluster_points->begin();
-							i != cluster_points->end(); i++) {
-						stringstream ss;
-						string cluster_name = "X";
-						ss << F1.size();
-						cluster_name += ss.str();
-						int num_labels = label_map.size();
-						label_map.insert(make_pair(cluster_name,num_labels));
-						reverse_label_map.insert(
-								make_pair(num_labels,cluster_name));
-						ss.str("");
-						ss << num_labels;
-						cluster_name = ss.str();
-
-						Node *n = *i;
-						Node *n_parent = n->parent();
-						Node *twin = n->get_twin();
-						Node *twin_parent = twin->parent();
-
-						F1.add_cluster(n,cluster_name);
-
-						F2.add_cluster(twin,cluster_name);
-
-						Node *n_cluster =
-								F1.get_cluster_node(F1.num_clusters()-1);
-						Node *twin_cluster =
-								F2.get_cluster_node(F2.num_clusters()-1);
-						n_cluster->set_twin(twin_cluster);
-						twin_cluster->set_twin(n_cluster);
-					}
-					cout << endl << "CLUSTERS" << endl;
-					//cout << "F1: " << endl;
-					//F1.print_components("\n");
-					//cout << endl;
-					//cout << "F2: " << endl;
-					//F2.print_components("\n");
-
-					// component 0 needs to be done last
-					F1.add_component(F1.get_component(0));
-					F2.add_component(F2.get_component(0));
-
-					int exact_spr;
-					int k;
-					int num_clusters = F1.num_components();
-					int total_k = 0;
-					for(int i = 1; i < num_clusters; i++) {
-						Forest f1 = Forest(F1.get_component(i));
-
-						Forest f2 = Forest(F2.get_component(i));
-						Forest f1a = Forest(f1);
-						Forest f2a = Forest(f2);
-						Forest *f1_cluster;
-						Forest *f2_cluster;
-
-//						f1.numbers_to_labels(&reverse_label_map);
-//						f2.numbers_to_labels(&reverse_label_map);
-						cout << "C" << i << "_1: ";
-						f1.print_components();
-						cout << "C" << i << "_2: ";
-						f2.print_components();
-
-						int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
-						if (!(QUIET && (BB || FPT)))
-							cout << "cluster approx drSPR=" << approx_spr << endl;
-
-						cout << endl;
-
-						if (FPT || BB) {
-							int min_spr = approx_spr / 3;
-							for(k = min_spr; k <= MAX_SPR; k++) {
-								Forest f1t = Forest(f1);
-								Forest f2t = Forest(f2);
-								f1t.unsync();
-								f2t.unsync();
-								cout << k << " ";
-								cout.flush();
-//								cout << "foo1" << endl;
-//								f1t.print_components();
-//								f1t.print_components();
-//								cout << "foo1a" << endl;
-								exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
-//								cout << "foo2" << endl;
-								if (exact_spr >= 0) {
-//									cout << "foo3" << endl;
-//										cout << "foo3a" << endl;
-//										cout << "rho=" << f1t.contains_rho() << endl;
-//										cout << i << endl;
-//										cout << &f1t << endl;
-//										cout << f1t.num_components() << endl;
-//										f1t.print_components();
-										// TODO: problem things getting
-										// deleted?
-									if ( i < num_clusters - 1) {
-										F1.join_cluster(i,&f1t);
-//										cout << "foo3b" << endl;
-//										cout << "rho=" << f2t.contains_rho() << endl;
-//										F2.print_components();
-//										f2t.print_components();
-										F2.join_cluster(i,&f2t);
-//									cout << "foo4" << endl;
-									}
-									else {
-										F1.join_cluster(&f1t);
-										F2.join_cluster(&f2t);
-									}
-									//f1.numbers_to_labels(&reverse_label_map);
-									//f2.numbers_to_labels(&reverse_label_map);
-									cout << endl;
-									cout << "F" << i << "_1: ";
-									f1t.print_components();
-//									cout << "foo5" << endl;
-									cout << "F" << i << "_2: ";
-									f2t.print_components();
-//									cout << "foo6" << endl;
-									cout << "cluster exact drSPR=" << exact_spr << endl;
-									cout << endl;
-									total_k += exact_spr;
-									break;
-								}
-							}
-							if (exact_spr == -1)
-							cout << "exact drSPR=?  " << "k=" << k << " too large" << endl;
-							cout << "\n";
-						}
-					}
-				//}
-
-				if (BB | FPT) {
-					if (F1.contains_rho()) {
-						F1.erase_components(0, num_clusters);
-						F2.erase_components(0, num_clusters);
-					}
-					else {
-						F1.erase_components(1, num_clusters+1);
-						F2.erase_components(1, num_clusters+1);
-					}
-					cout << "F1: ";
-					F1.print_components();
-					cout << "F2: ";
-					F2.print_components();
-					cout << "total exact drSPR=" << total_k << endl;
-				}
-
-				T1->delete_tree();
-				T2->delete_tree();
-				delete cluster_points;
-				return 0;
+				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true);
+				delete T1;
+				delete T2;
+				continue;
 			}
 	
 			// APPROX ALGORITHM
@@ -705,6 +544,31 @@ int main(int argc, char *argv[]) {
 			cout << "\n";
 		}
 
+	}
+	else if (TOTAL) {
+		string line = "";
+		vector<Node *> trees = vector<Node *>();
+		if (!getline(cin, line))
+			return 0;
+		Node *T1 = build_tree(line);
+		if (!QUIET) {
+			cout << "T1: ";
+			T1->print_subtree();
+		}
+		T1->labels_to_numbers(&label_map, &reverse_label_map);
+		while (getline(cin, line)) {
+			Node *T2 = build_tree(line);
+			if (!QUIET) {
+				cout << "T2: ";
+				T2->print_subtree();
+			}
+			T2->labels_to_numbers(&label_map, &reverse_label_map);
+			trees.push_back(T2);
+		}
+		cout << endl;
+
+		int distance = rSPR_total_distance(T1, trees);
+		cout << "total distance= " << distance << endl;
 	}
 	return 0;
 }

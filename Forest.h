@@ -368,7 +368,7 @@ void move_first_component_to_end() {
 // Functions
 
 vector<Node *> find_labels(vector<Node *> components);
-void sync_twins(Forest *T1, Forest *T2);
+bool sync_twins(Forest *T1, Forest *T2);
 void sync_interior_twins(Forest *T1, Forest *T2);
 void sync_interior_twins(Node *n, LCA *twin_LCA);
 void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs);
@@ -381,38 +381,10 @@ void delete_and_merge_LCAs(Node *n, list<Node *> *active_descendants,
 		vector<LCA> *F2_LCAs);
 
 
-// return the smallest number in s
-int stomini(string s) {
-//	cout << "stomini" << endl;
-	string number_characters = "+-0123456789";
-	int i = 0;
-	int min = INT_MAX;
-	string current = "";
-	for(int i = 0; i < s.size(); i++) {
-		if (number_characters.find(s[i]) != string::npos) {
-			current += s[i];
-		}
-		else if (current.size() > 0) {
-			int num = atoi(current.c_str());
-			if (num < min)
-				min = num;
-			current = "";
-		}
-	}
-	if (current.size() > 0) {
-		int num = atoi(current.c_str());
-		if (num < min)
-			min = num;
-		current = "";
-	}
-//	cout << "returning " << min << endl;
-	return min;
-}
-
 
 // Make the leaves of two forests point to their twin in the other tree
 // Note: removes unique leaves
-void sync_twins(Forest *T1, Forest *T2) {
+bool sync_twins(Forest *T1, Forest *T2) {
 	vector<Node *> T1_labels = vector<Node *>();
 	vector<Node *> T2_labels = vector<Node *>();
 	vector<Node *> T1_components = T1->components;
@@ -435,7 +407,7 @@ void sync_twins(Forest *T1, Forest *T2) {
 				int number = stomini(leaf->str());
 //				cout << "\t" << number << endl;
 				if (number >= T1_labels.size())
-					T1_labels.resize(number+1, NULL);
+					T1_labels.resize(number+1, 0);
 				T1_labels[number] = leaf;
 			}
 		}
@@ -474,15 +446,18 @@ void sync_twins(Forest *T1, Forest *T2) {
 		Node *T2_a = T2_labels[i];
 		if (T1_a == NULL && T2_a != NULL) {
 			Node *node = T2_a->parent();
+			if (node == NULL)
+				return false;
 			delete T2_a;
-			if (node != NULL)
-				node->contract();
+			node->contract(true);
 		}
 		else if (T2_a == NULL && T1_a != NULL) {
 			Node *node = T1_a->parent();
+			if (node == NULL)
+				return false;
 			delete T1_a;
-			if (node != NULL)
-				node->contract();
+			node->contract(true);
+			
 		}
 		if (T1_a != NULL && T2_a != NULL) {
 			T1_a->set_twin(T2_a);
@@ -494,22 +469,25 @@ void sync_twins(Forest *T1, Forest *T2) {
 		Node *T1_a = T1_labels[i];
 		if (T1_a != NULL) {
 			Node *node = T1_a->parent();
+			if (node == NULL) 
+				return false;
 			delete T1_a;
-			if (node != NULL)
-				node->contract();
+			node->contract(true);
+			
 		}
 	}
 	for(int i = size; i < T2_labels.size(); i++) {
 		Node *T2_a = T2_labels[i];
 		if (T2_a != NULL) {
 			Node *node = T2_a->parent();
+			if (node == NULL) 
+				return false;
 			delete T2_a;
-			if (node != NULL)
-				node->contract();
+			node->contract(true);
 		}
 	}
 //	cout << "Finished Syncing Twins" << endl;
-	return;
+	return true;
 }
 
 /* make interior nodes point to the lca of their descendants in the other tree
@@ -944,21 +922,31 @@ void find_cluster_points(Node *n, list<Node *> *cluster_points) {
 		find_cluster_points(rc, cluster_points);
 	/*
 	cout << "here" << endl;
+	cout << "n= " << n->str_subtree() << endl;
 	cout << n->get_depth() << endl;
-	if (n->get_twin() != NULL)
+	if (n->get_twin() != NULL) {
+		cout << "n_twin= " << n->get_twin()->str_subtree() << endl;
+		cout << "n_twin_twin= " << n->get_twin()->get_twin()->str_subtree() << endl;
 		cout << n->get_twin()->get_twin()->get_depth() << endl;
+	}
 	cout << n->parent() << endl;
 	if (lc != NULL) {
-	cout << "lc= " << lc->str_subtree() << endl;
-	cout << lc->get_depth() << endl;
-	if (lc->get_twin() != NULL)
-	cout << lc->get_twin()->get_twin()->get_depth() << endl;
+		cout << "lc= " << lc->str_subtree() << endl;
+		cout << lc->get_depth() << endl;
+		if (lc->get_twin() != NULL) {
+			cout << lc->get_twin()->get_twin()->get_depth() << endl;
+			cout << "lc_twin= " << lc->get_twin()->str_subtree() << endl;
+			cout << "lc_twin_twin= " << lc->get_twin()->get_twin()->str_subtree() << endl;
+		}
 	}
 	if (rc != NULL) {
-	cout << "rc= " << rc->str_subtree() << endl;
-	cout << rc->get_depth() << endl;
-	if (rc->get_twin() != NULL)
-	cout << rc->get_twin()->get_twin()->get_depth() << endl;
+		cout << "rc= " << rc->str_subtree() << endl;
+		cout << rc->get_depth() << endl;
+		if (rc->get_twin() != NULL) {
+			cout << "rc_twin= " << rc->get_twin()->str_subtree() << endl;
+			cout << "rc_twin_twin= " << rc->get_twin()->get_twin()->str_subtree() << endl;
+			cout << rc->get_twin()->get_twin()->get_depth() << endl;
+		}
 	}
 	*/
 	if (n->get_twin() != NULL
@@ -973,7 +961,7 @@ void find_cluster_points(Node *n, list<Node *> *cluster_points) {
 //		cout << "added cluster_point" << endl;
 		cluster_points->push_back(n);
 	}
-	//cout << "End: " << n->str_subtree() << endl;
+//	cout << "End: " << n->str_subtree() << endl;
 }
 
 // swap two forests

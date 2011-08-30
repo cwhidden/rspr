@@ -102,7 +102,7 @@ class ClusterForest: public Forest {
 		components[cluster_loc] = NULL;
 		int start = 0;
 		if (solved_cluster->contains_rho()) {
-			cluster_parent->contract();
+			cluster_parent->contract(true);
 		}
 		else {
 			cluster_parent->add_child(new Node(*(solved_cluster->get_component(0))));

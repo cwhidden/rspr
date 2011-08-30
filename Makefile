@@ -35,6 +35,7 @@ bb-test:
 	./rspr.exe -bb <test_trees/trees6.txt;
 debug:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o rspr rspr.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o spr_supertree spr_supertree.cpp
 profile:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o rspr rspr.cpp
 hyb:
