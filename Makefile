@@ -44,3 +44,4 @@ w32:
 	$(CC) $(LFLAGS) $(CFLAGS) -o rspr rspr.cpp
 w64:
 	$(CC64) $(LFLAGS) $(C64FLAGS) -o rspr rspr.cpp
+	$(CC64) $(LFLAGS) $(C64FLAGS) -o spr_supertree spr_supertree.cpp
