@@ -128,6 +128,7 @@ bool UNROOTED = false;
 bool UNROOTED_MIN_APPROX = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
+bool TOTAL = false;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -276,6 +277,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-all_mafs") == 0) {
 			ALL_MAFS= true;
 		}
+		else if (strcmp(arg, "-total") == 0) {
+			TOTAL= true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -296,7 +300,7 @@ int main(int argc, char *argv[]) {
 	map<int, string> reverse_label_map = map<int, string>();
 
 	// Normal operation
-	if (!UNROOTED && !UNROOTED_MIN_APPROX) {
+	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL) {
 		string T1_line = "";
 		string T2_line = "";
 		while (getline(cin, T1_line) && getline(cin, T2_line)) {
@@ -540,6 +544,31 @@ int main(int argc, char *argv[]) {
 			cout << "\n";
 		}
 
+	}
+	else if (TOTAL) {
+		string line = "";
+		vector<Node *> trees = vector<Node *>();
+		if (!getline(cin, line))
+			return 0;
+		Node *T1 = build_tree(line);
+		if (!QUIET) {
+			cout << "T1: ";
+			T1->print_subtree();
+		}
+		T1->labels_to_numbers(&label_map, &reverse_label_map);
+		while (getline(cin, line)) {
+			Node *T2 = build_tree(line);
+			if (!QUIET) {
+				cout << "T2: ";
+				T2->print_subtree();
+			}
+			T2->labels_to_numbers(&label_map, &reverse_label_map);
+			trees.push_back(T2);
+		}
+		cout << endl;
+
+		int distance = rSPR_total_distance(T1, trees);
+		cout << "total distance= " << distance << endl;
 	}
 	return 0;
 }

@@ -31,7 +31,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 //#define DEBUG 1
-//#define DEBUG_CONTRACTED
+// #define DEBUG_CONTRACTED
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -71,6 +71,9 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		list<Node *> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
 		list<pair<Forest,Forest> > *AFs);
+int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees);
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2);
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose);
 
 bool BB = false;
 bool APPROX_CHECK_COMPONENT = false;
@@ -109,7 +112,8 @@ int MAX_CLUSTERS = -1;
 int rSPR_3_approx(Forest *T1, Forest *T2) {
 	// find sibling pairs of T1
 	// match up nodes of T1 and T2
-	sync_twins(T1, T2);
+	if (!sync_twins(T1, T2))
+		return 0;
 	// find singletons of T2
 	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
 	list<Node *> singletons = T2->find_singletons();
@@ -321,7 +325,8 @@ int rSPR_worse_3_approx(Forest *T1, Forest *T2) {
 int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync) {
 	// match up nodes of T1 and T2
 	if (sync) {
-		sync_twins(T1, T2);
+		if (!sync_twins(T1, T2))
+			return 0;
 	}
 	// find sibling pairs of T1
 	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
@@ -753,7 +758,8 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 	// find sibling pairs of T1
 //	cout << "foo1" << endl;
-	sync_twins(T1, T2);
+	if (!sync_twins(T1, T2))
+		return 0;
 //	cout << "foo2" << endl;
 	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
 //	cout << "foo3" << endl;
@@ -1480,7 +1486,10 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 		cout << "\n";
 	}
 
-	sync_twins(&F1, &F2);
+	if (!sync_twins(&F1, &F2))
+		return 0;
+	if (F1.get_component(0)->is_leaf())
+		return 0;
 	sync_interior_twins(&F1, &F2);
 	list<Node *> *cluster_points = find_cluster_points(&F1);
 	for(list<Node *>::iterator i = cluster_points->begin();
@@ -1516,6 +1525,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 				F2.get_cluster_node(F2.num_clusters()-1);
 		n_cluster->set_twin(twin_cluster);
 		twin_cluster->set_twin(n_cluster);
+
 	}
 	if (verbose)
 		cout << endl << "CLUSTERS" << endl;
@@ -1613,4 +1623,35 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2) {
 	return rSPR_branch_and_bound_simple_clustering(T1, T2, false);
+}
+
+int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
+	int total = 0;
+	for(int i = 0; i < gene_trees.size(); i++) {
+//		cout << i << endl;
+//		cout << T1->str_subtree() << endl;
+//		cout << gene_trees[i]->str_subtree() << endl;
+		total += rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i]);
+	}
+	return total;
+}
+
+int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees) {
+	int total = 0;
+	for(int i = 0; i < gene_trees.size(); i++) {
+		Forest F1 = Forest(T1);
+		Forest F2 = Forest(gene_trees[i]);
+//		cout << i << endl;
+//		cout << T1->str_subtree() << endl;
+//		cout << gene_trees[i]->str_subtree() << endl;
+		total += rSPR_worse_3_approx(&F1, &F2)/3;
+	}
+	return total;
+}
+string itos(int i) {
+	stringstream ss;
+	string a;
+	ss << i;
+	a = ss.str();
+	return a;
 }

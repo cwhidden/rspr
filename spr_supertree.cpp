@@ -91,6 +91,7 @@ exact BB drSPR=4
 
 #include <cstdio>
 #include <cstdlib>
+#include <ctime>
 #include <string>
 #include <cstring>
 #include <iostream>
@@ -122,6 +123,7 @@ bool UNROOTED = false;
 bool UNROOTED_MIN_APPROX = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
+bool APPROX = false;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -195,6 +197,11 @@ string USAGE =
 "-q          Quiet; Do not output the input trees or approximation\n"
 "*******************************************************************************\n";
 
+Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees, int label);
+void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
+		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
+		Node **best_sibling);
+
 int main(int argc, char *argv[]) {
 	int max_args = argc-1;
 	while (argc > 1) {
@@ -208,7 +215,7 @@ int main(int argc, char *argv[]) {
 			DEFAULT_ALGORITHM=false;
 		}
 		else if (strcmp(arg, "-approx") == 0) {
-			DEFAULT_ALGORITHM=false;
+			APPROX=true;
 		}
 		else if (strcmp(arg, "-q") == 0)
 			QUIET = true;
@@ -285,443 +292,268 @@ int main(int argc, char *argv[]) {
 		BB=true;
 	}
 
+	// initialize random number generator
+	srand((unsigned(time(0))));
+
 	// Label maps to allow string labels
 	map<string, int> label_map= map<string, int>();
 	map<int, string> reverse_label_map = map<int, string>();
+	vector<int> label_counts = vector<int>();
 
-	// Normal operation
-	if (!UNROOTED && !UNROOTED_MIN_APPROX) {
-		string T1_line = "";
-		string T2_line = "";
-		while (getline(cin, T1_line) && getline(cin, T2_line)) {
-			Node *T1 = build_tree(T1_line);
-			Node *T2 = build_tree(T2_line);
-
-
-			vector<Node *> leaves = T1->find_leaves();
-			int n = leaves.size();
-			cout << "T1: ";
-			T1->print_subtree();
-			T1->preorder_number();
-			cout << endl;
-			for(int i = 0; i <  2*n - 3  + 1; i++) {
-				T1->next_rooting();
-				cout << "T1: ";
-				cout << T1->str_subtree();
-	//			cout << endl;
-				cout << "\t" << T1->lchild()->get_preorder_number() << "  " << T1->rchild()->get_preorder_number();
-				if ( T1->lchild()->get_preorder_number() > T1->rchild()->get_preorder_number())
-					cout << " * ";
-				cout << endl;
+	string T_line = "";
+	vector<Node *> gene_trees = vector<Node *>();
+	vector<string> gene_tree_names = vector<string>();
+	int skipped_multifurcating = 0;
+	int skipped_small = 0;
+	int skipped_no_bracket = 0;
+	while (getline(cin, T_line)) {
+		string name = "";
+		size_t loc = T_line.find_first_of("(");
+		if (loc != string::npos) {
+			if (loc != 0) {
+			name = T_line.substr(0,loc-1);
+			T_line.erase(0,loc-1);
 			}
-
-			cout << endl;
-
-
-
-			// TODO: should we sync here to prune out additional leaves?
-			if (!QUIET) {
-				cout << "T1: ";
-				T1->print_subtree();
-				cout << "T2: ";
-				T2->print_subtree();
-				cout << endl;
+			Node *T = build_tree(T_line);
+			if (T->is_leaf() && T->str() == "p") {
+				skipped_multifurcating++;
+				continue;
 			}
-			if (LCA_TEST) {
-				LCA lca_query = LCA(T1);
-				cout << endl;
-				lca_query.debug();
-				cout << endl;
-				vector<Node *> leaves = T1->find_leaves();
-				for(vector<Node *>::iterator i = leaves.begin(); i != leaves.end(); i++) {
-					for(vector<Node *>::iterator j = i; j != leaves.end(); j++) {
-						if (j==i)
-							continue;
-						Node *lca = lca_query.get_lca(*i, *j);
-						(*i)->print_subtree_hlpr();
-						cout << "\t";
-						(*j)->print_subtree_hlpr();
-						cout << "\t";
-						lca->print_subtree();
-					}
-				}
-				return 0;
+			if (T->size() <= 5) {
+				skipped_small++;
+				continue;
 			}
+			gene_tree_names.push_back(name);
+			gene_trees.push_back(T);
+		}
+		else
+			skipped_no_bracket++;
+	}
 
-			T1->labels_to_numbers(&label_map, &reverse_label_map);
-			T2->labels_to_numbers(&label_map, &reverse_label_map);
-	
-//			ClusterForest F1 = ClusterForest(T1);
-//			ClusterForest F2 = ClusterForest(T2);
-//			ClusterForest F3 = ClusterForest(T1);
-//			ClusterForest F4 = ClusterForest(T2);
-			ClusterForest F1 = ClusterForest(T1);
-			ClusterForest F2 = ClusterForest(T2);
-			Forest F3 = Forest(T1);
-			Forest F4 = Forest(T2);
+	cout << "skipped " << skipped_no_bracket << " lines with no opening bracket " << endl;
+	cout << "skipped " << skipped_multifurcating << " multifurcating or invalid trees" << endl;
+	cout << "skipped " << skipped_small << " trees with less than 4 leaves" << endl;
+	cout << gene_trees.size() << " gene trees remaining" << endl;
 
-			if (CLUSTER_TEST) {
-				int approx_spr = rSPR_3_approx(&F3, &F4);
-					cout << "approx drSPR=" << approx_spr << endl;
-					cout << "\n";
+	for(int i = 0; i < gene_trees.size(); i++) {
+		cout << gene_tree_names[i];
+		cout << gene_trees[i]->str_subtree() << endl;
+//		for(int j = 0; j < gene_tree_names[i].size(); j++)
+//			cout << " ";
+//		gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
+//		cout << gene_trees[i]->str_subtree() << endl;
+//		for(int j = 0; j < gene_tree_names[i].size(); j++)
+//			cout << " ";
+//		gene_trees[i]->numbers_to_labels(&reverse_label_map);
+//		cout << gene_trees[i]->str_subtree() << endl;
 
-				sync_twins(&F1, &F2);
-				//sync_interior_twins_real(&F1, &F2);
-				sync_interior_twins(&F1, &F2);
-				list<Node *> *cluster_points = find_cluster_points(&F1);
-//				if (!cluster_points->empty()) {
-					/*
-					cout << "CLUSTER POINTS:" << endl;
-					for(list<Node *>::iterator i = cluster_points->begin();
-							i != cluster_points->end(); i++) {
-						string s1 = (*i)->str_subtree();
-						string s2 = (*i)->get_twin()->str_subtree();
-						if (s1 != s2)
-							cout << s1 << "\t" << s2 << endl;
-					}
-					cout << endl;
-					*/
-					// TODO: not quite right because we need to put
-					// in the leaf with a ref and not do contractions
-					for(list<Node *>::iterator i = cluster_points->begin();
-							i != cluster_points->end(); i++) {
-						stringstream ss;
-						string cluster_name = "X";
-						ss << F1.size();
-						cluster_name += ss.str();
-						int num_labels = label_map.size();
-						label_map.insert(make_pair(cluster_name,num_labels));
-						reverse_label_map.insert(
-								make_pair(num_labels,cluster_name));
-						ss.str("");
-						ss << num_labels;
-						cluster_name = ss.str();
 
-						Node *n = *i;
-						Node *n_parent = n->parent();
-						Node *twin = n->get_twin();
-						Node *twin_parent = twin->parent();
+		gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
+		gene_trees[i]->count_numbered_labels(&label_counts);
+	}
 
-						F1.add_cluster(n,cluster_name);
+	// iterate over the taxa by number of occurences
+	multimap<int, int> labels = multimap<int, int>();
+	for(int i = 0; i < label_counts.size(); i++) {
+		labels.insert(make_pair(label_counts[i],i));
+	}
 
-						F2.add_cluster(twin,cluster_name);
 
-						Node *n_cluster =
-								F1.get_cluster_node(F1.num_clusters()-1);
-						Node *twin_cluster =
-								F2.get_cluster_node(F2.num_clusters()-1);
-						n_cluster->set_twin(twin_cluster);
-						twin_cluster->set_twin(n_cluster);
-					}
-					cout << endl << "CLUSTERS" << endl;
-					//cout << "F1: " << endl;
-					//F1.print_components("\n");
-					//cout << endl;
-					//cout << "F2: " << endl;
-					//F2.print_components("\n");
+//	for(auto label = labels.rbegin(); label != labels.rend(); label++) {
+//		cout << label->second ;
+//		cout << " (" << reverse_label_map.find(label->second)->second << ") ";
+//		cout << ": " << label->first << endl;
+//	}
 
-					// component 0 needs to be done last
-					F1.add_component(F1.get_component(0));
-					F2.add_component(F2.get_component(0));
+	// 4 most common leaves
+	auto label = labels.rbegin();
+	vector<int> l = vector<int>(4);
+	for(int i = 0; i < 4; i++) {
+		l[i] = label->second;
+		label++;
+		//cout << l[i] << endl;
+	}
 
-					int exact_spr;
-					int k;
-					int num_clusters = F1.num_components();
-					int total_k = 0;
-					for(int i = 1; i < num_clusters; i++) {
-						Forest f1 = Forest(F1.get_component(i));
+	cout << endl;
+	cout << "Starting Trees:" << endl;
 
-						Forest f2 = Forest(F2.get_component(i));
-						Forest f1a = Forest(f1);
-						Forest f2a = Forest(f2);
-						Forest *f1_cluster;
-						Forest *f2_cluster;
+	// create all trees on the 4 leaves
+	// TODO: really all or all 3 unrooted trees?
+	vector<Node *> ST = vector<Node *>();
+	int st_size = 0;
+	stringstream ss;
+	ss << "((" << l[0] << "," << l[1] << "),(" << l[2] << "," << l[3] <<"))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "((" << l[0] << "," << l[2] << "),(" << l[1] << "," << l[3] <<"))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "((" << l[0] << "," << l[3] << "),(" << l[1] << "," << l[2] <<"))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
 
-//						f1.numbers_to_labels(&reverse_label_map);
-//						f2.numbers_to_labels(&reverse_label_map);
-						cout << "C" << i << "_1: ";
-						f1.print_components();
-						cout << "C" << i << "_2: ";
-						f2.print_components();
+	// testing other rooted trees
+	ss << "(" << l[0] << "," << "(" << l[3] << ",(" << l[1] << "," << l[2] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "(" << l[0] << "," << "(" << l[1] << ",(" << l[3] << "," << l[2] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "(" << l[0] << "," << "(" << l[2] << ",(" << l[1] << "," << l[3] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	// testing other rooted trees
+	ss << "(" << l[1] << "," << "(" << l[3] << ",(" << l[0] << "," << l[2] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "(" << l[1] << "," << "(" << l[0] << ",(" << l[3] << "," << l[2] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "(" << l[1] << "," << "(" << l[2] << ",(" << l[0] << "," << l[3] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	// testing other rooted trees
+	ss << "(" << l[2] << "," << "(" << l[3] << ",(" << l[1] << "," << l[0] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "(" << l[2] << "," << "(" << l[1] << ",(" << l[3] << "," << l[0] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "(" << l[2] << "," << "(" << l[0] << ",(" << l[1] << "," << l[3] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	// testing other rooted trees
+	ss << "(" << l[3] << "," << "(" << l[0] << ",(" << l[1] << "," << l[2] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "(" << l[3] << "," << "(" << l[1] << ",(" << l[0] << "," << l[2] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
+	ss << "(" << l[3] << "," << "(" << l[2] << ",(" << l[1] << "," << l[0] <<")))";
+	ST.push_back(build_tree(ss.str()));
+	ss.str("");
 
-						int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
-						if (!(QUIET && (BB || FPT)))
-							cout << "cluster approx drSPR=" << approx_spr << endl;
 
-						cout << endl;
-
-						if (FPT || BB) {
-							int min_spr = approx_spr / 3;
-							for(k = min_spr; k <= MAX_SPR; k++) {
-								Forest f1t = Forest(f1);
-								Forest f2t = Forest(f2);
-								f1t.unsync();
-								f2t.unsync();
-								cout << k << " ";
-								cout.flush();
-//								cout << "foo1" << endl;
-//								f1t.print_components();
-//								f1t.print_components();
-//								cout << "foo1a" << endl;
-								exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
-//								cout << "foo2" << endl;
-								if (exact_spr >= 0) {
-//									cout << "foo3" << endl;
-//										cout << "foo3a" << endl;
-//										cout << "rho=" << f1t.contains_rho() << endl;
-//										cout << i << endl;
-//										cout << &f1t << endl;
-//										cout << f1t.num_components() << endl;
-//										f1t.print_components();
-										// TODO: problem things getting
-										// deleted?
-									if ( i < num_clusters - 1) {
-										F1.join_cluster(i,&f1t);
-//										cout << "foo3b" << endl;
-//										cout << "rho=" << f2t.contains_rho() << endl;
-//										F2.print_components();
-//										f2t.print_components();
-										F2.join_cluster(i,&f2t);
-//									cout << "foo4" << endl;
-									}
-									else {
-										F1.join_cluster(&f1t);
-										F2.join_cluster(&f2t);
-									}
-									//f1.numbers_to_labels(&reverse_label_map);
-									//f2.numbers_to_labels(&reverse_label_map);
-									cout << endl;
-									cout << "F" << i << "_1: ";
-									f1t.print_components();
-//									cout << "foo5" << endl;
-									cout << "F" << i << "_2: ";
-									f2t.print_components();
-//									cout << "foo6" << endl;
-									cout << "cluster exact drSPR=" << exact_spr << endl;
-									cout << endl;
-									total_k += exact_spr;
-									break;
-								}
-							}
-							if (exact_spr == -1)
-							cout << "exact drSPR=?  " << "k=" << k << " too large" << endl;
-							cout << "\n";
-						}
-					}
-				//}
-
-				if (BB | FPT) {
-					if (F1.contains_rho()) {
-						F1.erase_components(0, num_clusters);
-						F2.erase_components(0, num_clusters);
-					}
-					else {
-						F1.erase_components(1, num_clusters+1);
-						F2.erase_components(1, num_clusters+1);
-					}
-					cout << "F1: ";
-					F1.print_components();
-					cout << "F2: ";
-					F2.print_components();
-					cout << "total exact drSPR=" << total_k << endl;
-				}
-
-				T1->delete_tree();
-				T2->delete_tree();
-				delete cluster_points;
-				return 0;
-			}
-	
-			// APPROX ALGORITHM
-			int approx_spr = rSPR_worse_3_approx(&F1, &F2);
-			int min_spr = approx_spr / 3;
-			if (!(QUIET && (BB || FPT))) {
-				F1.numbers_to_labels(&reverse_label_map);
-				F2.numbers_to_labels(&reverse_label_map);
-				cout << "F1: ";
-				F1.print_components();
-				cout << "F2: ";
-				F2.print_components();
-				cout << "approx drSPR=" << approx_spr << endl;
-				cout << "\n";
-			}
-	
-			int k = min_spr;
-
-			/*
-			// FPT ALGORITHM
-			int exact_spr = -1;
-			int k = min_spr;
-			if (FPT) {
-				for(k = min_spr; k <= MAX_SPR; k++) {
-					cout << k << " ";
-					cout.flush();
-					Forest F1 = Forest(F3);
-					Forest F2 = Forest(F4);
-					exact_spr = rSPR_FPT(&F1, &F2, k);
-					if (exact_spr >= 0) {
-						F1.numbers_to_labels(&reverse_label_map);
-						F2.numbers_to_labels(&reverse_label_map);
-						cout << endl;
-						cout << "F1: ";
-						F1.print_components();
-						cout << "F2: ";
-						F2.print_components();
-						cout << "exact drSPR=" << exact_spr << endl;
-						T1->delete_tree();
-						T2->delete_tree();
-						continue;
-					}
-				}
-				if (exact_spr == -1)
-					cout << "exact drSPR=?  " << "k=" << k << " too large" << endl;
-				cout << "\n";
-			}
-			*/
-		
-			if (BB || FPT) {
-				// BRANCH AND BOUND FPT ALGORITHM
-				Forest F1 = Forest(F3);
-				Forest F2 = Forest(F4);
-				int exact_spr = rSPR_branch_and_bound(&F1, &F2);
-				if (exact_spr >= 0) {
-					cout << "F1: ";
-					F1.print_components();
-					cout << "F2: ";
-					F2.print_components();
-					F1.numbers_to_labels(&reverse_label_map);
-					F2.numbers_to_labels(&reverse_label_map);
-					cout << endl;
-					cout << "F1: ";
-					F1.print_components();
-					cout << "F2: ";
-					F2.print_components();
-					cout << "exact BB drSPR=" << exact_spr << endl;
-					T1->delete_tree();
-					T2->delete_tree();
-					continue;
-				}
-				if (exact_spr == -1)
-						cout << "exact BB drSPR=?  " << "k=" << k << " too large"
-							<< endl;
-				cout << "\n";
-			}
-	
-			// cleanup
-			T1->delete_tree();
-			T2->delete_tree();
+	// choose the best starting tree
+	int best_distance = rSPR_total_distance(ST[0], gene_trees); 
+	int best_tree = 0;
+	cout << best_distance <<  ": ";
+	cout << ST[0]->str_subtree() << endl;
+	for(int j = 1; j < ST.size(); j++) {
+		//cout << ST[j]->str_subtree() << endl;
+		int distance = rSPR_total_distance(ST[j], gene_trees);
+		cout << distance <<  ": ";
+		cout << ST[j]->str_subtree() << endl;
+		if (distance < best_distance) {
+			best_distance = distance;
+			best_tree = j;
 		}
 	}
-	// Comparison between a rooted tree and all rootings of an unrooted tree
-	else if (UNROOTED || UNROOTED_MIN_APPROX) {
-		string line = "";
-		vector<Forest> trees = vector<Forest>();
-		if (!getline(cin, line))
-			return 0;
-		Node *T1 = build_tree(line);
-		if (!QUIET) {
-			cout << "T1: ";
-			T1->print_subtree();
-		}
-		T1->labels_to_numbers(&label_map, &reverse_label_map);
-		Forest F1 = Forest(T1);
-		while (getline(cin, line)) {
-			Node *T2 = build_tree(line);
-			if (!QUIET) {
-				cout << "T2: ";
-				T2->print_subtree();
-			}
-			T2->labels_to_numbers(&label_map, &reverse_label_map);
-			trees.push_back(Forest(T2));
-		}
-		cout << endl;
+	Node *super_tree = ST[best_tree];
 
-		if (trees.size() == 0)
-			return 0;
-
-
-		// APPROX ALGORITHM
-		int min_spr = (int)1E9;
-		int min_i = 0;
-		vector<int> approx_spr = vector<int>(trees.size());
-		for (int i = 0; i < trees.size(); i++) {
-			Forest F3 = Forest(F1);
-			Forest F4 = Forest(trees[i]);
-			approx_spr[i] = rSPR_worse_3_approx(&F3, &F4);
-			if (approx_spr[i] < min_spr) {
-				min_spr = approx_spr[i];
-				min_i = i;
-			}
-			if (!(QUIET && (BB || FPT)) && !UNROOTED_MIN_APPROX) {
-				F3.numbers_to_labels(&reverse_label_map);
-				F4.numbers_to_labels(&reverse_label_map);
-				cout << "F1: ";
-				F3.print_components();
-				cout << "F2: ";
-				F4.print_components();
-				cout << "approx drSPR=" << approx_spr[i] << endl;
-				cout << "\n";
-			}
-		}
-		// Choose a rooting with minimum approximate distance
-		if (UNROOTED_MIN_APPROX) {
-			Forest min_approx_forest = trees[min_i];
-			trees.clear();
-			trees.push_back(min_approx_forest);
-				F1.numbers_to_labels(&reverse_label_map);
-				min_approx_forest.numbers_to_labels(&reverse_label_map);
-				cout << "F1: ";
-				F1.print_components();
-				cout << "F2: ";
-				min_approx_forest.print_components();
-				F1.labels_to_numbers(&label_map, &reverse_label_map);
-				min_approx_forest.labels_to_numbers(&label_map, &reverse_label_map);
-		}
-
-		cout << "min approx drSPR=" << min_spr << endl;
-		cout << "\n";
-
-		min_spr /= 3;
-
-		int k, exact_spr;
-		if (FPT || BB) {
-			// BRANCH AND BOUND FPT ALGORITHM
-			for(k = min_spr; k <=MAX_SPR;  k++) {
-				cout << k << " ";
-				cout.flush();
-				for (int i = 0; i < trees.size(); i++) {
-					Forest F3 = Forest(F1);
-					Forest F4 = Forest(trees[i]);
-					exact_spr = rSPR_branch_and_bound(&F3, &F4, k);
-					if (exact_spr >= 0) {
-						sync_twins(&F1, &trees[i]);
-						F1.numbers_to_labels(&reverse_label_map);
-						trees[i].numbers_to_labels(&reverse_label_map);
-						F3.numbers_to_labels(&reverse_label_map);
-						F4.numbers_to_labels(&reverse_label_map);
-						cout << endl;
-						cout << "T1: ";
-						F1.print_components();
-						cout << "T2: ";
-						trees[i].print_components();
-						cout << endl;
-						cout << "F1: ";
-						F3.print_components();
-						cout << "F2: ";
-						F4.print_components();
-						cout << "exact BB drSPR=" << exact_spr << endl;
-						continue;
-					}
-				}
-				if (exact_spr >= 0) {
-					continue;
-				}
-			}
-			if (exact_spr == -1)
-				cout << "exact BB drSPR=?  " << "k=" << k << " too large" << endl;
-			cout << "\n";
-		}
-
+	for(int i = 0; i < ST.size(); i++) {
+		if (i != best_tree)
+			ST[i]->delete_tree();
 	}
+
+	cout << endl;
+	cout << "Initial Supertree:  " << super_tree->str_subtree() << endl;
+
+	int x = 0;
+	for(; label != labels.rend(); label++) {
+		cout << "Adding leaf " << label->second << endl;
+		Node *best_sibling = find_best_sibling(super_tree, gene_trees, label->second);
+		Node *node = best_sibling->expand_parent_edge(best_sibling);
+
+		node->add_child(new Node(itos(label->second)));
+		cout << super_tree->str_subtree() << endl;
+	}
+
+	cout << endl;
+	cout << "Total Distance: " << rSPR_total_distance(super_tree, gene_trees) << endl;
+	super_tree->numbers_to_labels(&reverse_label_map);
+	cout << "Final Supertree: " <<  super_tree->str_subtree() << endl;
+
+
+	// cleanup
+	for(int i = 0; i < gene_trees.size(); i++) {
+		gene_trees[i]->delete_tree();
+	}
+
+
+
+
 	return 0;
+
 }
+
+
+Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees, int label) {
+	Node *best_sibling;
+	Node *new_leaf = new Node(itos(label));
+	int min_distance = INT_MAX;
+	int num_ties = 0;
+	find_best_sibling_helper(super_tree, new_leaf, super_tree, gene_trees,
+			min_distance, num_ties, &best_sibling);
+	delete new_leaf;
+	return best_sibling;
+}
+
+void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
+		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
+		Node **best_sibling) {
+
+	if (n->lchild() != NULL) {
+		find_best_sibling_helper(n->lchild(), new_leaf, super_tree,
+				gene_trees, min_distance, num_ties, best_sibling);
+	}
+	if (n->rchild() != NULL) {
+		find_best_sibling_helper(n->rchild(), new_leaf, super_tree,
+				gene_trees, min_distance, num_ties, best_sibling);
+	}
+
+	// TODO: modify this to keep a single intermediate node rather
+	//than recreating and destroying it
+	Node *new_node = n->expand_parent_edge(n);
+	new_node->add_child(new_leaf);
+//	cout << super_tree->str_subtree() << endl;
+
+	super_tree->set_depth(0);
+	super_tree->fix_depths();
+	int distance;
+	if (APPROX) {
+		distance = rSPR_total_approx_distance(super_tree, gene_trees);
+	}
+	else {
+		distance = rSPR_total_distance(super_tree, gene_trees);
+	}
+	if (distance < min_distance) {
+		min_distance = distance;
+		*best_sibling = n;
+		num_ties = 2;
+	}
+	else if (distance == min_distance) {
+		int r = rand();
+		if (r < RAND_MAX/num_ties) {
+			min_distance = distance;
+			*best_sibling = n;
+			num_ties = 2;
+		}
+		else {
+			num_ties++;
+		}
+	}
+//	cout << "distance: " << distance;
+//	cout << endl;
+
+	new_leaf->cut_parent();
+	//cout << super_tree->str_subtree() << endl;
+	new_node = new_node->undo_expand_parent_edge();
+	delete new_node;
+	super_tree->set_depth(0);
+	super_tree->fix_depths();
+	//cout << super_tree->str_subtree() << endl;
+
+}
+
+
