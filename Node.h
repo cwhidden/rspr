@@ -606,6 +606,9 @@ class Node {
 		str_hlpr(&s);
 		return s;
 	}
+	string get_name() {
+		return name;
+	}
 
 	void str_hlpr(string *s) {
 		if (!name.empty())
@@ -1003,6 +1006,15 @@ void clear_sibling_pair(list<Node *> *sibling_pairs) {
 	}
 }
 
+Node *get_sibling() {
+	if (p == NULL)
+		return NULL;
+	else if (p->lc == this)
+		return p->rc;
+	else
+		return p->lc;
+}
+
 Node *get_sibling(list<Node *> *sibling_pairs) {
 	if (sibling_pair_status > 0) {
 		list<Node *>::iterator loc = sibling_pair_loc;
@@ -1143,6 +1155,96 @@ Node *undo_expand_parent_edge() {
 		set_rchild(new_rc);
 		return child;
 	}
+}
+
+/*  apply an SPR operation to move this subtree to be a
+ *	sibling of new_sibling
+ *
+ *  Note: problems will occur if new_sibling is a descendant of this
+ *  Note: does nothing if this is the root
+ *
+ *	Returns a node that will reverse the spr (old_sibling unless it
+ *		was moved to maintain a root, in which case the root is returned,
+ *		NULL if no spr occured)
+ */
+Node *spr(Node *new_sibling, int &which_child) {
+	Node *reverse;
+	int prev_child_loc = 0;
+	if (p == NULL || new_sibling == NULL)
+		return NULL;
+	Node *old_sibling = get_sibling();
+	if (old_sibling == new_sibling)
+		return NULL;
+	Node *grandparent = p->p;
+	if (p->lc == this)
+		prev_child_loc = 1;
+	else
+		prev_child_loc = 2;
+	// Prune
+	if (grandparent != NULL) {
+		p->delete_child(old_sibling);
+		grandparent->delete_child(p);
+		grandparent->add_child(old_sibling);
+		reverse = old_sibling;
+	}
+	else {
+		if (old_sibling->is_leaf())
+			return NULL;
+		Node *root = p;
+		bool leftc = false;
+		if (root->lc == this)
+			leftc = true;
+		root->delete_child(this);
+		root->delete_child(old_sibling);
+		root->add_child(old_sibling->lc);
+		root->add_child(old_sibling->rc);
+		old_sibling->delete_child(old_sibling->lc);
+		old_sibling->delete_child(old_sibling->rc);
+		if (leftc)
+			old_sibling->set_lchild(this);
+		else
+			old_sibling->set_rchild(this);
+		reverse = root;
+	}
+
+
+	// Regraft
+	if (new_sibling->p != NULL) {
+		grandparent = new_sibling->p;
+		grandparent->delete_child(new_sibling);
+		grandparent->add_child(p);
+		p->add_child(new_sibling);
+	}
+	else {
+		Node *root = new_sibling;
+		new_sibling = p;
+		p->delete_child(this);
+		p->add_child(root->lc);
+		p->add_child(root->rc);
+		root->delete_child(root->lc);
+		root->delete_child(root->rc);
+		// problem here
+		if (which_child == 0)
+			which_child = prev_child_loc;
+		if (which_child == 1) {
+			root->add_child(this);
+			root->add_child(new_sibling);
+		}
+		else {
+			root->add_child(new_sibling);
+			root->add_child(this);
+		}
+
+
+	}
+
+	which_child = prev_child_loc;
+	return reverse;
+}
+
+Node *spr(Node *new_sibling) {
+	int na = 0;
+	spr(new_sibling, na);
 }
 
 };

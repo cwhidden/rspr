@@ -97,12 +97,17 @@ class ClusterForest: public Forest {
 		Node *cluster_node = get_cluster_node(cluster_loc);
 		Node *cluster_parent = cluster_node->parent();
 		cluster_node->cut_parent();
-		delete cluster_node;
-		delete components[cluster_loc];
+//		delete cluster_node;
+		cluster_node->delete_tree();
+//		delete components[cluster_loc];
+		components[cluster_loc]->delete_tree();
 		components[cluster_loc] = NULL;
 		int start = 0;
 		if (solved_cluster->contains_rho()) {
-			cluster_parent->contract(true);
+			if (cluster_parent->parent() != NULL ||
+					!(cluster_parent->lchild() && cluster_parent->lchild()->get_name() == "X"
+					|| cluster_parent->rchild() && cluster_parent->rchild()->get_name() == "X"))
+				cluster_parent->contract(true);
 		}
 		else {
 			cluster_parent->add_child(new Node(*(solved_cluster->get_component(0))));

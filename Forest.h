@@ -131,7 +131,7 @@ class Forest {
 		}
 		for(int i = 0; i < deleted_nodes.size(); i++) {
 			//if (deleted_nodes[i] != NULL) {
-				delete deleted_nodes[i];
+				deleted_nodes[i]->delete_tree();
 				//deleted_nodes[i] = NULL;
 			//}
 		}

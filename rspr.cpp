@@ -129,6 +129,7 @@ bool UNROOTED_MIN_APPROX = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool TOTAL = false;
+bool APPROX = false;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -216,6 +217,7 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-approx") == 0) {
 			DEFAULT_ALGORITHM=false;
+			APPROX=true;
 		}
 		else if (strcmp(arg, "-q") == 0)
 			QUIET = true;
@@ -279,6 +281,10 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-total") == 0) {
 			TOTAL= true;
+			//PREFER_RHO = true;
+		}
+		else if (strcmp(arg, "-v") == 0) {
+			VERBOSE=true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -349,8 +355,8 @@ int main(int argc, char *argv[]) {
 
 			if (CLUSTER_TEST) {
 				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true);
-				delete T1;
-				delete T2;
+				T1->delete_tree();
+				T2->delete_tree();
 				continue;
 			}
 	
@@ -516,7 +522,7 @@ int main(int argc, char *argv[]) {
 					Forest F4 = Forest(trees[i]);
 					exact_spr = rSPR_branch_and_bound(&F3, &F4, k);
 					if (exact_spr >= 0) {
-						sync_twins(&F1, &trees[i]);
+						//sync_twins(&F1, &trees[i]);
 						F1.numbers_to_labels(&reverse_label_map);
 						trees[i].numbers_to_labels(&reverse_label_map);
 						F3.numbers_to_labels(&reverse_label_map);
@@ -532,6 +538,8 @@ int main(int argc, char *argv[]) {
 						cout << "F2: ";
 						F4.print_components();
 						cout << "exact BB drSPR=" << exact_spr << endl;
+						F1.labels_to_numbers(&label_map, &reverse_label_map);
+						trees[i].labels_to_numbers(&label_map, &reverse_label_map);
 						continue;
 					}
 				}
@@ -567,8 +575,17 @@ int main(int argc, char *argv[]) {
 		}
 		cout << endl;
 
-		int distance = rSPR_total_distance(T1, trees);
-		cout << "total distance= " << distance << endl;
+		if (APPROX) {
+			int distance = rSPR_total_approx_distance(T1,trees);
+			cout << "total approx distance= " << distance << endl;
+		}
+		else {
+			int distance = rSPR_total_distance(T1,trees);
+			cout << "total distance= " << distance << endl;
+		}
+		T1->delete_tree();
+		for(auto T2 = trees.begin(); T2 != trees.end(); T2++)
+			(*T2)->delete_tree();
 	}
 	return 0;
 }

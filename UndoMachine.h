@@ -76,6 +76,7 @@ class AddRho : public Undoable {
 	}
 	void undo() {
 		F->set_rho(false);
+		F->get_component(F->num_components()-1)->delete_tree();
 		F->erase_components(F->num_components()-1,F->num_components());
 	}
 };

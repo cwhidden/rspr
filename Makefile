@@ -38,6 +38,7 @@ debug:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o spr_supertree spr_supertree.cpp
 profile:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o rspr rspr.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o spr_supertree spr_supertree.cpp
 hyb:
 	$(CC64) $(LFLAGS) $(C64FLAGS) -o hyb hyb.cpp
 w32:
