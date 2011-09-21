@@ -286,6 +286,14 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-v") == 0) {
 			VERBOSE=true;
 		}
+		else if (strcmp(arg, "-max") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					MAX_SPR = atoi(arg2);
+				cout << "MAX_SPR=" << MAX_SPR << endl;
+			}
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;

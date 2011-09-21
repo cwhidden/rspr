@@ -295,6 +295,14 @@ int main(int argc, char *argv[]) {
 				cout << "NUM_ITERATIONS=" << NUM_ITERATIONS << endl;
 			}
 		}
+		else if (strcmp(arg, "-max") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					MAX_SPR = atoi(arg2);
+				cout << "MAX_SPR=" << MAX_SPR << endl;
+			}
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -338,8 +346,6 @@ int main(int argc, char *argv[]) {
 				continue;
 			}
 			if (T->size() <= 5) {
-				cout << "skipped_small" << endl;
-				cout << T->str_subtree() << endl;
 				skipped_small++;
 				continue;
 			}
@@ -479,8 +485,10 @@ int main(int argc, char *argv[]) {
 	cout << "Initial Supertree:  " << super_tree->str_subtree() << endl;
 
 	int x = 0;
+	int i = 5;
 	for(; label != labels.rend(); label++) {
-		cout << "Adding leaf " << label->second << endl;
+		cout << "Adding leaf " << label->second;
+		cout << "\t("<< i++ << "/" <<  labels.size() << ")" << endl;
 		Node *best_sibling = find_best_sibling(super_tree, gene_trees, label->second);
 		Node *node = best_sibling->expand_parent_edge(best_sibling);
 

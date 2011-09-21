@@ -35,7 +35,6 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
-#define MAX_SPR 1000
 
 #include <cstdio>
 #include <cstdlib>
@@ -89,6 +88,7 @@ bool ALL_MAFS = false;
 int NUM_CLUSTERS = 0;
 int MAX_CLUSTERS = -1;
 bool VERBOSE = false;
+int MAX_SPR = 1000;
 
 	class ProblemSolution {
 		public:
@@ -1491,9 +1491,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 		F2.print_components();
 	}
 
-	int approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
 	if (verbose) {
-		cout << "approx drSPR=" << approx_spr << endl;
+		cout << "approx drSPR=" << full_approx_spr << endl;
 		cout << "\n";
 	}
 
@@ -1548,12 +1548,12 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 	F1.add_component(F1.get_component(0));
 	F2.add_component(F2.get_component(0));
 
-	int exact_spr;
 	int k;
 	int num_clusters = F1.num_components();
 	int total_k = 0;
 
 	for(int i = 1; i < num_clusters; i++) {
+		int exact_spr = -1;
 		Forest f1 = Forest(F1.get_component(i));
 
 		Forest f2 = Forest(F2.get_component(i));
@@ -1577,7 +1577,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 		}
 
 			int min_spr = approx_spr / 3;
-			for(k = min_spr; k + total_k <= MAX_SPR; k++) {
+			for(k = min_spr; true; k++) {
 				Forest f1t = Forest(f1);
 				Forest f2t = Forest(f2);
 				f1t.unsync();
@@ -1586,8 +1586,10 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 					cout << k << " ";
   				cout.flush();
 				}
-				exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
-				if (exact_spr >= 0) {
+				if (k + total_k <= MAX_SPR) {
+					exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
+				}
+				if (exact_spr >= 0 || k + total_k > MAX_SPR) {
 					if ( i < num_clusters - 1) {
 						F1.join_cluster(i,&f1t);
 						F2.join_cluster(i,&f2t);
@@ -1596,25 +1598,33 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 						F1.join_cluster(&f1t);
 						F2.join_cluster(&f2t);
 					}
-					if (verbose) {
-  					cout << endl;
-  					cout << "F" << i << "_1: ";
-  					f1t.print_components();
-  					cout << "F" << i << "_2: ";
-  					f2t.print_components();
-  					cout << "cluster exact drSPR=" << exact_spr << endl;
-  					cout << endl;
+					if (exact_spr >= 0) {
+						if (verbose) {
+	  					cout << endl;
+	  					cout << "F" << i << "_1: ";
+	  					f1t.print_components();
+	  					cout << "F" << i << "_2: ";
+	  					f2t.print_components();
+	  					cout << "cluster exact drSPR=" << exact_spr << endl;
+	  					cout << endl;
+						}
+						total_k += exact_spr;
 					}
-					total_k += exact_spr;
+					else {
+						// TODO: don't just the MAX_SPR here
+						// incorporate extra information
+						// toggle?
+						if (verbose) {
+							cout << "cluster exact drSPR=?  " << "k=" << k << " too large"
+								<< endl;
+							cout << "\n";
+						}
+						//total_k = MAX_SPR;
+						if (i == num_clusters - 1)
+							total_k += k;
+					}
 					break;
 				}
-			}
-			if (exact_spr == -1) {
-				if (verbose) {
-					cout << "exact drSPR=?  " << "k=" << k << " too large" << endl;
-					cout << "\n";
-				}
-				total_k = MAX_SPR;
 			}
 		}
 
