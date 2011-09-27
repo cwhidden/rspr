@@ -101,6 +101,7 @@ exact BB drSPR=4
 #include <map>
 #include <unordered_map>
 #include <list>
+#include <time.h>
 #include "rspr.h"
 
 #include "Forest.h"
@@ -124,6 +125,7 @@ bool UNROOTED_MIN_APPROX = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool APPROX = false;
+bool TIMING = false;
 int NUM_ITERATIONS = -1;
 
 string USAGE =
@@ -302,6 +304,12 @@ int main(int argc, char *argv[]) {
 					MAX_SPR = atoi(arg2);
 				cout << "MAX_SPR=" << MAX_SPR << endl;
 			}
+		}
+		else if (strcmp(arg, "-time") == 0) {
+			TIMING= true;
+		}
+		else if (strcmp(arg, "-clamp") == 0) {
+			CLAMP= true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -483,12 +491,23 @@ int main(int argc, char *argv[]) {
 
 	cout << endl;
 	cout << "Initial Supertree:  " << super_tree->str_subtree() << endl;
+	double time;
+	double current_time;
+	if (TIMING)
+		time = clock()/(double)CLOCKS_PER_SEC;
 
 	int x = 0;
 	int i = 5;
 	for(; label != labels.rend(); label++) {
 		cout << "Adding leaf " << label->second;
-		cout << "\t("<< i++ << "/" <<  labels.size() << ")" << endl;
+		cout << "\t("<< i++ << "/" <<  labels.size() << ")";
+		if (TIMING) {
+			current_time = time;
+			time = clock()/(double)CLOCKS_PER_SEC;
+			current_time = time - current_time;
+			cout << "\t" << current_time << "\t" << time;
+		}
+		cout << endl;
 		Node *best_sibling = find_best_sibling(super_tree, gene_trees, label->second);
 		Node *node = best_sibling->expand_parent_edge(best_sibling);
 
@@ -506,6 +525,12 @@ int main(int argc, char *argv[]) {
 	else
 		best_distance = rSPR_total_distance(super_tree, gene_trees);
 	cout << "Total Distance: " << best_distance << endl;
+		if (TIMING) {
+			current_time = time;
+			time = clock()/(double)CLOCKS_PER_SEC;
+			current_time = time - current_time;
+			cout << "\t" << current_time << "\t" << time << endl;
+		}
 	//super_tree->numbers_to_labels(&reverse_label_map);
 
 	if (NUM_ITERATIONS < 0)
@@ -530,6 +555,12 @@ int main(int argc, char *argv[]) {
 			best_distance = current_distance;
 		}
 		cout << "Total Distance: " << current_distance << endl;
+		if (TIMING) {
+			current_time = time;
+			time = clock()/(double)CLOCKS_PER_SEC;
+			current_time = time - current_time;
+			cout << "\t" << current_time << "\t" << time << endl;
+		}
 	}
 	super_tree->delete_tree();
 	super_tree=best_supertree;

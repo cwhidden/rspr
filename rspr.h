@@ -88,6 +88,7 @@ bool ALL_MAFS = false;
 int NUM_CLUSTERS = 0;
 int MAX_CLUSTERS = -1;
 bool VERBOSE = false;
+bool CLAMP = false;
 int MAX_SPR = 1000;
 
 	class ProblemSolution {
@@ -1619,9 +1620,14 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 								<< endl;
 							cout << "\n";
 						}
-						//total_k = MAX_SPR;
-						if (i == num_clusters - 1)
-							total_k += k;
+						if (i == num_clusters - 1) {
+							if (CLAMP) {
+								total_k = MAX_SPR;
+							}
+							else {
+									total_k += k;
+							}
+						}
 					}
 					break;
 				}
