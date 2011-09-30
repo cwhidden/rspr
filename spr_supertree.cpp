@@ -127,6 +127,7 @@ bool CLUSTER_TEST = false;
 bool APPROX = false;
 bool TIMING = false;
 int NUM_ITERATIONS = -1;
+bool SMALL_TREES = false;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -311,6 +312,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-clamp") == 0) {
 			CLAMP= true;
 		}
+		else if (strcmp(arg, "-small_trees") == 0) {
+			SMALL_TREES=true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -353,7 +357,8 @@ int main(int argc, char *argv[]) {
 				skipped_multifurcating++;
 				continue;
 			}
-			if (T->size() <= 5) {
+			if ((T->size() <= 4)
+					|| T->size() == 5 && !SMALL_TREES) {
 				skipped_small++;
 				continue;
 			}
@@ -366,7 +371,12 @@ int main(int argc, char *argv[]) {
 
 	cout << "skipped " << skipped_no_bracket << " lines with no opening bracket " << endl;
 	cout << "skipped " << skipped_multifurcating << " multifurcating or invalid trees" << endl;
-	cout << "skipped " << skipped_small << " trees with less than 4 leaves" << endl;
+	if (SMALL_TREES) {
+		cout << "skipped " << skipped_small << " trees with less than 3 leaves" << endl;
+	}
+	else {
+		cout << "skipped " << skipped_small << " trees with less than 4 leaves" << endl;
+	}
 	cout << gene_trees.size() << " gene trees remaining" << endl;
 
 	for(int i = 0; i < gene_trees.size(); i++) {
