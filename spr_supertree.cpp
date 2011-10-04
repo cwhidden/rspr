@@ -214,6 +214,7 @@ void find_best_spr_helper(Node *n, Node *super_tree,
 void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
 		Node *&best_sibling, int &min_distance, int &num_ties);
+string root(string s);
 
 int main(int argc, char *argv[]) {
 	int max_args = argc-1;
@@ -349,8 +350,11 @@ int main(int argc, char *argv[]) {
 		size_t loc = T_line.find_first_of("(");
 		if (loc != string::npos) {
 			if (loc != 0) {
-			name = T_line.substr(0,loc-1);
-			T_line.erase(0,loc-1);
+				name = T_line.substr(0,loc);
+				T_line.erase(0,loc);
+			}
+			if (UNROOTED) {
+				T_line = root(T_line);
 			}
 			Node *T = build_tree(T_line);
 			if (T->is_leaf() && T->str() == "p") {
@@ -362,6 +366,8 @@ int main(int argc, char *argv[]) {
 				skipped_small++;
 				continue;
 			}
+			if (UNROOTED)
+				T->preorder_number();
 			gene_tree_names.push_back(name);
 			gene_trees.push_back(T);
 		}
@@ -378,6 +384,9 @@ int main(int argc, char *argv[]) {
 		cout << "skipped " << skipped_small << " trees with less than 4 leaves" << endl;
 	}
 	cout << gene_trees.size() << " gene trees remaining" << endl;
+
+	if (gene_trees.size() <= 0)
+		exit(0);
 
 	for(int i = 0; i < gene_trees.size(); i++) {
 //		cout << gene_tree_names[i];
@@ -472,9 +481,15 @@ int main(int argc, char *argv[]) {
 	// choose the best starting tree
 	int best_distance;
 	if (APPROX)
-		best_distance = rSPR_total_approx_distance(ST[0], gene_trees); 
+		if (UNROOTED)
+			best_distance = rSPR_total_approx_distance_unrooted(ST[0], gene_trees); 
+		else
+			best_distance = rSPR_total_approx_distance(ST[0], gene_trees); 
 	else 
-		best_distance = rSPR_total_distance(ST[0], gene_trees); 
+		if (UNROOTED)
+			best_distance = rSPR_total_distance_unrooted(ST[0], gene_trees); 
+		else
+			best_distance = rSPR_total_distance(ST[0], gene_trees); 
 	int best_tree = 0;
 //	cout << best_distance <<  ": ";
 //	cout << ST[0]->str_subtree() << endl;
@@ -482,9 +497,15 @@ int main(int argc, char *argv[]) {
 		//cout << ST[j]->str_subtree() << endl;
 		int distance;
 		if (APPROX)
-			distance = rSPR_total_approx_distance(ST[j], gene_trees);
+			if (UNROOTED)
+				distance = rSPR_total_approx_distance_unrooted(ST[j], gene_trees);
+			else
+				distance = rSPR_total_approx_distance(ST[j], gene_trees);
 		else
-			distance = rSPR_total_distance(ST[j], gene_trees);
+			if (UNROOTED)
+				distance = rSPR_total_distance_unrooted(ST[j], gene_trees);
+			else
+				distance = rSPR_total_distance(ST[j], gene_trees);
 //		cout << distance <<  ": ";
 //		cout << ST[j]->str_subtree() << endl;
 		if (distance < best_distance) {
@@ -531,9 +552,15 @@ int main(int argc, char *argv[]) {
 	super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 	Node *best_supertree = new Node(*super_tree);
 	if (APPROX)
-		best_distance = rSPR_total_approx_distance(super_tree, gene_trees);
+		if (UNROOTED)
+			best_distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+		else
+			best_distance = rSPR_total_approx_distance(super_tree, gene_trees);
 	else
-		best_distance = rSPR_total_distance(super_tree, gene_trees);
+		if (UNROOTED)
+			best_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
+		else
+			best_distance = rSPR_total_distance(super_tree, gene_trees);
 	cout << "Total Distance: " << best_distance << endl;
 		if (TIMING) {
 			current_time = time;
@@ -556,9 +583,15 @@ int main(int argc, char *argv[]) {
 //		super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 		int current_distance;
 		if (APPROX)
-			current_distance = rSPR_total_approx_distance(super_tree, gene_trees);
+			if (UNROOTED)
+				current_distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+			else
+				current_distance = rSPR_total_approx_distance(super_tree, gene_trees);
 		else
-			current_distance = rSPR_total_distance(super_tree, gene_trees);
+			if (UNROOTED)
+				current_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
+			else
+				current_distance = rSPR_total_distance(super_tree, gene_trees);
 		if (current_distance < best_distance) {
 			best_supertree->delete_tree();
 			best_supertree = new Node(*super_tree);
@@ -624,10 +657,16 @@ void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 	super_tree->fix_depths();
 	int distance;
 	if (APPROX) {
-		distance = rSPR_total_approx_distance(super_tree, gene_trees);
+		if (UNROOTED)
+			distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+		else
+			distance = rSPR_total_approx_distance(super_tree, gene_trees);
 	}
 	else {
-		distance = rSPR_total_distance(super_tree, gene_trees);
+		if (UNROOTED)
+			distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
+		else
+			distance = rSPR_total_distance(super_tree, gene_trees);
 	}
 	if (distance < min_distance) {
 		min_distance = distance;
@@ -742,10 +781,16 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 		int distance;
 		if (APPROX) {
-			distance = rSPR_total_approx_distance(super_tree, gene_trees);
+			if (UNROOTED)
+				distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+			else
+				distance = rSPR_total_approx_distance(super_tree, gene_trees);
 		}
 		else {
-			distance = rSPR_total_distance(super_tree, gene_trees);
+			if (UNROOTED)
+				distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
+			else
+				distance = rSPR_total_distance(super_tree, gene_trees);
 		}
 //		cout << "\t" << distance << endl;
 		if (distance < min_distance) {
@@ -776,3 +821,36 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 }
 
+string root(string s) {
+	string r = "";
+	int i = 0;
+	int depth = 0;
+	int first_c = -1;
+	int second_c = -1;
+	int last_bracket = -1;
+	for(int i = 0; i < s.size(); i++) {
+		if (s[i] == '(')
+			depth++;
+		else if (s[i] == ')') {
+			depth--;
+			last_bracket = i;
+		}
+		else if (depth == 1 && s[i] == ',') {
+			if (first_c == -1)
+				first_c = i;
+			else if  (second_c == -1)
+				second_c = i;
+		}
+	}
+	if (second_c == -1 || last_bracket == -1)
+		return s;
+	else {
+		r.append(s.substr(0,first_c+1));
+		r.append("(");
+		r.append(s.substr(first_c+1,last_bracket-first_c));
+		r.append(")");
+		r.append(s.substr(last_bracket+1,string::npos));
+	}
+//	cout << r << endl;
+	return r;
+}
