@@ -1,4 +1,4 @@
-CC=g++44
+CC=g++
 CC64=x86_64-w64-mingw32-g++
 CFLAGS=-O2 -std=c++0x -fopenmp
 C64FLAGS=$(CFLAGS)
