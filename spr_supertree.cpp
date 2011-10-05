@@ -393,6 +393,7 @@ int main(int argc, char *argv[]) {
 //		cout << gene_trees[i]->str_subtree() << endl;
 
 		gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
+//		cout << gene_tree_names[i] << gene_trees[i]->str_subtree() << endl;
 		gene_trees[i]->count_numbered_labels(&label_counts);
 	}
 
