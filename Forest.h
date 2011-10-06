@@ -446,17 +446,29 @@ bool sync_twins(Forest *T1, Forest *T2) {
 		Node *T2_a = T2_labels[i];
 		if (T1_a == NULL && T2_a != NULL) {
 			Node *node = T2_a->parent();
-			if (node == NULL
-					|| ( node->lchild()->is_leaf() && node->rchild()->is_leaf()))
+			if (node == NULL)
 				return false;
+			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
+				return false;
+				Node *sibling = node->lchild();
+				if (sibling == T2_a)
+						sibling = node->rchild();
+				T2_labels[stomini(sibling->str())] = sibling;
+			}
 			delete T2_a;
 			node->contract(true);
 		}
 		else if (T2_a == NULL && T1_a != NULL) {
 			Node *node = T1_a->parent();
-			if (node == NULL
-					|| ( node->lchild()->is_leaf() && node->rchild()->is_leaf()))
+			if (node == NULL)
 				return false;
+			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
+				return false;
+				Node *sibling = node->lchild();
+				if (sibling == T1_a)
+						sibling = node->rchild();
+				T1_labels[stomini(sibling->str())] = sibling;
+			}
 			delete T1_a;
 			node->contract(true);
 			
@@ -471,9 +483,15 @@ bool sync_twins(Forest *T1, Forest *T2) {
 		Node *T1_a = T1_labels[i];
 		if (T1_a != NULL) {
 			Node *node = T1_a->parent();
-			if (node == NULL
-					|| ( node->lchild()->is_leaf() && node->rchild()->is_leaf()))
+			if (node == NULL)
 				return false;
+			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
+				return false;
+				Node *sibling = node->lchild();
+				if (sibling == T1_a)
+						sibling = node->rchild();
+				T1_labels[stomini(sibling->str())] = sibling;
+			}
 			delete T1_a;
 			node->contract(true);
 			
@@ -483,9 +501,15 @@ bool sync_twins(Forest *T1, Forest *T2) {
 		Node *T2_a = T2_labels[i];
 		if (T2_a != NULL) {
 			Node *node = T2_a->parent();
-			if (node == NULL
-					|| ( node->lchild()->is_leaf() && node->rchild()->is_leaf()))
+			if (node == NULL)
 				return false;
+			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
+				return false;
+				Node *sibling = node->lchild();
+				if (sibling == T2_a)
+						sibling = node->rchild();
+				T2_labels[stomini(sibling->str())] = sibling;
+			}
 			delete T2_a;
 			node->contract(true);
 		}
