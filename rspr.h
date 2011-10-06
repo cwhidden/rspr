@@ -1484,7 +1484,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 
 
 //	bool old_rho = PREFER_RHO;
-//	PREFER_RHO = true;
+	PREFER_RHO = true;
 	if (verbose) {
 		cout << "F1: ";
 		F1.print_components();
