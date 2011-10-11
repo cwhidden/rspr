@@ -48,15 +48,5 @@ w64:
 	$(CC64) $(LFLAGS) $(C64FLAGS) -o rspr rspr.cpp
 	$(CC64) $(LFLAGS) $(C64FLAGS) -o spr_supertree spr_supertree.cpp
 omp:
-<<<<<<< HEAD
-<<<<<<< HEAD
 	$(CC) $(CFLAGS) $(OMPFLAGS) -o rspr-omp rspr.cpp
 	$(CC) $(CFLAGS) $(OMPFLAGS) -o spr_supertree-omp spr_supertree.cpp
-=======
-	$(CC) $(CFLAGS) $(OMPFLAGS) -o rspr rspr.cpp
-	$(CC) $(CFLAGS) $(OMPFLAGS) -o spr_supertree spr_supertree.cpp
->>>>>>> origin/master
-=======
-	$(CC) $(CFLAGS) $(OMPFLAGS) -o rspr rspr.cpp
-	$(CC) $(CFLAGS) $(OMPFLAGS) -o spr_supertree spr_supertree.cpp
->>>>>>> origin/openmp
