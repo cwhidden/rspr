@@ -794,15 +794,15 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 		int distance;
 		if (APPROX) {
-			if (UNROOTED)
-				distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
-			else
+	//		if (UNROOTED)
+	//			distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+	//		else
 				distance = rSPR_total_approx_distance(super_tree, gene_trees);
 		}
 		else {
-			if (UNROOTED)
-				distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
-			else
+	//		if (UNROOTED)
+	//			distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
+	//		else
 				distance = rSPR_total_distance(super_tree, gene_trees);
 		}
 //		cout << "\t" << distance << endl;
