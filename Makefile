@@ -1,4 +1,4 @@
-CC=g++
+CC=g++44
 CC64=x86_64-w64-mingw32-g++
 CFLAGS=-O2 -std=c++0x
 C64FLAGS=$(CFLAGS)
@@ -46,3 +46,6 @@ w32:
 w64:
 	$(CC64) $(LFLAGS) $(C64FLAGS) -o rspr rspr.cpp
 	$(CC64) $(LFLAGS) $(C64FLAGS) -o spr_supertree spr_supertree.cpp
+omp:
+	$(CC) $(CFLAGS) $(OMPFLAGS) -o rspr rspr.cpp
+	$(CC) $(CFLAGS) $(OMPFLAGS) -o spr_supertree spr_supertree.cpp
