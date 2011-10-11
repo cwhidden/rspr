@@ -449,7 +449,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	// Comparison between a rooted tree and all rootings of an unrooted tree
-	else if (UNROOTED || UNROOTED_MIN_APPROX) {
+	else if (!TOTAL && (UNROOTED || UNROOTED_MIN_APPROX)) {
 		string line = "";
 		vector<Forest> trees = vector<Forest>();
 		if (!getline(cin, line))
@@ -573,6 +573,8 @@ int main(int argc, char *argv[]) {
 		}
 		T1->labels_to_numbers(&label_map, &reverse_label_map);
 		while (getline(cin, line)) {
+			if (UNROOTED)
+				line = root(line);
 			Node *T2 = build_tree(line);
 			if (!QUIET) {
 				cout << "T2: ";
@@ -583,12 +585,19 @@ int main(int argc, char *argv[]) {
 		}
 		cout << endl;
 
+		int distance;
 		if (APPROX) {
-			int distance = rSPR_total_approx_distance(T1,trees);
+			if (UNROOTED)
+				distance = rSPR_total_approx_distance_unrooted(T1,trees);
+			else
+				distance = rSPR_total_approx_distance(T1,trees);
 			cout << "total approx distance= " << distance << endl;
 		}
 		else {
-			int distance = rSPR_total_distance(T1,trees);
+			if (UNROOTED)
+				distance = rSPR_total_distance_unrooted(T1,trees);
+			else
+				distance = rSPR_total_distance(T1,trees);
 			cout << "total distance= " << distance << endl;
 		}
 		T1->delete_tree();

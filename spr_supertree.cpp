@@ -215,7 +215,6 @@ void find_best_spr_helper(Node *n, Node *super_tree,
 void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
 		Node *&best_sibling, int &min_distance, int &num_ties);
-string root(string s);
 
 int main(int argc, char *argv[]) {
 	int max_args = argc-1;
@@ -835,36 +834,3 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 }
 
-string root(string s) {
-	string r = "";
-	int i = 0;
-	int depth = 0;
-	int first_c = -1;
-	int second_c = -1;
-	int last_bracket = -1;
-	for(int i = 0; i < s.size(); i++) {
-		if (s[i] == '(')
-			depth++;
-		else if (s[i] == ')') {
-			depth--;
-			last_bracket = i;
-		}
-		else if (depth == 1 && s[i] == ',') {
-			if (first_c == -1)
-				first_c = i;
-			else if  (second_c == -1)
-				second_c = i;
-		}
-	}
-	if (second_c == -1 || last_bracket == -1)
-		return s;
-	else {
-		r.append(s.substr(0,first_c+1));
-		r.append("(");
-		r.append(s.substr(first_c+1,last_bracket-first_c));
-		r.append(")");
-		r.append(s.substr(last_bracket+1,string::npos));
-	}
-//	cout << r << endl;
-	return r;
-}
