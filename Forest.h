@@ -449,13 +449,6 @@ bool sync_twins(Forest *T1, Forest *T2) {
 			if (node == NULL
 					|| ( node->lchild()->is_leaf() && node->rchild()->is_leaf()))
 				return false;
-			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
-				return false;
-				Node *sibling = node->lchild();
-				if (sibling == T2_a)
-						sibling = node->rchild();
-				T2_labels[stomini(sibling->str())] = sibling;
-			}
 			delete T2_a;
 			node->contract(true);
 		}
@@ -464,13 +457,6 @@ bool sync_twins(Forest *T1, Forest *T2) {
 			if (node == NULL
 					|| ( node->lchild()->is_leaf() && node->rchild()->is_leaf()))
 				return false;
-			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
-				return false;
-				Node *sibling = node->lchild();
-				if (sibling == T1_a)
-						sibling = node->rchild();
-				T1_labels[stomini(sibling->str())] = sibling;
-			}
 			delete T1_a;
 			node->contract(true);
 			
@@ -488,13 +474,6 @@ bool sync_twins(Forest *T1, Forest *T2) {
 			if (node == NULL
 					|| ( node->lchild()->is_leaf() && node->rchild()->is_leaf()))
 				return false;
-			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
-				return false;
-				Node *sibling = node->lchild();
-				if (sibling == T1_a)
-						sibling = node->rchild();
-				T1_labels[stomini(sibling->str())] = sibling;
-			}
 			delete T1_a;
 			node->contract(true);
 			
@@ -507,13 +486,6 @@ bool sync_twins(Forest *T1, Forest *T2) {
 			if (node == NULL
 					|| ( node->lchild()->is_leaf() && node->rchild()->is_leaf()))
 				return false;
-			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
-				return false;
-				Node *sibling = node->lchild();
-				if (sibling == T2_a)
-						sibling = node->rchild();
-				T2_labels[stomini(sibling->str())] = sibling;
-			}
 			delete T2_a;
 			node->contract(true);
 		}
