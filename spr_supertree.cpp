@@ -128,6 +128,7 @@ bool APPROX = false;
 bool TIMING = false;
 int NUM_ITERATIONS = -1;
 bool SMALL_TREES = false;
+bool CONVERT_LIST = false;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -316,6 +317,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-small_trees") == 0) {
 			SMALL_TREES=true;
 		}
+		else if (strcmp(arg, "-convert_list") == 0) {
+			CONVERT_LIST=true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -394,7 +398,16 @@ int main(int argc, char *argv[]) {
 
 		gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
 //		cout << gene_tree_names[i] << gene_trees[i]->str_subtree() << endl;
+
 		gene_trees[i]->count_numbered_labels(&label_counts);
+	}
+
+	if (CONVERT_LIST) {
+		for(auto i = label_map.begin(); i != label_map.end(); i++) {
+			cout << i->second << ",\""
+				<< i->first << "\"" << endl;
+		}
+		exit(0);
 	}
 
 	// iterate over the taxa by number of occurences
