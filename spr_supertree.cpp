@@ -403,8 +403,8 @@ int main(int argc, char *argv[]) {
 
 	if (CONVERT_LIST) {
 		for(auto i = label_map.begin(); i != label_map.end(); i++) {
-			cout << i->second << ",\""
-				<< i->first << "\"" << endl;
+			cout << i->second << ","
+				<< i->first <<  endl;
 		}
 		exit(0);
 	}
@@ -794,15 +794,15 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 		int distance;
 		if (APPROX) {
-	//		if (UNROOTED)
-	//			distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
-	//		else
+			if (UNROOTED)
+				distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+			else
 				distance = rSPR_total_approx_distance(super_tree, gene_trees);
 		}
 		else {
-	//		if (UNROOTED)
-	//			distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
-	//		else
+			if (UNROOTED)
+				distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
+			else
 				distance = rSPR_total_distance(super_tree, gene_trees);
 		}
 //		cout << "\t" << distance << endl;
