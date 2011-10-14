@@ -410,18 +410,21 @@ int main(int argc, char *argv[]) {
 		gene_trees[i]->count_numbered_labels(&label_counts);
 	}
 
-	if (CONVERT_LIST) {
-		for(auto i = label_map.begin(); i != label_map.end(); i++) {
-			cout << i->second << ","
-				<< i->first <<  endl;
-		}
-		exit(0);
-	}
 
 	// iterate over the taxa by number of occurences
 	multimap<int, int> labels = multimap<int, int>();
 	for(int i = 0; i < label_counts.size(); i++) {
 		labels.insert(make_pair(label_counts[i],i));
+	}
+
+	if (CONVERT_LIST) {
+		for(auto i = labels.rbegin(); i != labels.rend(); i++) {
+			int num = i->second;
+			string name = reverse_label_map.find(num)->second;
+			cout << num << ","
+				<< name <<  endl;
+		}
+		exit(0);
 	}
 
 
