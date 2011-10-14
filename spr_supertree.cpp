@@ -129,6 +129,7 @@ bool TIMING = false;
 int NUM_ITERATIONS = -1;
 bool SMALL_TREES = false;
 bool CONVERT_LIST = false;
+int NUM_LEAVES=-1;
 
 string USAGE =
 "rspr, version 1.01\n"
@@ -305,6 +306,14 @@ int main(int argc, char *argv[]) {
 				if (arg2[0] != '-')
 					MAX_SPR = atoi(arg2);
 				cout << "MAX_SPR=" << MAX_SPR << endl;
+			}
+		}
+		else if (strcmp(arg, "-num_leaves") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					NUM_LEAVES = atoi(arg2);
+				cout << "NUM_LEAVES=" << NUM_LEAVES << endl;
 			}
 		}
 		else if (strcmp(arg, "-time") == 0) {
@@ -542,7 +551,8 @@ int main(int argc, char *argv[]) {
 
 	int x = 0;
 	int i = 5;
-	for(; label != labels.rend(); label++) {
+	for(; label != labels.rend() &&
+			NUM_LEAVES < 0 || i <= NUM_LEAVES; label++) {
 		cout << "Adding leaf " << label->second;
 		cout << "\t("<< i++ << "/" <<  labels.size() << ")";
 		if (TIMING) {

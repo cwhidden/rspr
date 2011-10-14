@@ -1668,7 +1668,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2) {
 
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
-	#pragma omp parallel for reduction(+ : total)
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)
 //	for(int j = 0; j < 10; j++)
 	for(int i = 0; i < gene_trees.size(); i++) {
 			//		cout << i << endl;
@@ -1684,7 +1684,7 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
-	#pragma omp parallel for reduction(+ : total)
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)
 	for(int i = 0; i < gene_trees.size(); i++) {
 		int size = gene_trees[i]->size();
 		int best_distance = INT_MAX;
