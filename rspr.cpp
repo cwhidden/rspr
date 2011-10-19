@@ -548,11 +548,11 @@ int main(int argc, char *argv[]) {
 						cout << "exact BB drSPR=" << exact_spr << endl;
 						F1.labels_to_numbers(&label_map, &reverse_label_map);
 						trees[i].labels_to_numbers(&label_map, &reverse_label_map);
-						continue;
+						break;
 					}
 				}
 				if (exact_spr >= 0) {
-					continue;
+					break;
 				}
 			}
 			if (exact_spr == -1)
@@ -581,6 +581,8 @@ int main(int argc, char *argv[]) {
 				T2->print_subtree();
 			}
 			T2->labels_to_numbers(&label_map, &reverse_label_map);
+			if (UNROOTED)
+				T2->preorder_number();
 			trees.push_back(T2);
 		}
 		cout << endl;
