@@ -1688,7 +1688,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	for(int i = 0; i < gene_trees.size(); i++) {
 		int size = gene_trees[i]->size();
 		int best_distance = INT_MAX;
-		for(int j = 0; j < size-3; j++) {
+		for(int j = 0; j < size-2; j++) {
 			gene_trees[i]->next_rooting();
 //			cout << i << "," << j << endl;
 //			cout << T1->str_subtree() << endl;
@@ -1717,7 +1717,7 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	for(int i = 0; i < gene_trees.size(); i++) {
 		int size = gene_trees[i]->size();
 		int best_distance = INT_MAX;
-		for(int j = 0; j < size-3; j++) {
+		for(int j = 0; j < size-2; j++) {
 			gene_trees[i]->next_rooting();
 			Forest F1 = Forest(T1);
 			Forest F2 = Forest(gene_trees[i]);
