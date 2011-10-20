@@ -1689,7 +1689,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 		int size = gene_trees[i]->size();
 		int best_distance = INT_MAX;
 		int old_max = MAX_SPR;
-#if 0
+#if 1
 		for(int j = 0; j < size-2; j++) {
 			gene_trees[i]->next_rooting();
 //			cout << i << "," << j << endl;
