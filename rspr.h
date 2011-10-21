@@ -90,6 +90,7 @@ int MAX_CLUSTERS = -1;
 bool VERBOSE = false;
 bool CLAMP = false;
 int MAX_SPR = 1000;
+int MIN_SPR = 0;
 
 	class ProblemSolution {
 		public:
@@ -1578,6 +1579,8 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 		}
 
 			int min_spr = approx_spr / 3;
+			if (min_spr < MIN_SPR)
+				min_spr = MIN_SPR;
 			for(k = min_spr; true; k++) {
 				Forest f1t = Forest(f1);
 				Forest f2t = Forest(f2);
@@ -1684,7 +1687,7 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
-	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO) firstprivate(MAX_SPR)
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO) firstprivate(MAX_SPR) firstprivate(MIN_SPR)
 	for(int i = 0; i < gene_trees.size(); i++) {
 		int size = gene_trees[i]->size();
 		int best_distance = INT_MAX;
@@ -1709,13 +1712,26 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 			}
 #else
 		for(int k = 0; k <= old_max; k++) {
+			MIN_SPR=k;
 			MAX_SPR=k;
 			for(int j = 0; j < size-2; j++) {
 				gene_trees[i]->next_rooting();
 //			cout << i << "," << j << endl;
 //			cout << T1->str_subtree() << endl;
 //			cout << gene_trees[i]->str_subtree() << endl;
-				int distance = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+				int distance;
+				if (k <= 10) {
+					Forest *F1 = new Forest(T1);
+					Forest *F2 = new Forest(gene_trees[i]);
+					distance = rSPR_branch_and_bound_range(F1, F2, MIN_SPR, MAX_SPR);
+					if (distance < 0)
+						distance = k+1;
+					delete F1;
+					delete F2;
+				}
+				else {
+					distance = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+				}
 				if (distance <= k) {
 					best_distance = distance;
 					k=old_max;
@@ -1731,6 +1747,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 			}
 		}
 		MAX_SPR=old_max;
+		MIN_SPR=0;
 #endif
 //		cout << "best_distance: " << best_distance << endl;
 		if (best_distance == INT_MAX)
