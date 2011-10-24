@@ -1579,8 +1579,8 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 		}
 
 			int min_spr = approx_spr / 3;
-			if (min_spr < MIN_SPR)
-				min_spr = MIN_SPR;
+			if (min_spr < MIN_SPR - total_k)
+				min_spr = MIN_SPR - total_k;
 			for(k = min_spr; true; k++) {
 				Forest f1t = Forest(f1);
 				Forest f2t = Forest(f2);
@@ -1721,7 +1721,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 //			cout << gene_trees[i]->str_subtree() << endl;
 				int distance;
 				//if (k <= 10) {
-				if (true) {
+				if (k <= 10) {
 					Forest *F1 = new Forest(T1);
 					Forest *F2 = new Forest(gene_trees[i]);
 					distance = rSPR_branch_and_bound_range(F1, F2, MIN_SPR, MAX_SPR);
