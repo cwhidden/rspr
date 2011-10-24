@@ -1716,11 +1716,12 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 			MAX_SPR=k;
 			for(int j = 0; j < size-2; j++) {
 				gene_trees[i]->next_rooting();
-//			cout << i << "," << j << endl;
+//			cout << i << "," << k << "," << j << endl;
 //			cout << T1->str_subtree() << endl;
 //			cout << gene_trees[i]->str_subtree() << endl;
 				int distance;
-				if (k <= 10) {
+				//if (k <= 10) {
+				if (true) {
 					Forest *F1 = new Forest(T1);
 					Forest *F2 = new Forest(gene_trees[i]);
 					distance = rSPR_branch_and_bound_range(F1, F2, MIN_SPR, MAX_SPR);

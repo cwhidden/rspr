@@ -129,6 +129,8 @@ bool TIMING = false;
 int NUM_ITERATIONS = -1;
 bool SMALL_TREES = false;
 bool CONVERT_LIST = false;
+bool VALID_TREES = false;
+bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
 
 string USAGE =
@@ -216,6 +218,9 @@ void find_best_spr_helper(Node *n, Node *super_tree,
 void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
 		Node *&best_sibling, int &min_distance, int &num_ties);
+
+	map<string, int> label_map;
+	map<int, string> reverse_label_map;
 
 int main(int argc, char *argv[]) {
 	int max_args = argc-1;
@@ -328,6 +333,12 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-convert_list") == 0) {
 			CONVERT_LIST=true;
 		}
+		else if (strcmp(arg, "-valid_trees") == 0) {
+			VALID_TREES=true;
+		}
+		else if (strcmp(arg, "-multi_trees") == 0) {
+			MULTI_TREES=true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -347,9 +358,9 @@ int main(int argc, char *argv[]) {
 	srand((unsigned(time(0))));
 
 	// Label maps to allow string labels
-	map<string, int> label_map= map<string, int>();
-	map<int, string> reverse_label_map = map<int, string>();
 	vector<int> label_counts = vector<int>();
+	label_map= map<string, int>();
+	reverse_label_map = map<int, string>();
 
 	string T_line = "";
 	vector<Node *> gene_trees = vector<Node *>();
@@ -370,6 +381,9 @@ int main(int argc, char *argv[]) {
 			}
 			Node *T = build_tree(T_line);
 			if (T->is_leaf() && T->str() == "p") {
+				if (MULTI_TREES)
+					cout << name << T_line << endl;
+
 				skipped_multifurcating++;
 				continue;
 			}
@@ -401,14 +415,18 @@ int main(int argc, char *argv[]) {
 		exit(0);
 
 	for(int i = 0; i < gene_trees.size(); i++) {
-//		cout << gene_tree_names[i];
-//		cout << gene_trees[i]->str_subtree() << endl;
+		if (VALID_TREES) {
+			cout << gene_tree_names[i];
+			cout << gene_trees[i]->str_subtree() << endl;
+		}
 
 		gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
 //		cout << gene_tree_names[i] << gene_trees[i]->str_subtree() << endl;
 
 		gene_trees[i]->count_numbered_labels(&label_counts);
 	}
+	if (VALID_TREES || MULTI_TREES)
+		exit(0);
 
 
 	// iterate over the taxa by number of occurences
@@ -793,17 +811,25 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 	if (n != super_tree && new_sibling != n) {
 		Node *old_sibling = n->get_sibling();
 		//if (new_sibling != old_sibling)
-//		cout << "SPR Move:" << endl;
-//		cout << "Previous Super Tree: "
-//		<< super_tree->str_subtree() << endl;
-//		cout << "Subtree: " << n->str_subtree() << endl;
-//		cout << "New Sibling: " << new_sibling->str_subtree() << endl;
+/*
+		cout << "SPR Move:" << endl;
+		super_tree->numbers_to_labels(&reverse_label_map);
+		cout << "Previous Super Tree: "
+		<< super_tree->str_subtree() << endl;
+		cout << "Subtree: " << n->str_subtree() << endl;
+		cout << "New Sibling: " << new_sibling->str_subtree() << endl;
+		super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+*/
 
 		int which_sibling = 0;
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
-//		cout << "Super Tree: " << super_tree->str_subtree() << endl;
+/*
+		super_tree->numbers_to_labels(&reverse_label_map);
+		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
+		super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+*/
 
 		int distance;
 		if (APPROX) {
@@ -818,7 +844,8 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 			else
 				distance = rSPR_total_distance(super_tree, gene_trees);
 		}
-//		cout << "\t" << distance << endl;
+/*		cout << "\t" << distance << endl;
+*/
 		if (distance < min_distance) {
 			min_distance = distance;
 			best_spr_move = n;
