@@ -1751,7 +1751,6 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 				if (distance < best_approx) {
 					best_approx = distance;
 					best_rooting = j;
-					cout << "best: " << gene_trees[i]->str_subtree() << endl;
 					num_ties = 2;
 				}
 				else if (distance = best_approx) {
@@ -1766,9 +1765,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 			for(int j = 0; j <= best_rooting; j++) {
 				gene_trees[i]->next_rooting();
 			}
-			cout << "chosen: " << gene_trees[i]->str_subtree() << endl;
 			total += rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
-			cout << endl;
 		}
 	}
 	return total;
