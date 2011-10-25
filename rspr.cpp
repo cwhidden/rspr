@@ -125,7 +125,6 @@ bool DEFAULT_OPTIMIZATIONS=true;
 bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
-bool UNROOTED_MIN_APPROX = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool TOTAL = false;

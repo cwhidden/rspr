@@ -121,7 +121,6 @@ bool DEFAULT_OPTIMIZATIONS=true;
 bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
-bool UNROOTED_MIN_APPROX = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool APPROX = false;
@@ -243,8 +242,10 @@ int main(int argc, char *argv[]) {
 			APPROX_CHECK_COMPONENT = true;
 		else if (strcmp(arg, "-unrooted") == 0)
 			UNROOTED = true;
-		else if (strcmp(arg, "-unrooted_min_approx") == 0)
+		else if (strcmp(arg, "-unrooted_min_approx") == 0) {
+			UNROOTED = true;
 			UNROOTED_MIN_APPROX = true;
+		}
 		else if (strcmp(arg, "-noopt") == 0) {
 			DEFAULT_OPTIMIZATIONS=false;
 		}
@@ -722,11 +723,8 @@ void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 		if (r < RAND_MAX/num_ties) {
 			min_distance = distance;
 			*best_sibling = n;
-			num_ties = 2;
 		}
-		else {
-			num_ties++;
-		}
+		num_ties++;
 	}
 //	cout << "distance: " << distance;
 //	cout << endl;
@@ -799,9 +797,6 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 			n->parent()->parent() == new_sibling->parent()) {
 //		cout << "rule 2" << endl;
 		return;
-	}
-		//cout << "foo2" << endl;
-	// Note: we might want to allow this one!
 	if (new_sibling == n->get_sibling()) {
 //		cout << "rule 3" << endl;
 		return;
@@ -858,11 +853,8 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 				min_distance = distance;
 				best_spr_move = n;
 				best_sibling = new_sibling;
-				num_ties = 2;
 			}
-			else {
-				num_ties++;
-			}
+			num_ties++;
 		}
 		// restore the previous tree
 		n->spr(undo, which_sibling);
@@ -870,6 +862,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		super_tree->fix_depths();
 //		cout << "Reverted Super Tree: "
 //	<< super_tree->str_subtree() << endl;
+	}
 	}
 
 }

@@ -87,6 +87,7 @@ bool MEMOIZE = false;
 bool ALL_MAFS = false;
 int NUM_CLUSTERS = 0;
 int MAX_CLUSTERS = -1;
+bool UNROOTED_MIN_APPROX = false;
 bool VERBOSE = false;
 bool CLAMP = false;
 int MAX_SPR = 1000;
@@ -1692,36 +1693,17 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 		int size = gene_trees[i]->size();
 		int best_distance = INT_MAX;
 		int old_max = MAX_SPR;
-#if 0
-		for(int j = 0; j < size-2; j++) {
-			gene_trees[i]->next_rooting();
-//			cout << i << "," << j << endl;
-//			cout << T1->str_subtree() << endl;
-//			cout << gene_trees[i]->str_subtree() << endl;
-			int distance = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
-			if (distance <= best_distance) {
-					best_distance = distance;
-			}
-//			cout << distance << endl;
-//			cout << endl;
-//				if (distance < best_distance)
-//					best_distance = distance;
-//			Forest F1 = Forest(T1);
-//			Forest F2 = Forest(gene_trees[i]);
-//			total += rSPR_branch_and_bound(&F1, &F2);
-			}
-#else
-		for(int k = 0; k <= old_max; k++) {
-			MIN_SPR=k;
-			MAX_SPR=k;
-			for(int j = 0; j < size-2; j++) {
-				gene_trees[i]->next_rooting();
-//			cout << i << "," << k << "," << j << endl;
-//			cout << T1->str_subtree() << endl;
-//			cout << gene_trees[i]->str_subtree() << endl;
-				int distance;
-				//if (k <= 10) {
-				if (k <= 10) {
+		bool done = false;
+		if (!UNROOTED_MIN_APPROX) {
+			for(int k = 0; k <= 15; k++) {
+				MIN_SPR=k;
+				MAX_SPR=k;
+				for(int j = 0; j < size-2; j++) {
+					gene_trees[i]->next_rooting();
+	//			cout << i << "," << k << "," << j << endl;
+	//			cout << T1->str_subtree() << endl;
+	//			cout << gene_trees[i]->str_subtree() << endl;
+					int distance;
 					Forest *F1 = new Forest(T1);
 					Forest *F2 = new Forest(gene_trees[i]);
 					distance = rSPR_branch_and_bound_range(F1, F2, MIN_SPR, MAX_SPR);
@@ -1729,32 +1711,65 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 						distance = k+1;
 					delete F1;
 					delete F2;
+					if (distance <= k) {
+						best_distance = distance;
+						k=old_max;
+						done = true;
+						break;
+					}
 				}
-				else {
-					distance = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
-				}
-				if (distance <= k) {
-					best_distance = distance;
-					k=old_max;
-					break;
-				}
-//			cout << distance << endl;
-//			cout << endl;
-//				if (distance < best_distance)
-//					best_distance = distance;
-//			Forest F1 = Forest(T1);
-//			Forest F2 = Forest(gene_trees[i]);
-//			total += rSPR_branch_and_bound(&F1, &F2);
 			}
+			MAX_SPR=old_max;
+			MIN_SPR=0;
+			if (!done) {
+				for(int j = 0; j < size-2; j++) {
+					gene_trees[i]->next_rooting();
+	//				cout << i << "," << j << endl;
+	//				cout << T1->str_subtree() << endl;
+	//				cout << gene_trees[i]->str_subtree() << endl;
+					int distance = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+					if (distance <= best_distance) {
+							best_distance = distance;
+					}
+				}
+			}
+	//		cout << "best_distance: " << best_distance << endl;
+			if (best_distance == INT_MAX)
+				best_distance = 0;
+			total += best_distance;
+	//		cout << "total: " << total << endl;
 		}
-		MAX_SPR=old_max;
-		MIN_SPR=0;
-#endif
-//		cout << "best_distance: " << best_distance << endl;
-		if (best_distance == INT_MAX)
-			best_distance = 0;
-		total += best_distance;
-//		cout << "total: " << total << endl;
+		else {
+			int best_approx = INT_MAX;
+			int best_rooting = 0;
+			int num_ties = 0;
+			for(int j = 0; j < size-2; j++) {
+				gene_trees[i]->next_rooting();
+				Forest F1 = Forest(T1);
+				Forest F2 = Forest(gene_trees[i]);
+				int distance = rSPR_worse_3_approx(&F1, &F2)/3;
+				if (distance < best_approx) {
+					best_approx = distance;
+					best_rooting = j;
+					cout << "best: " << gene_trees[i]->str_subtree() << endl;
+					num_ties = 2;
+				}
+				else if (distance = best_approx) {
+					int r = rand();
+					if (r < RAND_MAX/num_ties) {
+						best_approx = distance;
+						best_rooting = j;
+					}
+					num_ties++;
+				}
+			}
+			for(int j = 0; j <= best_rooting; j++) {
+				gene_trees[i]->next_rooting();
+			}
+			cout << "chosen: " << gene_trees[i]->str_subtree() << endl;
+			total += rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+			cout << endl;
+		}
 	}
 	return total;
 }
