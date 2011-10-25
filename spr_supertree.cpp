@@ -797,6 +797,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 			n->parent()->parent() == new_sibling->parent()) {
 //		cout << "rule 2" << endl;
 		return;
+	}
 	if (new_sibling == n->get_sibling()) {
 //		cout << "rule 3" << endl;
 		return;
@@ -862,7 +863,6 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		super_tree->fix_depths();
 //		cout << "Reverted Super Tree: "
 //	<< super_tree->str_subtree() << endl;
-	}
 	}
 
 }
