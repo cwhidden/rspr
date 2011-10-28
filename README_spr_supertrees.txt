@@ -109,6 +109,7 @@ Node.h				  	Node data structure
 README.txt				This README
 rspr.h			    	Calculate rSPR distances between pairs of trees
 spr_supertrees    Compute supertrees that minimize spr distance
+UndoMachine.h			Provides ability to undo forest modifications
 
 ################################################################################
 
