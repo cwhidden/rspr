@@ -10,8 +10,7 @@ README for more information.
 Copyright 2009-2011 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-August 19, 2011
-Version 1.
+october 28, 2011
 
 This file is part of rspr.
 

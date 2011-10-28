@@ -3,31 +3,30 @@ spr_supertree.cpp
 
 Copyright 2011 Chris Whidden
 whidden@cs.dal.ca
-http://kiwi.cs.dal.ca/Software/RSPR
+http://kiwi.cs.dal.ca/Software/SPR_Supertrees
 August 22, 2011
 
-This file is part of rspr.
+This file is part of spr_supertrees.
 
-rspr is free software: you can redistribute it and/or modify
+spr_supertrees is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
 
-rspr is distributed in the hope that it will be useful,
+spr_supertrees is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
 GNU General Public License for more details.
 
 You should have received a copy of the GNU General Public License
-along with rspr.  If not, see <http://www.gnu.org/licenses/>.
-
-TODO:
+along with spr_supertrees.  If not, see <http://www.gnu.org/licenses/>.
 
 *******************************************************************************
 ALGORITHM
 *******************************************************************************
 
-These options control what algorithm is used
+These options control what algorithm is used to determine the SPR distance
+from the supertree to the input trees
 
 -fpt        Calculate the exact rSPR distance with an FPT algorithm
 
@@ -35,6 +34,9 @@ These options control what algorithm is used
             FPT algorithm. This is the default option.
 
 -approx		Calculate just a linear -time 3-approximation of the rSPR distance
+
+-max k	Calculate the exact rSPR distance if it is k or less and
+				otherwise use the 3-approximation
 
 *******************************************************************************
 OPTIMIZATIONS
@@ -58,10 +60,12 @@ just that subset of optimizations. See the README for more information.
 UNROOTED COMPARISON OPTIONS
 *******************************************************************************
 
--unrooted   Compare the first input tree to each other input tree.
-            Output the best found distance and agreement forest
--unrooted_min_approx    Compare the first input tree to each other input tree.
-                        Run the exact algorithms on the pair with the
+-unrooted   Compare the supertree to each rooting of the input trees.
+            Use the best found distance.
+
+-unrooted_min_approx    Compare the supertree to each rooting of the
+												input trees.
+                        Run the exact algorithm on the rooting with the
                         minimum approximate rspr distance
 
 *******************************************************************************
@@ -70,22 +74,7 @@ OTHER OPTIONS
 -cc         Calculate a potentially better approximation with a quadratic time
             algorithm
 
--q          Quiet; Do not output the input trees or approximation
 *******************************************************************************
-
-Example:
-$ ./rspr < test_trees/trees2.txt
-T1: ((((1,2),(3,4)),((5,6),(7,8))),(((9,10),(11,12)),((13,14),(15,16))))
-T2: ((((3,4),(8,(2,((11,12),1)))),((15,16),(7,(6,5)))),(14,((10,13),9)))
-
-F1: ((3,4),(5,6)) 13 14 10 (11,12) 9 1 8 7 2 (15,16)
-F2: ((3,4),(6,5)) 13 10 14 (11,12) 1 9 8 2 7 (15,16)
-approx drSPR=12
-
-4
-F1: ((((1,2),(3,4)),((5,6),7)),((9,10),14)) 13 (11,12) 8 (15,16)
-F2: ((((3,4),(2,1)),(7,(6,5))),(14,(10,9))) 13 (11,12) 8 (15,16)
-exact BB drSPR=4
 
 *******************************************************************************/
 
@@ -121,11 +110,9 @@ bool DEFAULT_OPTIMIZATIONS=true;
 bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
-bool LCA_TEST = false;
-bool CLUSTER_TEST = false;
 bool APPROX = false;
 bool TIMING = false;
-int NUM_ITERATIONS = -1;
+int NUM_ITERATIONS = 25;
 bool SMALL_TREES = false;
 bool CONVERT_LIST = false;
 bool VALID_TREES = false;
@@ -133,20 +120,19 @@ bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
 
 string USAGE =
-"rspr, version 1.01\n"
+"spr_supertrees, version 1.00\n"
 "\n"
-"usage: rspr [OPTIONS]\n"
-"Calculate approximate and exact Subtree Prune and Regraft (rSPR)\n"
-"distances and the associated maximum agreement forests (MAFs) between pairs\n"
-"of rooted binary trees from STDIN in newick format. By default, computes a\n"
-"3-approximation of the rSPR distance. Supports arbitrary labels. See the\n"
+"usage: spr_supertrees [OPTIONS]\n"
+"Calculate binary rooted supertrees that minimize the Subtree Prune and\n"
+"Regraft (SPR) distance to a set of rooted or unrooted binary trees from\n"
+"STDIN in newick format. Supports arbitrary leaf labels. See the\n"
 "README for more information.\n"
 "\n"
-"Copyright 2009-2010 Chris Whidden\n"
+"Copyright 2011 Chris Whidden\n"
 "whidden@cs.dal.ca\n"
-"http://kiwi.cs.dal.ca/Software/RSPR\n"
-"March 22, 2010\n"
-"Version 1.01\n"
+"http://kiwi.cs.dal.ca/Software/SPR_Supertrees\n"
+"October 28, 2011\n"
+"Version 1.00\n"
 "\n"
 "This program comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it\n"
@@ -166,42 +152,32 @@ string USAGE =
 "-approx     Calculate just a linear -time 3-approximation of the\n"
 "            rSPR distance\n"
 "\n"
-"*******************************************************************************\n"
-"OPTIMIZATIONS\n"
-"*******************************************************************************\n"
+"-max k      Calculate the exact rSPR distance if it is k or less and\n"
+"            otherwise use the 3-approximation\n"
 "\n"
-"These options control the use of optimized branching. All optimizations are\n"
-"enabled by default. Specifying any subset of -cob, -cab, and -sc will use\n"
-"just that subset of optimizations. See the README for more information.\n"
-"\n"
-"-allopt     Use -cob -cab -sc. This is the default option\n"
-"\n"
-"-noopt      Use 3-way branching for all FPT algorithms\n"
-"\n"
-"-cob        Use \"cut one b\" improved branching\n"
-"\n"
-"-cab        Use \"cut all b\" improved branching\n"
-"\n"
-"-sc         Use \"separate components\" improved branching\n"
+"-i x        Apply x iterations of Global SPR rearrangements\n"
 "\n"
 "*******************************************************************************\n"
 "UNROOTED COMPARISON OPTIONS\n"
 "*******************************************************************************\n"
 "\n"
-"-unrooted   Compare the first input tree to each other input tree.\n"
-"            Output the best found distance and agreement forest\n"
-"-unrooted_min_approx\n"
-"            Compare the first input tree to each other input tree.\n"
-"            Run the exact algorithms on the pair with the\n"
-"            minimum approximate rspr distance\n"
+"-unrooted   Compare the supertree to each rooting of the input trees.\n"
+"            Use the best found distance.\n"
+"\n"
+"-unrooted_min_approx   Compare the supertree to each rooting of the\n"
+"                       input trees. Run the exact algorithm on the\n"
+"                       rooting with the minimum approximate rspr distance\n"
 "\n"
 "*******************************************************************************\n"
 "OTHER OPTIONS\n"
 "*******************************************************************************\n"
-"-cc         Calculate a potentially better approximation with a quadratic time\n"
-"            algorithm\n"
+"-cc             Calculate a potentially better approximation with a quadratic time\n"
+"                algorithm\n"
 "\n"
-"-q          Quiet; Do not output the input trees or approximation\n"
+"-valid_trees    Output the set of trees that appear valid\n"
+"\n"
+"-multi_trees    Output the set of multifurcating or invalid trees\n"
+"\n"
 "*******************************************************************************\n";
 
 Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
@@ -272,10 +248,7 @@ int main(int argc, char *argv[]) {
 			cout << USAGE;
 			return 0;
 		}
-		else if (strcmp(arg, "-lca") == 0) {
-			LCA_TEST = true;
-		}
-		else if (strcmp(arg, "-cluster") == 0) {
+/*		else if (strcmp(arg, "-cluster") == 0) {
 			CLUSTER_REDUCTION = true;
 			PREFER_RHO = true;
 			if (max_args > argc) {
@@ -285,19 +258,18 @@ int main(int argc, char *argv[]) {
 				cout << "MAX_CLUSTERS=" << MAX_CLUSTERS << endl;
 			}
 		}
-		else if (strcmp(arg, "-cluster_test") == 0) {
-			CLUSTER_TEST = true;
-			PREFER_RHO = true;
-		}
+*/
 		else if (strcmp(arg, "-prefer_rho") == 0) {
 			PREFER_RHO = true;
 		}
+/*
 		else if (strcmp(arg, "-memoize") == 0) {
 			MEMOIZE = true;
 		}
 		else if (strcmp(arg, "-all_mafs") == 0) {
 			ALL_MAFS= true;
 		}
+*/
 		else if (strcmp(arg, "-i") == 0) {
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
@@ -328,9 +300,11 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-clamp") == 0) {
 			CLAMP= true;
 		}
+/*
 		else if (strcmp(arg, "-small_trees") == 0) {
 			SMALL_TREES=true;
 		}
+*/
 		else if (strcmp(arg, "-convert_list") == 0) {
 			CONVERT_LIST=true;
 		}
@@ -466,7 +440,6 @@ int main(int argc, char *argv[]) {
 //	cout << "Starting Trees:" << endl;
 
 	// create all trees on the 4 leaves
-	// TODO: really all or all 3 unrooted trees?
 	vector<Node *> ST = vector<Node *>();
 	int st_size = 0;
 	stringstream ss;
@@ -588,7 +561,9 @@ int main(int argc, char *argv[]) {
 		Node *node = best_sibling->expand_parent_edge(best_sibling);
 
 		node->add_child(new Node(itos(label->second)));
+		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << super_tree->str_subtree() << endl;
+		super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 	}
 
 	cout << endl;
