@@ -74,6 +74,12 @@ OTHER OPTIONS
 -cc         Calculate a potentially better approximation with a quadratic time
             algorithm
 
+-valid_trees    Output the set of trees that appear valid
+
+-multi_trees    Output the set of multifurcating or invalid trees
+
+"*******************************************************************************\n";
+
 *******************************************************************************
 
 *******************************************************************************/
