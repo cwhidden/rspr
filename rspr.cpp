@@ -303,6 +303,8 @@ int main(int argc, char *argv[]) {
 		CUT_ALL_B=true;
 		CUT_ONE_B = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
+		CLUSTER_TEST = true;
+		PREFER_RHO = true;
 	}
 	if (DEFAULT_ALGORITHM) {
 		BB=true;
@@ -361,7 +363,8 @@ int main(int argc, char *argv[]) {
 			Forest F4 = Forest(T2);
 
 			if (CLUSTER_TEST) {
-				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true);
+				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true, &label_map, &reverse_label_map);
+
 				T1->delete_tree();
 				T2->delete_tree();
 				continue;

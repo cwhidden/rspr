@@ -70,6 +70,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		list<Node *> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
 		list<pair<Forest,Forest> > *AFs);
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees);
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose);
 
@@ -1477,7 +1478,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 	return k;
 }
 
-int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map) {
 	ClusterForest F1 = ClusterForest(T1);
 	ClusterForest F2 = ClusterForest(T2);
 	Forest F3 = Forest(F1);
@@ -1638,14 +1639,16 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 		}
 
 		if (F1.contains_rho()) {
-			F1.erase_components(1, num_clusters);
-			F2.erase_components(1, num_clusters);
-		}
-		else {
 			F1.get_component(0)->delete_tree();
 			F2.get_component(0)->delete_tree();
 			F1.erase_components(0, num_clusters);
 			F2.erase_components(0, num_clusters);
+		}
+		else {
+			F1.get_component(num_clusters)->delete_tree();
+			F2.get_component(num_clusters)->delete_tree();
+			F1.erase_components(1, num_clusters+1);
+			F2.erase_components(1, num_clusters+1);
 		}
 		// fix hanging roots
 		for(int i = 0; i < F1.num_components(); i++) {
@@ -1653,6 +1656,8 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 			F2.get_component(i)->contract(true);
 		}
 		if (verbose) {
+			F1.numbers_to_labels(reverse_label_map);
+			F2.numbers_to_labels(reverse_label_map);
 			cout << "F1: ";
 			F1.print_components();
 			cout << "F2: ";
@@ -1663,6 +1668,10 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 	delete cluster_points;
 //	PREFER_RHO = old_rho;
 	return total_k;
+}
+
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
+	return rSPR_branch_and_bound_simple_clustering(T1, T2, false, NULL, NULL);
 }
 
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2) {

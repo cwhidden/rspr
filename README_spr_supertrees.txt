@@ -1,13 +1,13 @@
 ################################################################################
-rspr
+spr_supertree
 
 ################################################################################
 
-Usage: rspr [OPTIONS]
-Calculate approximate and exact Subtree Prune and Regraft (rSPR)
-distances and the associated maximum agreement forests (MAFs) between pairs
-of rooted binary trees from STDIN in newick format. By default, computes a
-3-approximation of the rSPR distance. Supports arbitrary labels.
+Usage: spr_supertree [OPTIONS]
+       spr_supertree-omp [OPTIONS]
+Calculate supertrees that minimize the SPR distance from the input
+trees. By default calculates a rooted SPR supertree from a list
+of rooted binary trees from STDIN in newick format.
 
 Copyright 2011 Chris Whidden
 whidden@cs.dal.ca
@@ -46,24 +46,6 @@ from the supertree to the input trees
 
 -max k	Calculate the exact rSPR distance if it is k or less and
 				otherwise use the 3-approximation
-
-*******************************************************************************
-OPTIMIZATIONS
-*******************************************************************************
-
-These options control the use of optimized branching. All optimizations are
-enabled by default. Specifying any subset of -cob, -cab, and -sc will use
-just that subset of optimizations. See the README for more information.
-
--allopt		Use -cob -cab -sc. This is the default option
-
--noopt		Use 3-way branching for all FPT algorithms
-
--cob		Use "cut one b" improved branching
-
--cab		Use "cut all b" improved branching
-
--sc			Use "separate components" improved branching
 
 *******************************************************************************
 UNROOTED COMPARISON OPTIONS
@@ -109,7 +91,6 @@ Node.h				  	Node data structure
 README.txt				This README
 rspr.h			    	Calculate rSPR distances between pairs of trees
 spr_supertrees    Compute supertrees that minimize spr distance
-UndoMachine.h			Provides ability to undo forest modifications
 
 ################################################################################
 
