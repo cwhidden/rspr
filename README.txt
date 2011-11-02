@@ -39,9 +39,16 @@ These options control what algorithm is used
 -fpt        Calculate the exact rSPR distance with an FPT algorithm
 
 -bb         Calculate the exact rSPR distance with a branch-and-bound
-            FPT algorithm. This is the default option.
+            FPT algorithm. This is enabled by default.
 
--approx		Calculate just a linear -time 3-approximation of the rSPR distance
+-approx         Calculate just a linear -time 3-approximation of the rSPR distance
+
+-cluster_test   Use the cluster reduction to speed up the exact algorithm.
+                This is enabled by default.
+
+-total          Find the total SPR distance from the first input tree to
+                the rest of the list of trees. Uses the other algorithm
+								options as specified (including unrooted options).
 
 *******************************************************************************
 OPTIMIZATIONS
@@ -67,6 +74,7 @@ UNROOTED COMPARISON OPTIONS
 
 -unrooted   Compare the first input tree to each other input tree.
             Output the best found distance and agreement forest
+
 -unrooted_min_approx    Compare the first input tree to each other input tree.
                         Run the exact algorithms on the pair with the
                         minimum approximate rspr distance
@@ -112,8 +120,19 @@ gpl.txt					The GPL license
 Makefile				Makefile
 Node.h					Node data structure
 README.txt				This README
-rspr.cpp				Calculate rSPR distances between pairs of trees
 test_trees/				Folder of test tree pairs
+
+ClusterForest.h   Cluster Decomposition
+Forest.h			  	Forest data structure
+gen_rooted_trees.pl		Generate all rootings of an unrooted binary tree
+gpl.txt				  	The GPL license
+LCA.h             Compute LCAs of tree leaves
+Makefile			  	Makefile
+Node.h				  	Node data structure
+README.txt				This README
+rspr.h			    	Library to calculate rSPR distances between pairs of trees
+rspr.cpp					Calculate rSPR distances between pairs or sets of trees
+spr_supertrees    Compute supertrees that minimize spr distance
 
 ################################################################################
 
@@ -139,7 +158,9 @@ test tree. Then use the -unrooted or -unrooted_min_approx options and
 input the test tree and the set of rootings. rSPR will find the best
 rooting of the test tree with the -unrooted option and guess the best 
 rooting based on the approximation algorithm with the
--unrooted_min_approx option.
+-unrooted_min_approx option. Alternatively, the -total option with
+the -unrooted or -unrooted_min_approx options will provide just the
+distance.
 
 ################################################################################
 
@@ -183,6 +204,52 @@ required to correctly root the tree.
 
 ################################################################################
 
+OUTPUT WITH CLUSTERING
+
+/////////////////////
+
+$ rspr < test_trees/cluster_test 
+T1: (((x,((b1,b3),b2)),y),(f,(a,c)))
+T2: (((x,y),f),((a,((b1,b2),b3)),c))
+
+F1: (((0,((1,2),3)),4),(5,(6,7))) 
+F2: (((0,4),5),((6,((1,3),2)),7)) 
+approx drSPR=9
+
+
+CLUSTERS
+C1_1: ((1,2),3) 
+C1_2: ((1,3),2) 
+cluster approx drSPR=3
+
+1 
+F1_1: (1,2) 3 
+F1_2: (1,2) 3 
+cluster exact drSPR=1
+
+C2_1: (((0,(1,2)),4),(5,(6,7))) 
+C2_2: (((0,4),5),((6,(1,2)),7)) 
+cluster approx drSPR=6
+
+2 
+F2_1: (5,(6,7)) (1,2) (0,4) 
+F2_2: (5,(6,7)) (1,2) (0,4) 
+cluster exact drSPR=2
+
+F1: (f,(a,c)) b2 (b1,b3) (x,y) 
+F2: (f,(a,c)) b2 (b1,b3) (x,y) 
+total exact drSPR=3
+
+/////////////////////
+
+When clustering is enabled (as it is by default), each solved
+cluster is displayed along with its approximate and exact distance in
+an intermediate representation with labels mapped from 0-(N-1) where
+N is the number of labels. The final agreement forest and distance
+are output last.
+
+################################################################################
+
 EFFICIENCY
 
 The 3-approximation algorithm runs in O(n) time, where n is the number of
@@ -198,6 +265,11 @@ practice and is provably correct, thus this is the default.
 
 When using the -unrooted option, the exact algorithms run in O(3^k n^2) time.
 
+The new cluster reduction implementation improves the running time of
+the
+algorithm to O(2.42^k n) time where k is the largest rSPR distance of
+any cluster. This provides a large speedup when the trees are clusterable.
+
 NOTE: This is an exponential algorithm that exactly solves an NP-hard problem.
 Thus the algorithms may not finish in a reasonable amount of time for large
 rSPR distances (> 20 without optimizations and > 50 with optimizations).
@@ -207,6 +279,9 @@ rSPR distances (> 20 without optimizations and > 50 with optimizations).
 REFERENCES
 
 For more information on the algorithms see:
+
+Whidden, C., Zeh, N., Beiko, R.G.  Subtree Prune-and-Regraft Supertrees.
+(In Press). 2011.
 
 Whidden, C., Beiko, R.G., Zeh, N. Fast FPT Algorithms for Computing
 Rooted Agreement Forests: Theory and Experiments (Extended Abstract)
@@ -226,6 +301,10 @@ www.cs.dal.ca/~whidden
 CITING rSPR
 
 If you use rSPR in your research, please cite:
+
+Whidden, C., Zeh, N., Beiko, R.G.  Subtree Prune-and-Regraft Supertrees.
+(In Press). 2011.
+
 Whidden, C., Beiko, R.G., Zeh, N. Fast FPT Algorithms for Computing
 Rooted Agreement Forests: Theory and Experiments (Extended Abstract)
 Accepted to SEA 2010.

@@ -4,15 +4,14 @@ rspr.cpp
 Usage: rspr [OPTIONS]
 Calculate approximate and exact Subtree Prune and Regraft (rSPR)
 distances and the associated maximum agreement forests (MAFs) between pairs
-of rooted binary trees from STDIN in newick format. By default, computes a
-3-approximation of the rSPR distance. Supports arbitrary labels. See the
-README for more information.
+of rooted binary trees from STDIN in newick format.
+Supports arbitrary labels. See the README for more information.
 
-Copyright 2009-2010 Chris Whidden
+Copyright 2009-2011 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-March 22, 2010
-Version 1.01
+November 2, 2011
+Version 1.02
 
 This file is part of rspr.
 
@@ -41,6 +40,13 @@ These options control what algorithm is used
             FPT algorithm. This is the default option.
 
 -approx		Calculate just a linear -time 3-approximation of the rSPR distance
+
+-cluster_test   Use the cluster reduction to speed up the exact algorithm.
+                This is enabled by default.
+
+-total          Find the total SPR distance from the first input tree to
+                the rest of the list of trees. Uses the other algorithm
+								options as specified (including unrooted options).
 
 *******************************************************************************
 OPTIMIZATIONS
@@ -131,20 +137,19 @@ bool TOTAL = false;
 bool APPROX = false;
 
 string USAGE =
-"rspr, version 1.01\n"
+"rspr, version 1.02\n"
 "\n"
 "usage: rspr [OPTIONS]\n"
 "Calculate approximate and exact Subtree Prune and Regraft (rSPR)\n"
 "distances and the associated maximum agreement forests (MAFs) between pairs\n"
-"of rooted binary trees from STDIN in newick format. By default, computes a\n"
-"3-approximation of the rSPR distance. Supports arbitrary labels. See the\n"
-"README for more information.\n"
+"of rooted binary trees from STDIN in newick format.\n"
+"Supports arbitrary labels. See the README for more information.\n"
 "\n"
-"Copyright 2009-2010 Chris Whidden\n"
+"Copyright 2009-2011 Chris Whidden\n"
 "whidden@cs.dal.ca\n"
 "http://kiwi.cs.dal.ca/Software/RSPR\n"
-"March 22, 2010\n"
-"Version 1.01\n"
+"November 2, 2011\n"
+"Version 1.02\n"
 "\n"
 "This program comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it\n"
@@ -164,6 +169,13 @@ string USAGE =
 "-approx     Calculate just a linear -time 3-approximation of the\n"
 "            rSPR distance\n"
 "\n"
+"\n"
+"-cluster_test   Use the cluster reduction to speed up the exact algorithm.\n"
+"                This is enabled by default.\n"
+"\n"
+"-total          Find the total SPR distance from the first input tree to\n"
+"                the rest of the list of trees. Uses the other algorithm\n"
+"                options as specified (including unrooted options).\n"
 "*******************************************************************************\n"
 "OPTIMIZATIONS\n"
 "*******************************************************************************\n"
@@ -196,8 +208,8 @@ string USAGE =
 "*******************************************************************************\n"
 "OTHER OPTIONS\n"
 "*******************************************************************************\n"
-"-cc         Calculate a potentially better approximation with a quadratic time\n"
-"            algorithm\n"
+"-cc         Calculate a potentially better approximation with a quadratic\n"
+"            time algorithm\n"
 "\n"
 "-q          Quiet; Do not output the input trees or approximation\n"
 "*******************************************************************************\n";
