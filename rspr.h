@@ -44,7 +44,6 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <climits>
 #include <vector>
 #include <map>
-#include <unordered_map>
 #include <list>
 #include "Forest.h"
 #include "ClusterForest.h"
@@ -106,7 +105,7 @@ int MIN_SPR = 0;
 		}
 	};
 
-	unordered_map<string, ProblemSolution> memoized_clusters = unordered_map<string, ProblemSolution>();
+	map<string, ProblemSolution> memoized_clusters = map<string, ProblemSolution>();
 
 /* rSPR_3_approx
  * Calculate an approximate maximum agreement forest and SPR distance
@@ -688,7 +687,7 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2) {
 
 int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int end_k) {
 	string problem_key;
-	unordered_map<string,ProblemSolution>::iterator i;
+	map<string,ProblemSolution>::iterator i;
 
 	if (MEMOIZE) {
 		problem_key = T1->str() + ":" + T2->str();
@@ -786,7 +785,7 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 				) {
 			cout << endl << endl << "FOUND ANSWERS" << endl;
 			// TODO: this is a cheap hack
-			for (auto x = AFs.begin(); x != AFs.end(); x++) {
+			for (list<pair<Forest,Forest> >::iterator x = AFs.begin(); x != AFs.end(); x++) {
 				cout << "\tT1: ";
 				x->first.print_components();
 				cout << "\tT2: ";

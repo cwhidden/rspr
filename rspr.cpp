@@ -110,7 +110,6 @@ exact BB drSPR=4
 #include <climits>
 #include <vector>
 #include <map>
-#include <unordered_map>
 #include <list>
 #include "rspr.h"
 
@@ -267,6 +266,7 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-lca") == 0) {
 			LCA_TEST = true;
 		}
+/*
 		else if (strcmp(arg, "-cluster") == 0) {
 			CLUSTER_REDUCTION = true;
 			PREFER_RHO = true;
@@ -277,6 +277,7 @@ int main(int argc, char *argv[]) {
 				cout << "MAX_CLUSTERS=" << MAX_CLUSTERS << endl;
 			}
 		}
+*/
 		else if (strcmp(arg, "-cluster_test") == 0) {
 			CLUSTER_TEST = true;
 			PREFER_RHO = true;
@@ -284,9 +285,11 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-prefer_rho") == 0) {
 			PREFER_RHO = true;
 		}
+/*
 		else if (strcmp(arg, "-memoize") == 0) {
 			MEMOIZE = true;
 		}
+*/
 		else if (strcmp(arg, "-all_mafs") == 0) {
 			ALL_MAFS= true;
 		}
@@ -617,7 +620,7 @@ int main(int argc, char *argv[]) {
 			cout << "total distance= " << distance << endl;
 		}
 		T1->delete_tree();
-		for(auto T2 = trees.begin(); T2 != trees.end(); T2++)
+		for(vector<Node *>::iterator T2 = trees.begin(); T2 != trees.end(); T2++)
 			(*T2)->delete_tree();
 	}
 	return 0;
