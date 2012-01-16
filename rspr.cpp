@@ -318,11 +318,11 @@ int main(int argc, char *argv[]) {
 		CUT_ALL_B=true;
 		CUT_ONE_B = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
-		CLUSTER_TEST = true;
-		PREFER_RHO = true;
 	}
 	if (DEFAULT_ALGORITHM) {
 		BB=true;
+		CLUSTER_TEST = true;
+		PREFER_RHO = true;
 	}
 
 	// Label maps to allow string labels
@@ -391,11 +391,16 @@ int main(int argc, char *argv[]) {
 			if (!(QUIET && (BB || FPT))) {
 				F1.numbers_to_labels(&reverse_label_map);
 				F2.numbers_to_labels(&reverse_label_map);
-				cout << "F1: ";
+				cout << "approx F1: ";
 				F1.print_components();
-				cout << "F2: ";
+				cout << "approx F2: ";
 				F2.print_components();
-				cout << "approx drSPR=" << approx_spr << endl;
+				// what the AF shows
+				cout << "approx drSPR=" << F2.num_components()-1 << endl;
+				/* what we use to get the lower bound: 3 * the number of cutting rounds in
+					 the approx algorithm
+				*/
+				//cout << "approx drSPR=" << approx_spr << endl;
 				cout << "\n";
 			}
 	

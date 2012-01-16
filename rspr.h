@@ -1487,15 +1487,25 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 //	bool old_rho = PREFER_RHO;
 	PREFER_RHO = true;
 	if (verbose) {
-		cout << "F1: ";
+		cout << "T1: ";
 		F1.print_components();
-		cout << "F2: ";
+		cout << "T2: ";
 		F2.print_components();
 	}
 
 	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
 	if (verbose) {
-		cout << "approx drSPR=" << full_approx_spr << endl;
+
+		cout << "approx F1: ";
+		F3.print_components();
+		cout << "approx F2: ";
+		F4.print_components();
+		// what the AF shows
+		cout << "approx drSPR=" << F4.num_components()-1 << endl;
+		/* what we use to get the lower bound: 3 * the number of cutting rounds in
+			 the approx algorithm
+		*/
+		//cout << "approx drSPR=" << full_approx_spr << endl;
 		cout << "\n";
 	}
 

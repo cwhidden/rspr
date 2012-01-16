@@ -1,5 +1,5 @@
-CC=${CC64}
-CC64=x86_64-w64-mingw32-g++
+CC=g++
+CC64=CC
 CFLAGS=-O2 -std=c++0x
 OMPFLAGS=-fopenmp
 C64FLAGS=$(CFLAGS)
