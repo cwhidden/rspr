@@ -1583,7 +1583,8 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 
 		int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
 		if (verbose) {
-			cout << "cluster approx drSPR=" << approx_spr << endl;
+			cout << "cluster approx drSPR=" << f2a.num_components()-1 << endl;
+			//cout << "cluster approx drSPR=" << approx_spr << endl;
 
 		cout << endl;
 		}
