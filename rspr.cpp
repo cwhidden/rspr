@@ -7,11 +7,11 @@ distances and the associated maximum agreement forests (MAFs) between pairs
 of rooted binary trees from STDIN in newick format.
 Supports arbitrary labels. See the README for more information.
 
-Copyright 2009-2011 Chris Whidden
+Copyright 2009-2012 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-November 2, 2011
-Version 1.02
+May 3, 2012
+Version 1.03
 
 This file is part of rspr.
 
@@ -454,12 +454,19 @@ int main(int argc, char *argv[]) {
 					F1.print_components();
 					cout << "F2: ";
 					F2.print_components();
-					cout << "exact BB drSPR=" << exact_spr << endl;
+					if (FPT)
+						cout << "exact drSPR=" << exact_spr << endl;
+					else
+						cout << "exact BB drSPR=" << exact_spr << endl;
 					T1->delete_tree();
 					T2->delete_tree();
 					continue;
 				}
 				if (exact_spr == -1)
+						if (FPT)
+						cout << "exact drSPR=?  " << "k=" << k << " too large"
+							<< endl;
+						else
 						cout << "exact BB drSPR=?  " << "k=" << k << " too large"
 							<< endl;
 				cout << "\n";
