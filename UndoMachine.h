@@ -92,6 +92,10 @@ class AddComponent : public Undoable {
 	}
 };
 
+// TODO: this needs to be fixed with the removal of set_parent
+// TODO: this needs to be fixed with the removal of set_xchild
+// TODO: use new insert_child function with a stored successor sibling
+// does the end work? maybe a seperate variable for that?
 class CutParent : public Undoable {
 	public:
 	Node *child;

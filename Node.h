@@ -55,9 +55,11 @@ class Forest;
 
 class Node {
 	private:
-	Node *lc;			// left child
-	Node *rc;			// right child
+	//Node *lc;			// left child
+	//Node *rc;			// right child
+	list<Node *> children; // children
 	Node *p;			// parent
+	list<Node *>:: iterator p_link;		// location in parents list
 	Node *twin;			// counterpart in another tree
 	string name;		// label
 	int depth;			//distance from root
@@ -71,6 +73,7 @@ class Node {
 	int sibling_pair_status;
 	int num_clustered_children;
 	Forest *forest;
+	// TODO: contracted_list ?
 	Node *contracted_lc;
 	Node *contracted_rc;
 
@@ -88,8 +91,10 @@ class Node {
 		init(lc, rc, p, n, d);
 	}
 	void init(Node *lc, Node *rc, Node *p, string n, int d) {
-		this->lc = lc;
-		this->rc = rc;
+		add_child(lc);
+		add_child(rc);
+//		this->lc = lc;
+//		this->rc = rc;
 		this->p = p;
 		this->name = string(n);
 		this->twin = NULL;
@@ -124,14 +129,10 @@ class Node {
 		this->sibling_pair_status = 0;
 		this->num_clustered_children = 0;
 		this->forest = NULL;
-		if (n.lc == NULL)
-			lc = NULL;
-		else
-			lc = new Node(*(n.lc), this);
-		if (n.rc == NULL)
-			rc = NULL;
-		else
-			rc = new Node(*(n.rc), this);
+		list<Node *>::iterator c;
+		for(c = n.children.begin(); c != n.children.end(); c++) {
+			add_child(new Node(*c));
+		}
 #ifdef COPY_CONTRACTED
 		if (n.contracted_lc == NULL)
 			contracted_lc = NULL;
@@ -146,6 +147,7 @@ class Node {
 		this->contracted_rc = n.contracted_rc;
 #endif
 	}
+
 	Node(const Node &n, Node *parent) {
 		p = parent;
 		name = n.name;
@@ -165,14 +167,10 @@ class Node {
 		this->sibling_pair_status = 0;
 		this->num_clustered_children = 0;
 		this->forest = NULL;
-		if (n.lc == NULL)
-			lc = NULL;
-		else
-			lc = new Node(*(n.lc), this);
-		if (n.rc == NULL)
-			rc = NULL;
-		else
-			rc = new Node(*(n.rc), this);
+		list<Node *>::iterator c;
+		for(c = n.children.begin(); c != n.children.end(); c++) {
+			add_child(new Node(*c));
+		}
 #ifdef COPY_CONTRACTED
 		if (n.contracted_lc == NULL)
 			contracted_lc = NULL;
@@ -187,23 +185,19 @@ class Node {
 		this->contracted_rc = n.contracted_rc;
 #endif
 	}
+	// TODO: clear_parent function
 	~Node() {
-		if (lc != NULL) {
-			lc->p = NULL;
-			//lc = NULL;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->cut_parent();
 		}
-		if (rc != NULL) {
-			rc->p = NULL;
-			//rc = NULL;
-		}
-		if (p != NULL) {
-			p->delete_child(this);
-			//p = NULL;
-		}
+		cut_parent();
 		active_descendants.clear();
 		root_lcas.clear();
 		removable_descendants.clear();
 	}
+	// TODO: is this still useful?
+	/*
 	void fake_delete() {
 		if (lc != NULL) {
 			lc->p = NULL;
@@ -221,18 +215,15 @@ class Node {
 		root_lcas.clear();
 		removable_descendants.clear();
 	}
+	*/
+
 	// delete a subtree
 	void delete_tree() {
-		Node *lc = this->lc;
-		Node *rc = this->rc;
-		if (lc != NULL) {
-			lc->delete_tree();
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->delete_tree();
 		}
-		lc = NULL;
-		if (rc != NULL) {
-			rc->delete_tree();
-		}
-		rc = NULL;
+
 #ifdef COPY_CONTRACTED
 		if (contracted_lc != NULL) {
 			contracted_lc->delete_tree();
@@ -248,32 +239,34 @@ class Node {
 
 	// cut edge between parent and child
 	// should really be cut_child, no deleting occurs
+	// TODO: is this useful? The only reason for this would be to
+	// be sure it works when the child is not correctly set
 	void delete_child(Node *n) {
-
-		if (lc != NULL && lc == n) {
-			lc = NULL;
-		}
-		else if (rc != NULL && rc == n) {
-			rc = NULL;
-		}
-		else {
-		}
+		n->cut_parent();
 	}
 
-	// add a child if possible
-	int add_child(Node *n) {
-		if (lc == NULL) {
-			set_lchild(n);
-			return 0;
-		}
-		else if (rc == NULL) {
-			set_rchild(n);
-			return 0;
-		}
-		return -1;
+	// TODO: make sure this doesn't break things with >2 children
+	// add a child
+	void add_child(Node *n) {
+		children.push_back(n);
+		n->p_link = children.end();
+		n->p_link--;
 	}
 
 
+	/* TODO: need new method of putting a child in a specific spot
+	   in the children list
+
+		 maybe adjacent to an iterator?
+	*/
+
+	// insert a child before the given sibling
+	 void insert_child(Node *sibling, Node *n) {
+		 children.insert(sibling->p_link, n);
+	 }
+
+
+	/* dangerous, not relevant to multifurcating
 	Node *set_lchild(Node *n) {
 		this->lc = n;
 		if (n != NULL) {
@@ -305,10 +298,14 @@ class Node {
 		}
 		return rc;
 	}
-	Node *set_parent(Node *n) {
+*/
+	// potentially dangerous
+/*	Node *set_parent(Node *n) {
 		p = n;
 		return p;
 	}
+*/
+
 	Node *set_twin(Node *n) {
 		twin = n;
 		return twin;
@@ -321,13 +318,10 @@ class Node {
 		return depth;
 	}
 	void fix_depths() {
-		if (lc != NULL) {
-			lc->depth = depth+1;
-			lc->fix_depths();
-		}
-		if (rc != NULL) {
-			rc->depth = depth+1;
-			rc->fix_depths();
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->depth = depth+1;
+			(*c)->fix_depths();
 		}
 	}
 	int set_preorder_number(int p) {
@@ -370,10 +364,9 @@ class Node {
 	}
 	void set_forest_rec(Forest *f) {
 		forest = f;
-		if (lc != NULL)
-			lc->set_forest_rec(f);
-		if (rc != NULL)
-			rc->set_forest_rec(f);
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->set_forest_rec(f);
+		}
 	}
 	Forest *get_forest() {
 		return forest;
@@ -383,32 +376,29 @@ class Node {
 	}
 	void initialize_component_number(int value) {
 		component_number = value;
-		if (lc != NULL)
-			lc->initialize_component_number(value);
-		if (rc != NULL)
-			rc->initialize_component_number(value);
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->initialize_component_number(value);
+		}
 	}
 	void initialize_active_descendants(list <Node *> value) {
 		active_descendants = value;
-		if (lc != NULL)
-			lc->initialize_active_descendants(value);
-		if (rc != NULL)
-			rc->initialize_active_descendants(value);
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->initialize_active_descendants(value);
+		}
 	}
 	void initialize_root_lcas(list <Node *> value) {
 		root_lcas = value;
-		if (lc != NULL)
-			lc->initialize_root_lcas(value);
-		if (rc != NULL)
-			rc->initialize_root_lcas(value);
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->initialize_root_lcas(value);
+		}
 	}
 	void initialize_removable_descendants(list<list <Node *>::iterator> value) {
 		removable_descendants = value;
-		if (lc != NULL)
-			lc->initialize_removable_descendants(value);
-		if (rc != NULL)
-			rc->initialize_removable_descendants(value);
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->initialize_removable_descendants(value);
+		}
 	}
+
 
 	/* contract:
 	 * if this node has a parent and one child then contract it out
@@ -427,55 +417,41 @@ class Node {
 		// contract out this node and give child to parent
 		if (parent != NULL) {
 		//cout << p->str_subtree() << endl;
-			if (lc && !rc) {
-				child = lc;
-				if (remove)
-					delete this;
-				//this->fake_delete();
-				parent->delete_child(this);
-				parent->add_child(child);
-				ret = parent;
+			if (children.size() == 1) {
+					child = children.front();
+					if (this == parent->children->back()) {
+						parent.add_child(child);
+					}
+					else {
+						Node *sibling = *(++p_link);
+						parent.insert_child(sibling, child);
+					}
+					cut_parent();
+					if (remove)
+						delete this;
+					ret = parent;
 			}
-			else if (rc && !lc) {
-				child = rc;
-				if (remove)
-					delete this;
-				//this->fake_delete();
-				parent->delete_child(this);
-				parent->add_child(child);
-				ret = parent;
-			}
-			else if (lc == NULL && rc == NULL) {
-				parent->delete_child(this);
+			else if (children.size() == 0) {
+				cut_parent();
 				if (remove)
 					delete this;
 				//this->fake_delete();
 				ret = parent->contract(remove);
 			}
-			else
-				ret = this;
 
 		}
 		// if no parent then take children of single child and remove it
 		else {
 
 			// dead component or singleton, will be cleaned up by the forest
-			if (lc == NULL && rc == NULL) {
+			if (children.size() == 0) {
 				if (str() == "")
 					name = DEAD_COMPONENT;
 			}
-			else if ((bool)lc xor (bool)rc) {
-				child = lc;
-				if (rc == NULL) {
-					child = lc;
-					lc->p = NULL;
-					lc = NULL;
-				}
-				else {
-					child = rc;
-					rc->p = NULL;
-					rc = NULL;
-				}
+			if (children.size() == 1) {
+					child = children.front();
+					child->cut_parent();
+
 				/* cluster hack - if we delete a cluster node then
 				 * we may try to use it later. This only happens once
 				 * per cluster so we can spend linear time to update
@@ -503,14 +479,15 @@ class Node {
 						}
 						name = child->str();
 					}
-					delete_child(child);
+					child->cut_parent();
+					for(c = child->children.begin(); c != child->children.end();
+							c++) {
+						new_child = *c;
+						new_child->cut_parent();
+						add_child(*c);
+					}
 					if (remove)
 						delete child;
-					//child->fake_delete();
-					if (new_lc != NULL)
-						add_child(new_lc);
-					if (new_rc != NULL)
-						add_child(new_rc);
 					ret = this;
 				}
 			}
@@ -523,31 +500,32 @@ class Node {
 		return contract(false);
 	}
 
+	// TODO: binary only
+
 	/* contract_sibling_pair:
 	 * if this node has two child leaves then contract them out
 	 * return true if contracted, otherwise false
 	 */
 	bool contract_sibling_pair() {
-		if (lc != NULL && lc->is_leaf()
-				&& rc != NULL && rc->is_leaf()) {
+		if (lchild() != NULL && lchild()->is_leaf()
+				&& rchild() != NULL && rchild()->is_leaf()) {
 			#ifdef DEBUG
-				string new_name = "<" + lc->str() + "," + rc->str() + ">";
+				string new_name = "<" + lchild()->str() + "," + rchild()->str() + ">";
 			#else
-				string new_name = "(" + lc->str() + "," + rc->str() + ")";
+				string new_name = "(" + lchild()->str() + "," + rchild()->str() + ")";
 			#endif
 			set_name(new_name);
-			lc->set_parent(NULL);
-			rc->set_parent(NULL);
-			lc = NULL;
-			rc = NULL;
+			lchild()->cut_parent();
+			rchild()->cut_parent();
 			return true;
 		}
 		return false;
 	}
 
+	// TODO: binary only
 	bool contract_sibling_pair_undoable() {
-		if (lc != NULL && lc->is_leaf()
-				&& rc != NULL && rc->is_leaf()) {
+		if (lchild() != NULL && lchild()->is_leaf()
+				&& rchild() != NULL && rchild()->is_leaf()) {
 			/*
 			#ifdef DEBUG
 				string new_name = "<" + lc->str() + "," + rc->str() + ">";
@@ -556,41 +534,44 @@ class Node {
 			#endif
 			set_name(new_name);
 			*/
-			lc->set_parent(NULL);
-			rc->set_parent(NULL);
-			contracted_lc = lc;
-			contracted_rc = rc;
-			lc = NULL;
-			rc = NULL;
+			contracted_lc = lchild();
+			contracted_rc = rchild();
+			lchild()->cut_parent();
+			rchild()->cut_parent();
 			return true;
 		}
 		return false;
 	}
 
+	// TODO: binary only
 	void undo_contract_sibling_pair() {
-		lc = contracted_lc;
+		add_child(contracted_lc);
+		add_child(contracted_rc);
 		contracted_lc = NULL;
-		rc = contracted_rc;
 		contracted_rc = NULL;
-		lc->set_parent(this);
-		rc->set_parent(this);
 	}
 
 
 	// cut the edge between this node and its parent
 	bool cut_parent() {
-		p->delete_child(this);
+		p->children->erase(p_link);
 		p = NULL;
+		p_link = NULL;
 	}
 
 	Node *parent() {
 		return p;
 	}
 	Node *lchild() {
-		return lc;
+		if (children.size() >= 1)
+			return children[0];
+		else
+			return NULL;
 	}
+
 	Node *rchild() {
-		return rc;
+		if (children.size() >= 2)
+			return children[1];
 	}
 	Node *get_twin() {
 		return twin;
@@ -644,15 +625,11 @@ class Node {
 		str_hlpr(s);
 		if (!is_leaf()) {
 			*s += "(";
-			if (lc != NULL) {
-				lc->str_subtree_hlpr(s);
-				if (lc->parent() != this)
-					cout << "#";
-			}
-			*s += ",";
-			if (rc != NULL) {
-				rc->str_subtree_hlpr(s);
-				if (rc->parent() != this)
+			for(c = children.begin(); c != children.end(); c++) {
+				if (c != children.begin())
+					*s += ",";
+				(*c)->str_subtree_hlpr(s);
+				if ((*c)->parent() != this)
 					cout << "#";
 			}
 			*s += ")";
@@ -667,12 +644,12 @@ class Node {
 			#else
 				*s += "(";
 			#endif
-			if (lc != NULL) {
-				lc->str_c_subtree_hlpr(s);
-			}
-			*s += ",";
-			if (rc != NULL) {
-				rc->str_c_subtree_hlpr(s);
+			for(c = children.begin(); c != children.end(); c++) {
+				if (c != children.begin())
+					*s += ",";
+				(*c)->str_c_subtree_hlpr(s);
+				if ((*c)->parent() != this)
+					cout << "#";
 			}
 			#ifdef DEBUG_CONTRACTED
 				*s += ">";
@@ -697,12 +674,12 @@ class Node {
 		}
 		if (!is_leaf()) {
 			*s += "(";
-			if (lc != NULL) {
-				lc->str_subtree_twin_hlpr(s);
-			}
-			*s += ",";
-			if (rc != NULL) {
-				rc->str_subtree_twin_hlpr(s);
+			for(c = children.begin(); c != children.end(); c++) {
+				if (c != children.begin())
+					*s += ",";
+				(*c)->str_subtree_hlpr(s);
+				if ((*c)->parent() != this)
+					cout << "#";
 			}
 			*s += ")";
 		}
@@ -724,18 +701,20 @@ class Node {
 	}
 
 	bool is_leaf() {
-		return (lc == NULL && rc == NULL);
+		return (children.size() == 0);
 	}
 
+	// TODO: binary only
 	bool is_sibling_pair() {
-		return (lc != NULL && lc->is_leaf()
-				&& rc != NULL && rc->is_leaf());
+		return (lchild() != NULL && lchild()->is_leaf()
+				&& rchild() != NULL && rchild()->is_leaf());
 	}
 
 	bool is_singleton() {
 		return (parent() == NULL && is_leaf());
 	}
 
+	// TODO: binary only
 	void find_sibling_pairs_hlpr(list<Node *> *sibling_pairs) {
 		Node *lchild = this->lchild();
 		Node *rchild = this->rchild();
@@ -804,29 +783,27 @@ class Node {
 
 	// make twins point to this tree in this node's subtree
 	void resync() {
-		if (lc != NULL)
-			lc->resync();
-		if (rc != NULL)
-			rc->resync();
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->resync();
+		}
 		if (twin != NULL)
 			twin->set_twin(this);
 	}
 
 	// remove all twins
 	void unsync() {
-		if (lc != NULL)
-			lc->unsync();
-		if (rc != NULL)
-			rc->unsync();
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->unsync();
+		}
 		twin = NULL;
 	}
-	// remove all twins
+
+	// remove all interior twins
 	void unsync_interior() {
-		if (lc != NULL)
-			lc->unsync_interior();
-		if (rc != NULL)
-			rc->unsync_interior();
-		if (lc != NULL || rc != NULL)
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->unsync();
+		}
+		if(!is_leaf())
 			twin = NULL;
 	}
 
@@ -854,10 +831,9 @@ class Node {
 				name = ss.str();
 			}
 		}
-		if (lc != NULL)
-			lc->labels_to_numbers(label_map, reverse_label_map);
-		if (rc != NULL)
-			rc->labels_to_numbers(label_map, reverse_label_map);
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->labels_to_numbers(label_map, reverse_label_map);
+		}
 		if (contracted_lc != NULL)
 			contracted_lc->labels_to_numbers(label_map, reverse_label_map);
 		if (contracted_rc != NULL)
@@ -894,10 +870,9 @@ class Node {
 
 
 		}
-		if (lc != NULL)
-			lc->numbers_to_labels(reverse_label_map);
-		if (rc != NULL)
-			rc->numbers_to_labels(reverse_label_map);
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->numbers_to_labels(reverse_label_map);
+		}
 		if (contracted_lc != NULL)
 			contracted_lc->numbers_to_labels(reverse_label_map);
 		if (contracted_rc != NULL)
@@ -912,10 +887,9 @@ class Node {
 			(*label_counts)[label]++;
 		}
 
-		if (lc != NULL)
-			lc->count_numbered_labels(label_counts);
-		if (rc != NULL)
-			rc->count_numbered_labels(label_counts);
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->count_numbered_labels(label_counts);
+		}
 		if (contracted_lc != NULL)
 			contracted_lc->count_numbered_labels(label_counts);
 		if (contracted_rc != NULL)
@@ -928,32 +902,29 @@ class Node {
 	int preorder_number(int next) {
 		set_preorder_number(next);
 		next++;
-		if(lchild() != NULL) {
-			next = lchild()->preorder_number(next);
-		}
-		if(rchild() != NULL) {
-			next = rchild()->preorder_number(next);
+		for(c = children.begin(); c != children.end(); c++) {
+			next = (*c)->preorder_number(next);
 		}
 		return next;
 	}
 
 	int size() {
 		int s  = 1;
-		if(lchild() != NULL)
-			s += lchild()->size();
-		if(rchild() != NULL)
-			s += rchild()->size();
+		for(c = children.begin(); c != children.end(); c++) {
+			s += (*c)->size();
+		}
 		return s;
 	}
 
 	int size_using_prenum() {
-		if(rchild() != NULL)
-			return rchild()->size_using_prenum();
-		else if (lchild() != NULL)
-			return lchild()->size_using_prenum();
-		else
+		if (is_leaf())
 			return get_preorder_number();
+		else
+			return children[children.size()-1]->size_using_prenum();
 	}
+
+	// TODO: binary only
+	// these will potentially be removed
 
 void add_to_front_sibling_pairs(list<Node *> *sibling_pairs, int status) {
 	sibling_pairs->push_front(this);
@@ -1007,14 +978,19 @@ void clear_sibling_pair(list<Node *> *sibling_pairs) {
 }
 
 Node *get_sibling() {
-	if (p == NULL)
-		return NULL;
-	else if (p->lc == this)
-		return p->rc;
-	else
-		return p->lc;
+	Node *ret = NULL;
+	if (p != NULL && p->children.size() > 1) {
+		list<Node *>::iterator s = p_link;
+		if (p_link == p->children.begin())
+			s++;
+		else
+			s--;
+		ret = *s;
+	}
+	return ret;
 }
 
+// TODO: binary only
 Node *get_sibling(list<Node *> *sibling_pairs) {
 	if (sibling_pair_status > 0) {
 		list<Node *>::iterator loc = sibling_pair_loc;
@@ -1045,59 +1021,63 @@ void clear_sibling_pair_status() {
 
 // fix parents
 void fix_parents() {
-	if (lc != NULL) {
-		if (lc->parent() != this)
-			lc->set_parent(this);
-		lc->fix_parents();
-	}
-	if (rc != NULL) {
-		if (rc->parent() != this)
-			rc->set_parent(this);
-		rc->fix_parents();
-	}
+		for(c = children.begin(); c != children.end(); c++) {
+			if ((*c)->parent() != this) {
+				(*c)->parent = this;
+				(*c)->parent_link = c;
+			}
+			(*c)->fix_parents();
+		}
 }
 
+// TODO: binary only
+/* TODO: think of a better way of trying all rootings. Maybe create
+	 a function that copies a tree and then reroots it with a given
+	 subtree as a child of the root.
+*/
 
 void left_rotate() {
-	if (lc->lc != NULL) {
-		Node *new_lc = lc->lc;
-		Node *new_rc = lc;
-		Node *new_rc_lc = lc->rc;
-		Node *new_rc_rc = rc;
-		lc = new_lc;
-		lc->p = this;
-		rc = new_rc;
-		rc->p = this;
-		rc->lc = new_rc_lc;
-		rc->lc->p = rc;
-		rc->rc = new_rc_rc;
-		rc->rc->p = rc;
+	if (lchild()->lchild() != NULL) {
+		Node *new_lc = lchild()->lchild();
+		Node *new_rc = lchild();
+		Node *new_rc_lc = lchild()->rchild();
+		Node *new_rc_rc = rchild();
+
+		new_lc->cut_parent();
+		new_rc->cut_parent();
+		new_rc_lc->cut_parent();
+		new_rc_rc->cut_parent();
+		add_child(new_lc);
+		add_child(new_rc);
+		rchild()->add_child(new_rc_lc);
+		rchild()->add_child(new_rc_rc);
 	}
 }
 
 void right_rotate() {
-	if (rc->lc != NULL) {
-		Node *new_lc = rc->lc;
-		Node *new_rc = rc;
-		Node *new_rc_lc = rc->rc;
-		Node *new_rc_rc = lc;
-		lc = new_lc;
-		lc->p = this;
-		rc = new_rc;
-		rc->p = this;
-		rc->lc = new_rc_lc;
-		rc->lc->p = rc;
-		rc->rc = new_rc_rc;
-		rc->rc->p = rc;
+	if (rchild()->lchild() != NULL) {
+		Node *new_lc = rchild()->lchild();
+		Node *new_rc = rchild();
+		Node *new_rc_lc = rchild()->rchild();
+		Node *new_rc_rc = lchild();
+
+		new_lc->cut_parent();
+		new_rc->cut_parent();
+		new_rc_lc->cut_parent();
+		new_rc_rc->cut_parent();
+		add_child(new_lc);
+		add_child(new_rc);
+		rchild()->add_child(new_rc_lc);
+		rchild()->add_child(new_rc_rc);
 	}
 }
 
 void next_rooting() {
-	if (lc->lc != NULL)
+	if (lchild()->lchild() != NULL)
 		left_rotate();
-	else if (rc->lc != NULL)
+	else if (rchild()->lchild() != NULL)
 			right_rotate();
-	if (lc->pre_num < rc->pre_num && (lc->pre_num != 1 || rc->pre_num != 2 || !lc->is_leaf()))
+	if (lchild()->pre_num < rchild()->pre_num && (lchild()->pre_num != 1 || rchild()->pre_num != 2 || !lchild()->is_leaf()))
 		next_rooting();
 }
 
@@ -1105,26 +1085,32 @@ Node *expand_parent_edge(Node *n) {
 	if (p != NULL) {
 		Node *old_p = p;
 		cut_parent();
-		p = new Node();
-		p->add_child(n);
-		old_p->add_child(p);
+		Node *new_p = new Node();
+		new_p->add_child(n);
+		old_p->add_child(new_p);
 		return p;
 	}
 	else {
 		Node *new_child = new Node(name);
-		new_child->add_child(lc);
-		new_child->add_child(rc);
+		Node *old_lc = lchild();
+		Node *old_rc = rchild();
+		old_lc->cut_parent();
+		old_rc->cut_parent();
+
+		new_child->add_child(old_lc);
+		new_child->add_child(old_rc);
 		new_child->contracted_lc = contracted_lc;
 		new_child->contracted_rc = contracted_rc;
 		name = "";
-		lc = NULL;
-		rc = NULL;
 		contracted_lc = NULL;
 		contracted_rc = NULL;
 		add_child(new_child);
 		return this;
 	}
 }
+/**************************************************************************
+TODO: BINARY FROM HERE
+**************************************************************************/
 
 Node *undo_expand_parent_edge() {
 	if (p != NULL) {
