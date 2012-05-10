@@ -116,13 +116,11 @@ class CutParent : public Undoable {
 	}
 
 	void undo() {
-		if (branch > 0)
-		child->set_parent(parent);
-		child->set_depth(depth);
 		if (branch == 1)
-			parent->set_lchild_keep_depth(child);
+			parent->insert_child(parent->get_children().front(), child);
 		else if (branch == 2)
-			parent->set_rchild_keep_depth(child);
+			parent->add_child(child);
+		child->set_depth(depth);
 	}
 };
 
@@ -277,7 +275,7 @@ class ChangeRightChild : public Undoable {
 		}
 
 		void undo() {
-			node->set_rchild_keep_depth(rchild);
+			node->add_child_keep_depth(rchild);
 		}
 };
 
@@ -292,7 +290,7 @@ class ChangeLeftChild : public Undoable {
 		}
 
 		void undo() {
-			node->set_lchild_keep_depth(lchild);
+			node->insert_child_keep_depth(node->get_children().front(), lchild);
 		}
 };
 

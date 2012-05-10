@@ -129,9 +129,9 @@ class Node {
 		this->sibling_pair_status = 0;
 		this->num_clustered_children = 0;
 		this->forest = NULL;
-		list<Node *>::iterator c;
+		list<Node *>::const_iterator c;
 		for(c = n.children.begin(); c != n.children.end(); c++) {
-			add_child(new Node(*c));
+			add_child(new Node(**c));
 		}
 #ifdef COPY_CONTRACTED
 		if (n.contracted_lc == NULL)
@@ -167,9 +167,9 @@ class Node {
 		this->sibling_pair_status = 0;
 		this->num_clustered_children = 0;
 		this->forest = NULL;
-		list<Node *>::iterator c;
+		list<Node *>::const_iterator c;
 		for(c = n.children.begin(); c != n.children.end(); c++) {
-			add_child(new Node(*c));
+			add_child(new Node(**c));
 		}
 #ifdef COPY_CONTRACTED
 		if (n.contracted_lc == NULL)
@@ -248,6 +248,19 @@ class Node {
 	// TODO: make sure this doesn't break things with >2 children
 	// add a child
 	void add_child(Node *n) {
+		if (n->p != NULL)
+			n->cut_parent();
+		children.push_back(n);
+		n->p_link = children.end();
+		n->p_link--;
+		n->depth = depth+1;
+	}
+
+	// TODO: make sure this doesn't break things with >2 children
+	// add a child
+	void add_child_keep_depth(Node *n) {
+		if (n->p != NULL)
+			n->cut_parent();
 		children.push_back(n);
 		n->p_link = children.end();
 		n->p_link--;
@@ -262,6 +275,16 @@ class Node {
 
 	// insert a child before the given sibling
 	 void insert_child(Node *sibling, Node *n) {
+		if (n->p != NULL)
+			n->cut_parent();
+		n->p_link = children.insert(sibling->p_link, n);
+		n->depth = depth+1;
+	 }
+
+	// insert a child before the given sibling
+	 void insert_child_keep_depth(Node *sibling, Node *n) {
+		if (n->p != NULL)
+			n->cut_parent();
 		 children.insert(sibling->p_link, n);
 	 }
 
@@ -332,6 +355,10 @@ class Node {
 	int set_component_number(int c) {
 		component_number = c;
 	}
+	list<Node *>& get_children() {
+		return children;
+	}
+
 	int get_component_number() {
 		return component_number;
 	}
@@ -364,6 +391,7 @@ class Node {
 	}
 	void set_forest_rec(Forest *f) {
 		forest = f;
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->set_forest_rec(f);
 		}
@@ -376,24 +404,28 @@ class Node {
 	}
 	void initialize_component_number(int value) {
 		component_number = value;
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->initialize_component_number(value);
 		}
 	}
 	void initialize_active_descendants(list <Node *> value) {
 		active_descendants = value;
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->initialize_active_descendants(value);
 		}
 	}
 	void initialize_root_lcas(list <Node *> value) {
 		root_lcas = value;
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->initialize_root_lcas(value);
 		}
 	}
 	void initialize_removable_descendants(list<list <Node *>::iterator> value) {
 		removable_descendants = value;
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->initialize_removable_descendants(value);
 		}
@@ -419,12 +451,12 @@ class Node {
 		//cout << p->str_subtree() << endl;
 			if (children.size() == 1) {
 					child = children.front();
-					if (this == parent->children->back()) {
-						parent.add_child(child);
+					if (this == parent->children.back()) {
+						parent->add_child(child);
 					}
 					else {
 						Node *sibling = *(++p_link);
-						parent.insert_child(sibling, child);
+						parent->insert_child(sibling, child);
 					}
 					cut_parent();
 					if (remove)
@@ -480,11 +512,12 @@ class Node {
 						name = child->str();
 					}
 					child->cut_parent();
+					list<Node *>::iterator c;
 					for(c = child->children.begin(); c != child->children.end();
 							c++) {
-						new_child = *c;
+						Node *new_child = *c;
 						new_child->cut_parent();
-						add_child(*c);
+						add_child(new_child);
 					}
 					if (remove)
 						delete child;
@@ -554,9 +587,9 @@ class Node {
 
 	// cut the edge between this node and its parent
 	bool cut_parent() {
-		p->children->erase(p_link);
+		p->children.erase(p_link);
 		p = NULL;
-		p_link = NULL;
+		p_link = children.end();
 	}
 
 	Node *parent() {
@@ -564,14 +597,14 @@ class Node {
 	}
 	Node *lchild() {
 		if (children.size() >= 1)
-			return children[0];
+			return children.front();
 		else
 			return NULL;
 	}
 
 	Node *rchild() {
 		if (children.size() >= 2)
-			return children[1];
+			return *(++children.begin());
 	}
 	Node *get_twin() {
 		return twin;
@@ -625,6 +658,7 @@ class Node {
 		str_hlpr(s);
 		if (!is_leaf()) {
 			*s += "(";
+			list<Node *>::iterator c;
 			for(c = children.begin(); c != children.end(); c++) {
 				if (c != children.begin())
 					*s += ",";
@@ -644,6 +678,7 @@ class Node {
 			#else
 				*s += "(";
 			#endif
+			list<Node *>::iterator c;
 			for(c = children.begin(); c != children.end(); c++) {
 				if (c != children.begin())
 					*s += ",";
@@ -674,6 +709,7 @@ class Node {
 		}
 		if (!is_leaf()) {
 			*s += "(";
+			list<Node *>::iterator c;
 			for(c = children.begin(); c != children.end(); c++) {
 				if (c != children.begin())
 					*s += ",";
@@ -783,6 +819,7 @@ class Node {
 
 	// make twins point to this tree in this node's subtree
 	void resync() {
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->resync();
 		}
@@ -792,6 +829,7 @@ class Node {
 
 	// remove all twins
 	void unsync() {
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->unsync();
 		}
@@ -800,6 +838,7 @@ class Node {
 
 	// remove all interior twins
 	void unsync_interior() {
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->unsync();
 		}
@@ -831,6 +870,7 @@ class Node {
 				name = ss.str();
 			}
 		}
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->labels_to_numbers(label_map, reverse_label_map);
 		}
@@ -870,6 +910,7 @@ class Node {
 
 
 		}
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->numbers_to_labels(reverse_label_map);
 		}
@@ -887,6 +928,7 @@ class Node {
 			(*label_counts)[label]++;
 		}
 
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->count_numbered_labels(label_counts);
 		}
@@ -902,6 +944,7 @@ class Node {
 	int preorder_number(int next) {
 		set_preorder_number(next);
 		next++;
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			next = (*c)->preorder_number(next);
 		}
@@ -910,6 +953,7 @@ class Node {
 
 	int size() {
 		int s  = 1;
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			s += (*c)->size();
 		}
@@ -920,7 +964,7 @@ class Node {
 		if (is_leaf())
 			return get_preorder_number();
 		else
-			return children[children.size()-1]->size_using_prenum();
+			return children.back()->size_using_prenum();
 	}
 
 	// TODO: binary only
@@ -1021,10 +1065,11 @@ void clear_sibling_pair_status() {
 
 // fix parents
 void fix_parents() {
+		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			if ((*c)->parent() != this) {
-				(*c)->parent = this;
-				(*c)->parent_link = c;
+				(*c)->p = this;
+				(*c)->p_link = c;
 			}
 			(*c)->fix_parents();
 		}
@@ -1108,37 +1153,30 @@ Node *expand_parent_edge(Node *n) {
 		return this;
 	}
 }
-/**************************************************************************
-TODO: BINARY FROM HERE
-**************************************************************************/
 
 Node *undo_expand_parent_edge() {
 	if (p != NULL) {
 		Node *old_p = p;
 		cut_parent();
-		Node *child = lc;
-		if (lc == NULL)
-			child = rc;
-		delete_child(child);
+		Node *child = children.front();
+		child->cut_parent();
 		old_p->add_child(child);
 		return this;
 	}
 	else {
-		Node *child = lc;
-		if (lc == NULL)
-			child = rc;
+		Node *child = children.front();
 		name = child->name;
-		Node *new_lc = child->lc;
-		Node *new_rc = child->rc;
+		Node *new_lc = child->lchild();
+		Node *new_rc = child->rchild();
 		contracted_lc = child->contracted_lc;
 		contracted_rc = child->contracted_rc;
-		child->lc = NULL;
-		child->rc = NULL;
+		new_lc->cut_parent();
+		new_rc->cut_parent();
 		child->contracted_lc = NULL;
 		child->contracted_rc = NULL;
 		child->name = "";
-		set_lchild(new_lc);
-		set_rchild(new_rc);
+		add_child(new_lc);
+		add_child(new_rc);
 		return child;
 	}
 }
@@ -1152,6 +1190,8 @@ Node *undo_expand_parent_edge() {
  *	Returns a node that will reverse the spr (old_sibling unless it
  *		was moved to maintain a root, in which case the root is returned,
  *		NULL if no spr occured)
+ *
+ * Note: binary only
  */
 Node *spr(Node *new_sibling, int &which_child) {
 	Node *reverse;
@@ -1162,12 +1202,13 @@ Node *spr(Node *new_sibling, int &which_child) {
 	if (old_sibling == new_sibling)
 		return NULL;
 	Node *grandparent = p->p;
-	if (p->lc == this)
+	if (p->lchild() == this)
 		prev_child_loc = 1;
 	else
 		prev_child_loc = 2;
 	// Prune
 	if (grandparent != NULL) {
+		old_sibling->cut_parent();
 		p->delete_child(old_sibling);
 		grandparent->delete_child(p);
 		grandparent->add_child(old_sibling);
@@ -1178,18 +1219,18 @@ Node *spr(Node *new_sibling, int &which_child) {
 			return NULL;
 		Node *root = p;
 		bool leftc = false;
-		if (root->lc == this)
+		if (root->lchild() == this)
 			leftc = true;
 		root->delete_child(this);
 		root->delete_child(old_sibling);
-		root->add_child(old_sibling->lc);
-		root->add_child(old_sibling->rc);
-		old_sibling->delete_child(old_sibling->lc);
-		old_sibling->delete_child(old_sibling->rc);
+		root->add_child(old_sibling->lchild());
+		root->add_child(old_sibling->rchild());
+		old_sibling->delete_child(old_sibling->lchild());
+		old_sibling->delete_child(old_sibling->rchild());
 		if (leftc)
-			old_sibling->set_lchild(this);
+			old_sibling->insert_child(old_sibling->children.front(),this);
 		else
-			old_sibling->set_rchild(this);
+			old_sibling->add_child(this);
 		reverse = root;
 	}
 
@@ -1205,10 +1246,10 @@ Node *spr(Node *new_sibling, int &which_child) {
 		Node *root = new_sibling;
 		new_sibling = p;
 		p->delete_child(this);
-		p->add_child(root->lc);
-		p->add_child(root->rc);
-		root->delete_child(root->lc);
-		root->delete_child(root->rc);
+		p->add_child(root->lchild());
+		p->add_child(root->rchild());
+		root->delete_child(root->lchild());
+		root->delete_child(root->rchild());
 		// problem here
 		if (which_child == 0)
 			which_child = prev_child_loc;
@@ -1287,7 +1328,9 @@ int build_tree_helper(int start, const string& s, Node *parent,
 	parent->add_child(node);
 	if (s[loc] == '(') {
 			loc = build_tree_helper(loc + 1, s, node, valid);
-			loc = build_tree_helper(loc + 1, s, node, valid);
+			while(s[loc] == ',') {
+				loc = build_tree_helper(loc + 1, s, node, valid);
+			}
 //			int loc_check = s.find_first_of("(,)", loc);
 //			if (loc_check != string::npos &&
 //					s[loc_check] == ','
@@ -1310,24 +1353,14 @@ void swap(Node **a, Node **b) {
 
 // expand all contracted nodes of a subtree starting at n
 void expand_contracted_nodes(Node *n) {
-	Node *lc = n->lchild();
-	Node *rc = n->rchild();
-	if (lc != NULL)
-		expand_contracted_nodes(lc);
-	if (rc != NULL)
-		expand_contracted_nodes(rc);
+	list<Node *>::iterator c;
+	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+		expand_contracted_nodes(*c);
+	}
 	if (n->is_leaf()) {
 		Node *subtree = build_tree(n->str(), n->get_depth());
-		Node *new_lc = subtree->lchild();
-		Node *new_rc = subtree->rchild();
-		if (new_lc != NULL) {
-			n->set_lchild(new_lc);
-			new_lc->set_parent(n);
-			n->set_name("");
-		}
-		if (new_rc != NULL) {
-			n->set_rchild(new_rc);
-			new_rc->set_parent(n);
+		for(c = subtree->get_children().begin(); c != subtree->get_children().end(); c++) {
+			n->add_child(*c);
 			n->set_name("");
 		}
 		delete subtree;
@@ -1380,6 +1413,7 @@ int stomini(string s) {
 	return min;
 }
 
+// assumes that an unrooted tree is represented with a 3-way multifurcation
 string root(string s) {
 	string r = "";
 	int i = 0;
