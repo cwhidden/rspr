@@ -86,19 +86,13 @@ class LCA {
 		L.push_back(depth);
 		E.push_back(preorder_number);
 
-		// Left child
-		if(node->lchild() != NULL) {
-			euler_tour(node->lchild(), depth+1);
-			// Middle visit
-			L.push_back(depth);
-			E.push_back(preorder_number);
-		}
-
-
-		// Right child
-		if(node->rchild() != NULL) {
-			euler_tour(node->rchild(), depth+1);
-			// Last visit
+		// TODO: check that this is correct for multifurcating trees
+		
+		list<Node *>::const_iterator c;
+		for(c = node->get_children().begin(); c != node->get_children().end();
+				c++) {
+			euler_tour(*c, depth+1);
+			// Middle/Last visit
 			L.push_back(depth);
 			E.push_back(preorder_number);
 		}

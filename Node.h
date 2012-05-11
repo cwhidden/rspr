@@ -639,6 +639,8 @@ class Node {
 	Node *rchild() {
 		if (children.size() >= 2)
 			return *(++children.begin());
+		else
+			return NULL;
 	}
 	Node *get_twin() {
 		return twin;
@@ -823,22 +825,14 @@ class Node {
 	}
 	
 	void find_leaves_hlpr(vector<Node *> &leaves) {
-		Node *lchild = this->lchild();
-		Node *rchild = this->rchild();
-		bool lchild_leaf = false;
-		bool rchild_leaf = false;
-		if (lchild != NULL) {
-			if (lchild->is_leaf())
-				leaves.push_back(lchild);
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			if ((*c)->is_leaf())
+				leaves.push_back(*c);
 			else
-				lchild->find_leaves_hlpr(leaves);
+				(*c)->find_leaves_hlpr(leaves);
 		}
-		if (rchild != NULL) {
-			if (rchild->is_leaf())
-				leaves.push_back(rchild);
-			else
-				rchild->find_leaves_hlpr(leaves);
-		}
+
 	}
 	
 	// find the leaves in this node's subtree
