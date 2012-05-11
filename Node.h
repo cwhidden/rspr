@@ -120,8 +120,8 @@ class Node {
 		p = NULL;
 		name = n.name;
 		twin = n.twin;
-//		depth = n.depth;
-		depth = 0;
+		depth = n.depth;
+//		depth = 0;
 		pre_num = n.pre_num;
 		component_number = n.component_number;
 		this->active_descendants = list <Node *>();
@@ -161,7 +161,7 @@ class Node {
 		if (p != NULL)
 			depth = p->depth+1;
 		else
-			depth = 0;
+		depth = n.depth;
 		pre_num = n.pre_num;
 		component_number = n.component_number;
 		this->active_descendants = list <Node *>();
