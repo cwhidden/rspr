@@ -4,6 +4,7 @@
 
 #include "Node.h"
 #include "Forest.h"
+#include <typeinfo>
 
 class Node;
 
@@ -116,8 +117,12 @@ class CutParent : public Undoable {
 	}
 
 	void undo() {
-		if (branch == 1)
-			parent->insert_child(parent->get_children().front(), child);
+		if (branch == 1) {
+			if (parent->is_leaf())
+				parent->add_child(child);
+			else
+				parent->insert_child(parent->get_children().front(), child);
+		}
 		else if (branch == 2)
 			parent->add_child(child);
 		child->set_depth(depth);
@@ -275,7 +280,11 @@ class ChangeRightChild : public Undoable {
 		}
 
 		void undo() {
-			node->add_child_keep_depth(rchild);
+			if (rchild != NULL)
+				node->add_child_keep_depth(rchild);
+			else
+				if (node->rchild() != NULL)
+					node->rchild()->cut_parent();
 		}
 };
 
@@ -290,7 +299,11 @@ class ChangeLeftChild : public Undoable {
 		}
 
 		void undo() {
-			node->insert_child_keep_depth(node->get_children().front(), lchild);
+			if (lchild != NULL)
+				node->add_child_keep_depth(lchild);
+			else
+				if (node->lchild() != NULL)
+					node->lchild()->cut_parent();
 		}
 };
 

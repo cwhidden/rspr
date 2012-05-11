@@ -21,12 +21,10 @@ spr_supertree: spr_supertree.cpp *.h
 .PHONY: debug
 .PHONY: hyb
 .PHONY: profile
-test:
-	./rspr.exe -fpt <test_trees/trees2.txt;
-	./rspr.exe -fpt <test_trees/trees3.txt;
-	./rspr.exe -fpt <test_trees/trees4.txt;
-	./rspr.exe -fpt <test_trees/trees5.txt;
-	./rspr.exe -fpt <test_trees/trees6.txt;
+
+test: test.cpp *.h
+	$(CC) $(lFLAGS) $(DEBUGFLAGS) -o test test.cpp
+
 bb-test:
 	./rspr.exe -bb <test_trees/trees1.txt;
 	./rspr.exe -bb <test_trees/trees2.txt;

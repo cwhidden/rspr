@@ -29,7 +29,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 *******************************************************************************/
 
-//#define DEBUG 1
+#define DEBUG 1
 // #define DEBUG_CONTRACTED
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
@@ -656,7 +656,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			*F2 = new Forest(T2);
 		}
 		 um.undo_all();
-		 /*
+		 
+/*
 		 while(um.num_events() > 0) {
 				cout << "Undo step " << um.num_events() << endl;
 				cout << "T1: ";
@@ -669,10 +670,11 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 						(*i)->print_subtree_hlpr();
 					}
 					cout << endl;
-				cout << endl;
 			 um.undo();
+			cout << endl;
 		 }
-		 */
+*/
+		 
 //		 for(int i = 0; i < T1->num_components(); i++)
 //		 	T1->get_component(i)->fix_parents();
 //		 for(int i = 0; i < T2->num_components(); i++)
@@ -872,7 +874,10 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			//	T1_a->clear_sibling_pair(sibling_pairs);
 			//}
 			ContractEvent(&um, T1_a_parent);
+
+
 			Node *node = T1_a_parent->contract();
+
 			if (potential_new_sibling_pair && node->is_sibling_pair()){
 				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
 				sibling_pairs->push_front(node->rchild());
@@ -1023,8 +1028,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					T1->print_components();
 					cout << "\tT2: ";
 					T2->print_components();
-					cout << "K=" << k << endl;
-					cout << "sibling pairs:";
+					cout << "\tK=" << k << endl;
+					cout << "\tsibling pairs:";
 					for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
 						cout << "  ";
 						(*i)->print_subtree_hlpr();
@@ -1325,6 +1330,27 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				best_T2 = T2;
 
 				um.undo_to(undo_state);
+				#ifdef DEBUG
+					cout << "Case 3 CHECK" << endl;
+					cout << "\tT1: ";
+					T1->print_components();
+					cout << "\tT2: ";
+					T2->print_components();
+					cout << "\tK=" << k << endl;
+					cout << "\tsibling pairs:";
+					for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+						cout << "  ";
+						(*i)->print_subtree_hlpr();
+					}
+					cout << endl;
+					cout << "\tcut_b_only=" << cut_b_only << endl;
+					cout << "\tT2_a " << T2_a->str() << " "
+						<< T2_a->get_depth() << endl;
+					cout << "\tT2_c " << T2_c->str() << " "
+						<< T2_c->get_depth() << endl;
+					cout << "\tT2_b " << T2_b->str_subtree() << " "
+						<< T2_b->get_depth() << endl;
+				#endif
 
 				//load the copy
 				/*
@@ -1345,6 +1371,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 						&T1_copy, &T2_copy, &sibling_pairs_copy,
 						&T1_a_copy, &T1_c_copy, &T2_a_copy, &T2_c_copy);
 						*/
+
 
 				// get T2_b
 				T2_ab = T2_a->parent();
@@ -1367,8 +1394,11 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					if (T2_b->is_leaf())
 						singletons->push_back(T2_b);
 					um.add_event(new AddToSiblingPairs(sibling_pairs));
-					sibling_pairs->push_back(T1_a);
+
+					// TODO: check carefully
+
 					sibling_pairs->push_back(T1_c);
+					sibling_pairs->push_back(T1_a);
 					if (CUT_ALL_B) {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
