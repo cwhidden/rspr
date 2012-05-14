@@ -34,6 +34,8 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
+// #define DEBUG_UNDO 1
+//#define DEBUG_DEPTHS 1
 
 #include <cstdio>
 #include <cstdlib>
@@ -655,9 +657,9 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			*F1 = new Forest(T1);
 			*F2 = new Forest(T2);
 		}
-		 um.undo_all();
 		 
-/*
+
+#ifdef DEBUG_UNDO
 		 while(um.num_events() > 0) {
 				cout << "Undo step " << um.num_events() << endl;
 				cout << "T1: ";
@@ -673,7 +675,10 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			 um.undo();
 			cout << endl;
 		 }
-*/
+#else
+		 um.undo_all();
+#endif
+
 		 
 //		 for(int i = 0; i < T1->num_components(); i++)
 //		 	T1->get_component(i)->fix_parents();
@@ -1330,7 +1335,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				best_T2 = T2;
 
 				um.undo_to(undo_state);
-				#ifdef DEBUG
+/*				#ifdef DEBUG
 					cout << "Case 3 CHECK" << endl;
 					cout << "\tT1: ";
 					T1->print_components();
@@ -1351,6 +1356,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					cout << "\tT2_b " << T2_b->str_subtree() << " "
 						<< T2_b->get_depth() << endl;
 				#endif
+*/
 
 				//load the copy
 				/*
@@ -1397,8 +1403,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 					// TODO: check carefully
 
-					sibling_pairs->push_back(T1_c);
 					sibling_pairs->push_back(T1_a);
+					sibling_pairs->push_back(T1_c);
 					if (CUT_ALL_B) {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,

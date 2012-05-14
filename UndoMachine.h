@@ -6,6 +6,7 @@
 #include "Forest.h"
 #include <typeinfo>
 
+
 class Node;
 
 class Undoable {
@@ -29,10 +30,28 @@ class UndoMachine {
 		size++;
 	}
 
+	void insert_event(list<Undoable *>::iterator i, Undoable *event) {
+		list<Undoable *>::iterator j = i;
+		j++;
+		events.insert(j, event);
+		size++;
+	}
+
+	 list<Undoable *>::iterator get_bookmark() {
+		 list<Undoable *>::iterator bookmark = events.end();
+		 if (size > 0)
+		 	bookmark--;
+		 else
+			 bookmark = events.begin();
+		 return bookmark;
+	 }
+
 	void undo() {
 		if (!events.empty()) {
 			Undoable *event = events.back();
-			//cout << typeid(*event).name() << endl;
+#ifdef DEBUG_UNDO
+			cout << typeid(*event).name() << endl;
+#endif
 			events.pop_back();
 			event->undo();
 			delete event;
@@ -68,6 +87,8 @@ class UndoMachine {
 		return size;
 	}
 };
+
+void ContractEvent(UndoMachine *um, Node *n);
 
 class AddRho : public Undoable {
 	public:
@@ -202,12 +223,26 @@ class PopSiblingPair : public Undoable {
 class ContractSiblingPair : public Undoable {
 	public:
 		Node *node;
+		int lchild_depth;
+		int rchild_depth;
 		ContractSiblingPair(Node *n) {
 			node = n;
+			if (n->lchild() != NULL)
+				lchild_depth = n->lchild()->get_depth();
+			else
+				lchild_depth = -1;
+			if (n->rchild() != NULL)
+				rchild_depth = n->rchild()->get_depth();
+			else
+				rchild_depth = -1;
 		}
 
 		void undo() {
 			node->undo_contract_sibling_pair();
+			if (lchild_depth > -1)
+				node->lchild()->set_depth(lchild_depth);
+			if (rchild_depth > -1)
+				node->rchild()->set_depth(rchild_depth);
 		}
 };
 
@@ -273,15 +308,21 @@ class ChangeRightChild : public Undoable {
 	public:
 		Node *node;
 		Node *rchild;
+		int rchild_depth;
 
 		ChangeRightChild(Node *n) {
 			node = n;
 			rchild = n->rchild();
+			if (rchild != NULL)
+				rchild_depth = rchild->get_depth();
 		}
 
 		void undo() {
-			if (rchild != NULL)
-				node->add_child_keep_depth(rchild);
+			if (rchild != NULL) {
+				//node->add_child_keep_depth(rchild);
+				node->add_child(rchild);
+				rchild->set_depth(rchild_depth);
+			}
 			else
 				if (node->rchild() != NULL)
 					node->rchild()->cut_parent();
@@ -292,24 +333,48 @@ class ChangeLeftChild : public Undoable {
 	public:
 		Node *node;
 		Node *lchild;
+		int lchild_depth;
 
 		ChangeLeftChild(Node *n) {
 			node = n;
 			lchild = n->lchild();
+			if (lchild != NULL)
+				lchild_depth = lchild->get_depth();
 		}
 
 		void undo() {
-			if (lchild != NULL)
-				node->add_child_keep_depth(lchild);
+			if (lchild != NULL) {
+				//node->add_child_keep_depth(lchild);
+				node->add_child(lchild);
+				lchild->set_depth(lchild_depth);
+			}
 			else
 				if (node->lchild() != NULL)
 					node->lchild()->cut_parent();
 		}
 };
 
+class AddChild : public Undoable {
+	public:
+		Node *child;
+		int depth;
 
+		AddChild(Node *c) {
+			child = c;
+			if (c != NULL)
+				depth = c->get_depth();
+		}
 
-void ContractEvent(UndoMachine *um, Node *n) {
+		void undo() {
+			if (child != NULL) {
+				child->cut_parent();
+				child->set_depth(depth);
+			}
+		}
+};
+
+void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
+		bookmark) {
 		Node *parent = n->parent();
 		Node *child;
 		Node *lc = n->lchild();
@@ -328,7 +393,7 @@ void ContractEvent(UndoMachine *um, Node *n) {
 				um->add_event(new CutParent(n));
 			}
 			else if (lc == NULL && rc == NULL) {
-				um->add_event(new CutParent(n));
+				um->insert_event(bookmark, new CutParent(n));
 				parent->delete_child(n);
 				ContractEvent(um, parent);
 				parent->add_child(n);
@@ -385,4 +450,10 @@ void ContractEvent(UndoMachine *um, Node *n) {
 		}
 
 	}
+
+void ContractEvent(UndoMachine *um, Node *n) {
+	list<Undoable *>::iterator bookmark = um->get_bookmark();
+	ContractEvent(um, n, bookmark);
+}
+
 #endif

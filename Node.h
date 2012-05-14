@@ -92,10 +92,6 @@ class Node {
 		init(lc, rc, p, n, d);
 	}
 	void init(Node *lc, Node *rc, Node *p, string n, int d) {
-		if (lc != NULL)
-			add_child(lc);
-		if (rc != NULL)
-			add_child(rc);
 //		this->lc = lc;
 //		this->rc = rc;
 		this->p = p;
@@ -114,6 +110,10 @@ class Node {
 		this->contracted_lc = NULL;
 		this->contracted_rc = NULL;
 		this->is_contracted = false;
+		if (lc != NULL)
+			add_child(lc);
+		if (rc != NULL)
+			add_child(rc);
 	}
 	// copy constructor
 	Node(const Node &n) {
@@ -704,6 +704,14 @@ class Node {
 			}
 			*s += ")";
 		}
+#ifdef DEBUG_DEPTHS
+		*s+= ":";
+	stringstream ss;
+	string a;
+	ss << depth;
+	a = ss.str();
+		*s+= a;
+#endif
 	}
 
 	void str_c_subtree_hlpr(string *s) {
