@@ -481,7 +481,7 @@ class Node {
 						delete this;
 					ret = parent;
 			}
-			else if (children.size() == 0) {
+			else if (children.empty()) {
 				cut_parent();
 				if (remove)
 					delete this;
@@ -494,7 +494,7 @@ class Node {
 		else {
 
 			// dead component or singleton, will be cleaned up by the forest
-			if (children.size() == 0) {
+			if (children.empty()) {
 				if (str() == "")
 					name = DEAD_COMPONENT;
 			}
@@ -629,18 +629,21 @@ class Node {
 	Node *parent() {
 		return p;
 	}
-	Node *lchild() {
-		if (children.size() >= 1)
-			return children.front();
-		else
+	inline Node *lchild() {
+		if (children.empty())
 			return NULL;
+		else
+			return children.front();
 	}
 
 	Node *rchild() {
-		if (children.size() >= 2)
-			return *(++children.begin());
-		else
+		if (children.empty())
+				return NULL;
+		list<Node *>::iterator c = ++(children.begin());
+		if (c == children.end())
 			return NULL;
+		else
+			return *c;
 	}
 	Node *get_twin() {
 		return twin;
@@ -781,7 +784,7 @@ class Node {
 	}
 
 	bool is_leaf() {
-		return (children.size() == 0);
+		return children.empty();
 	}
 
 	// TODO: binary only
@@ -1208,14 +1211,14 @@ Node *undo_expand_parent_edge() {
 		name = child->name;
 		Node *new_lc = child->lchild();
 		Node *new_rc = child->rchild();
+		new_lc->cut_parent();
+		new_rc->cut_parent();
 		contracted_lc = child->contracted_lc;
 		if (contracted_lc != NULL)
 			contracted_lc->p = this;
 		contracted_rc = child->contracted_rc;
 		if (contracted_rc != NULL)
 			contracted_rc->p = this;
-		new_lc->cut_parent();
-		new_rc->cut_parent();
 		child->contracted_lc = NULL;
 		child->contracted_rc = NULL;
 		child->name = "";
@@ -1252,10 +1255,21 @@ Node *spr(Node *new_sibling, int &which_child) {
 		prev_child_loc = 2;
 	// Prune
 	if (grandparent != NULL) {
+		bool leftc = false;
+		if (old_sibling->parent() == grandparent->lchild())
+			leftc = true;
+
 		old_sibling->cut_parent();
-		p->delete_child(old_sibling);
-		grandparent->delete_child(p);
-		grandparent->add_child(old_sibling);
+		//p->delete_child(old_sibling);
+		p->cut_parent();
+//		grandparent->delete_child(p);
+		if (leftc && !grandparent->is_leaf()) {
+				Node *ns = grandparent->children.front();
+				grandparent->insert_child(ns,old_sibling);
+		}
+		else
+			grandparent->add_child(old_sibling);
+
 		reverse = old_sibling;
 	}
 	else {
@@ -1265,10 +1279,10 @@ Node *spr(Node *new_sibling, int &which_child) {
 		bool leftc = false;
 		if (root->lchild() == this)
 			leftc = true;
-		root->delete_child(this);
-		root->delete_child(old_sibling) ;
 		Node *lc = old_sibling->lchild();
 		Node *rc = old_sibling->rchild();
+		root->delete_child(this);
+		root->delete_child(old_sibling) ;
 		if (lc != NULL)
 			root->add_child(lc);
 		if (rc != NULL)
@@ -1293,9 +1307,25 @@ Node *spr(Node *new_sibling, int &which_child) {
 	// Regraft
 	if (new_sibling->p != NULL) {
 		grandparent = new_sibling->p;
-		grandparent->delete_child(new_sibling);
-		grandparent->add_child(p);
-		p->add_child(new_sibling);
+//		grandparent->delete_child(new_sibling);
+		bool leftc = false;
+		if (new_sibling == grandparent->lchild())
+			leftc = true;
+		if (leftc && !grandparent->is_leaf()) {
+				Node *new_sibling = grandparent->children.front();
+				grandparent->insert_child(new_sibling,p);
+		}
+		else {
+			grandparent->add_child(p);
+		}
+
+		if (which_child == 1)
+			p->add_child(new_sibling);
+		else {
+				Node *ns = p->children.front();
+				p->insert_child(ns,new_sibling);
+		}
+
 	}
 	else {
 		Node *root = new_sibling;

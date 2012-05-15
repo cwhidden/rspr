@@ -675,9 +675,16 @@ void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 
 	// TODO: modify this to keep a single intermediate node rather
 	//than recreating and destroying it
+//	cout << "Previous Super Tree" << super_tree->str_subtree() << endl;
+	int status = -1;
+	if (n->parent() != NULL)
+		if (n->parent()->lchild() == n)
+			status = 1;
+		else
+			status = 2;
 	Node *new_node = n->expand_parent_edge(n);
 	new_node->add_child(new_leaf);
-//	cout << super_tree->str_subtree() << endl;
+//	cout << "New Super Tree" << super_tree->str_subtree() << endl;
 
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
@@ -710,13 +717,22 @@ void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 //	cout << "distance: " << distance;
 //	cout << endl;
 
+//	cout << super_tree->str_subtree() << endl;
 	new_leaf->cut_parent();
-	//cout << super_tree->str_subtree() << endl;
+//	cout << super_tree->str_subtree() << endl;
 	new_node = new_node->undo_expand_parent_edge();
 	delete new_node;
+
+	if (n->parent() != NULL)
+		if ((status == 1 && n->parent()->lchild() != n)
+				|| (status == 2 && n->parent()->rchild() != n)) {
+			Node *rc = n->parent()->lchild();
+			rc->cut_parent();
+			n->parent()->add_child(rc);
+		}
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
-	//cout << super_tree->str_subtree() << endl;
+//	cout << "Reverted: " << super_tree->str_subtree() << endl;
 
 }
 
@@ -789,6 +805,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		Node *old_sibling = n->get_sibling();
 		//if (new_sibling != old_sibling)
 
+
 /*
 		cout << "SPR Move:" << endl;
 		super_tree->numbers_to_labels(&reverse_label_map);
@@ -798,10 +815,12 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		cout << "New Sibling: " << new_sibling->str_subtree() << endl;
 		super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 */
-
+	
 
 		int which_sibling = 0;
 		Node *undo = n->spr(new_sibling, which_sibling);
+
+
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
 
@@ -825,8 +844,8 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 			else
 				distance = rSPR_total_distance(super_tree, gene_trees);
 		}
-/*		cout << "\t" << distance << endl;
-*/
+//		cout << "\t" << distance << endl;
+
 		if (distance < min_distance) {
 			min_distance = distance;
 			best_spr_move = n;
@@ -843,11 +862,12 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 			num_ties++;
 		}
 		// restore the previous tree
+
+
 		n->spr(undo, which_sibling);
+
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
-//		cout << "Reverted Super Tree: "
-//	<< super_tree->str_subtree() << endl;
 	}
 
 }
