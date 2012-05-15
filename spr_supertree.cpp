@@ -788,6 +788,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 	if (n != super_tree && new_sibling != n) {
 		Node *old_sibling = n->get_sibling();
 		//if (new_sibling != old_sibling)
+
 /*
 		cout << "SPR Move:" << endl;
 		super_tree->numbers_to_labels(&reverse_label_map);
@@ -798,15 +799,18 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 */
 
+
 		int which_sibling = 0;
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
 		super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 */
+
 
 		int distance;
 		if (APPROX) {

@@ -1266,11 +1266,16 @@ Node *spr(Node *new_sibling, int &which_child) {
 		if (root->lchild() == this)
 			leftc = true;
 		root->delete_child(this);
-		root->delete_child(old_sibling);
-		root->add_child(old_sibling->lchild());
-		root->add_child(old_sibling->rchild());
-		old_sibling->delete_child(old_sibling->lchild());
-		old_sibling->delete_child(old_sibling->rchild());
+		root->delete_child(old_sibling) ;
+		Node *lc = old_sibling->lchild();
+		Node *rc = old_sibling->rchild();
+		if (lc != NULL)
+			root->add_child(lc);
+		if (rc != NULL)
+			root->add_child(rc);
+
+		//old_sibling->delete_child(old_sibling->lchild());
+		//old_sibling->delete_child(old_sibling->rchild());
 		if (leftc) {
 			if (old_sibling->is_leaf())
 				old_sibling->add_child(this);
@@ -1295,11 +1300,12 @@ Node *spr(Node *new_sibling, int &which_child) {
 	else {
 		Node *root = new_sibling;
 		new_sibling = p;
-		p->delete_child(this);
-		p->add_child(root->lchild());
-		p->add_child(root->rchild());
-		root->delete_child(root->lchild());
-		root->delete_child(root->rchild());
+		// TODO: still broken
+		Node *lc = root->lchild();
+		Node *rc = root->rchild();
+		p->add_child(lc);
+		p->add_child(rc);
+//		p->delete_child(this);
 		// problem here
 		if (which_child == 0)
 			which_child = prev_child_loc;
