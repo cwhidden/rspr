@@ -41,6 +41,9 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
+bool IGNORE_MULTI = false;
+
+
 // representation of a component with no leaves
 #define DEAD_COMPONENT "*"
 /*void find_sibling_pairs_hlpr(Node *node, list<Node *> &sibling_pairs);
@@ -1418,11 +1421,13 @@ int build_tree_helper(int start, const string& s, Node *parent,
 			loc = build_tree_helper(loc + 1, s, node, valid);
 			while(s[loc] == ',') {
 				loc = build_tree_helper(loc + 1, s, node, valid);
+				count++;
 			}
 //			int loc_check = s.find_first_of("(,)", loc);
 //			if (loc_check != string::npos &&
 //					s[loc_check] == ','
-			if (s[loc] != ')') {
+			if (s[loc] != ')'
+					|| IGNORE_MULTI && count > 2) {
 				valid = false;
 					return s.size()-1;
 			}

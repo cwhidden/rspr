@@ -335,6 +335,10 @@ int main(int argc, char *argv[]) {
 		BB=true;
 	}
 
+	// ignore multifurcating trees
+	IGNORE_MULTI = true;
+
+
 	// initialize random number generator
 	srand((unsigned(time(0))));
 
