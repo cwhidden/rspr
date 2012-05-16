@@ -1020,7 +1020,27 @@ Forest *build_finished_forest(string &name) {
 			//new_forest->print_components();
 			old_loc = loc+1;
 		}
+		new_forest->add_component(new Node(name.substr(old_loc,loc-old_loc)));
 		return new_forest;
 		//new_forest->add_component(build_tree(name.substr(old_loc,loc-old_loc)));
+}
+Forest *build_forest(string &name) {
+	Forest *new_forest = new Forest();
+	string::iterator i = name.begin();
+		size_t old_loc = 0;
+		size_t loc = 0;
+		while ((loc = name.find(" ", old_loc)) != string::npos) {
+			//cout << "old_loc=" << old_loc << endl;
+			//cout << "loc=" << loc << endl;
+			//cout << name.substr(old_loc,loc-old_loc) << endl;
+			//new_forest->add_component(build_tree(name.substr(old_loc,loc-old_loc)));
+			new_forest->add_component(build_tree(name.substr(old_loc,loc-old_loc)));
+			if (name.substr(old_loc,loc-old_loc) == "p")
+				new_forest->set_rho(true);
+			//new_forest->print_components();
+			old_loc = loc+1;
+		}
+		new_forest->add_component(build_tree(name.substr(old_loc,loc-old_loc)));
+		return new_forest;
 }
 #endif

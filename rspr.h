@@ -1289,7 +1289,10 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				else {
 					T1->unsync_interior();
 					T2->unsync_interior();
-					NUM_CLUSTERS--;
+					// HACK to allow only initial clusters
+					// TODO: use UndoMachine in this clustering section
+					// and update this clustering to not require copying
+					NUM_CLUSTERS++;
 				}
 				delete cluster_points;
 	
@@ -1677,6 +1680,173 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 
 	delete cluster_points;
 //	PREFER_RHO = old_rho;
+	return total_k;
+}
+
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map) {
+	Forest F1 = *T1;//Forest(T1);
+	Forest F2 = *T2;//Forest(T2);
+	Forest F3 = Forest(F1);
+	Forest F4 = Forest(F2);
+
+
+//	bool old_rho = PREFER_RHO;
+	PREFER_RHO = true;
+	if (verbose) {
+		cout << "T1: ";
+		F1.print_components();
+		cout << "T2: ";
+		F2.print_components();
+	}
+
+	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	if (verbose) {
+
+		cout << "approx F1: ";
+		F3.print_components();
+		cout << "approx F2: ";
+		F4.print_components();
+		// what the AF shows
+		cout << "approx drSPR=" << F4.num_components()-1 << endl;
+		/* what we use to get the lower bound: 3 * the number of cutting rounds in
+			 the approx algorithm
+		*/
+		//cout << "approx drSPR=" << full_approx_spr << endl;
+		cout << "\n";
+	}
+
+	if (!sync_twins(&F1, &F2))
+		return 0;
+	if (F1.get_component(0)->is_leaf())
+		return 0;
+	sync_interior_twins_real(&F1, &F2);
+	list<Node *> *cluster_points = find_cluster_points(&F1);
+
+	int total_k = 0;
+
+	if (!cluster_points->empty()) {
+	
+		list<ClusterInstance> clusters =
+			cluster_reduction(&F1, &F2, cluster_points);
+	
+		F1.unsync_interior();
+		F2.unsync_interior();
+		int k = 0;
+		int i = 0;
+		while(!clusters.empty()) {
+			i++;
+			ClusterInstance cluster = clusters.front();
+			clusters.pop_front();
+			cluster.F1->unsync_interior();
+			cluster.F2->unsync_interior();
+			if (verbose) {
+				cout << "C" << i << "_1: ";
+				cluster.F1->print_components();
+				cout << "C" << i << "_2: ";
+				cluster.F2->print_components();
+			}
+			Forest f1 = Forest(cluster.F1);
+			Forest f2 = Forest(cluster.F2);
+			int min_spr = rSPR_worse_3_approx(&f1, &f2);
+			min_spr /= 3;
+
+			if (verbose) {
+				cout << "cluster approx drSPR=" << f1.num_components()-1 << endl;
+				//cout << "cluster approx drSPR=" << min_spr << endl;
+				cout << endl;
+			}
+
+			int cluster_spr = -1;
+			k = MAX_SPR - total_k;
+			if (k >= 0) {
+				// hack for clusters with no rho
+				if ((cluster.F2_cluster_node == NULL
+							|| (cluster.F2_cluster_node->is_leaf()
+									&& cluster.F2_cluster_node->parent() == NULL
+									&& cluster.F2_cluster_node->
+									get_num_clustered_children() <= 1
+									&& (cluster.F2_cluster_node !=
+											cluster.F2_cluster_node->get_forest()->
+												get_component(0))))
+							&& cluster.F2_has_component_zero == false) {
+					cluster.F1->add_rho();
+					cluster.F2->add_rho();
+				}
+
+				cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
+						cluster.F2, min_spr, MAX_SPR - total_k);
+				if (cluster_spr >= 0) {
+					if (verbose) {
+	  				cout << endl;
+	  				cout << "F" << i << "_1: ";
+	  				cluster.F1->print_components();
+	  				cout << "F" << i << "_2: ";
+	  				cluster.F2->print_components();
+	  				cout << "cluster exact drSPR=" << cluster_spr << endl;
+	  				cout << endl;
+					}
+					total_k += cluster_spr;
+					k -= cluster_spr;
+				}
+				else {
+					k = -1;
+					if (verbose) {
+						cout << "cluster exact drSPR=?  " << "k=" << k << " too large"
+							<< endl;
+						cout << "\n";
+					}
+					if (CLAMP) {
+						total_k = MAX_SPR + 1;
+					}
+					else {
+							total_k += min_spr;
+					}
+				}
+			}
+			if (k > -1) {
+				if (!cluster.is_original()) {
+					int adjustment = cluster.join_cluster(&F1, &F2);
+					total_k += adjustment;
+					delete cluster.F1;
+					delete cluster.F2;
+				}
+			}
+			else {
+				if (!cluster.is_original()) {
+					//if (cluster.F1_cluster_node != NULL)
+					//	cluster.F1_cluster_node->contract();
+					//if (cluster.F2_cluster_node != NULL)
+					//	cluster.F2_cluster_node->contract();
+					delete cluster.F1;
+					delete cluster.F2;
+				}
+			}
+		}
+		delete cluster_points;
+	}
+	else {
+		full_approx_spr /= 3;
+		total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
+		int i = 1;
+		if (total_k < 0)
+			if (CLAMP)
+				total_k = MAX_SPR;
+			else
+				total_k = full_approx_spr;
+
+	}
+
+	if (verbose) {
+		F1.numbers_to_labels(reverse_label_map);
+		F2.numbers_to_labels(reverse_label_map);
+	 	cout << endl;
+	 	cout << "F1: ";
+	 	F1.print_components();
+	 	cout << "F2: ";
+	 	F2.print_components();
+	 	cout << "total exact drSPR=" << total_k << endl;
+	 	cout << endl;
+	}
 	return total_k;
 }
 
