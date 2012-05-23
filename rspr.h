@@ -1878,7 +1878,10 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO) firstprivate(MAX_SPR) firstprivate(MIN_SPR)
 	for(int i = 0; i < gene_trees.size(); i++) {
-		int size = gene_trees[i]->size();
+		Forest f1 = Forest(T1);
+		Forest f2 = Forest(gene_trees[i]);
+		sync_twins(&f1, &f2);
+		int size = f2.get_component(0)->size();
 		int best_distance = INT_MAX;
 		int old_max = MAX_SPR;
 		bool done = false;
@@ -1887,13 +1890,13 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 				MIN_SPR=k;
 				MAX_SPR=k;
 				for(int j = 0; j < size-2; j++) {
-					gene_trees[i]->next_rooting();
+					f2.get_component(0)->next_rooting();
 	//			cout << i << "," << k << "," << j << endl;
 	//			cout << T1->str_subtree() << endl;
 	//			cout << gene_trees[i]->str_subtree() << endl;
 					int distance;
-					Forest *F1 = new Forest(T1);
-					Forest *F2 = new Forest(gene_trees[i]);
+					Forest *F1 = new Forest(f1);
+					Forest *F2 = new Forest(f2);
 					distance = rSPR_branch_and_bound_range(F1, F2, MIN_SPR, MAX_SPR);
 					if (distance < 0)
 						distance = k+1;
@@ -1932,9 +1935,9 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 			int best_rooting = 0;
 			int num_ties = 0;
 			for(int j = 0; j < size-2; j++) {
-				gene_trees[i]->next_rooting();
-				Forest F1 = Forest(T1);
-				Forest F2 = Forest(gene_trees[i]);
+				f2.get_component(0)->next_rooting();
+				Forest F1 = Forest(f1);
+				Forest F2 = Forest(f2);
 				int distance = rSPR_worse_3_approx(&F1, &F2)/3;
 				if (distance < best_approx) {
 					best_approx = distance;
@@ -1951,7 +1954,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 				}
 			}
 			for(int j = 0; j <= best_rooting; j++) {
-				gene_trees[i]->next_rooting();
+				f2.get_component(0)->next_rooting();
 			}
 			total += rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
 		}
@@ -1963,12 +1966,15 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
 	#pragma omp parallel for reduction(+ : total)
 	for(int i = 0; i < gene_trees.size(); i++) {
-		int size = gene_trees[i]->size();
+		Forest f1 = Forest(T1);
+		Forest f2 = Forest(gene_trees[i]);
+		sync_twins(&f1, &f2);
+		int size = f2.get_component(0)->size();
 		int best_distance = INT_MAX;
 		for(int j = 0; j < size-2; j++) {
-			gene_trees[i]->next_rooting();
-			Forest F1 = Forest(T1);
-			Forest F2 = Forest(gene_trees[i]);
+			f2.get_component(0)->next_rooting();
+			Forest F1 = Forest(f1);
+			Forest F2 = Forest(f2);
 
 			int distance = rSPR_worse_3_approx(&F1, &F2)/3;
 			if (distance < best_distance)
