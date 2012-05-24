@@ -1097,6 +1097,8 @@ void next_rooting() {
 		left_rotate();
 	else if (rc->lc != NULL)
 			right_rotate();
+	else
+		return;
 	if (lc->pre_num < rc->pre_num && (lc->pre_num != 1 || rc->pre_num != 2 || !lc->is_leaf()))
 		next_rooting();
 }

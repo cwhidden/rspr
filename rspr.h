@@ -91,6 +91,7 @@ bool VERBOSE = false;
 bool CLAMP = false;
 int MAX_SPR = 1000;
 int MIN_SPR = 0;
+bool FIND_RATE = false;
 
 	class ProblemSolution {
 		public:
@@ -1862,11 +1863,23 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)
 //	for(int j = 0; j < 10; j++)
+//	cout << "T1: " << T1->str_subtree() << endl;
 	for(int i = 0; i < gene_trees.size(); i++) {
 			//		cout << i << endl;
-//		cout << T1->str_subtree() << endl;
-//		cout << gene_trees[i]->str_subtree() << endl;
-		total += rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+		total += k;
+//		cout << "T2: " << gene_trees[i]->str_subtree() << endl;
+//		cout << " k: " << k << endl;
+		if (FIND_RATE) {
+			if (k > 0) {
+				int size = gene_trees[i]->find_leaves().size();
+//				cout << k << endl;
+//				cout << size << endl;
+				cout << "rate=" << (float)k / size << endl;
+//				cout << T1->str_subtree() << endl;
+//				cout << gene_trees[i]->str_subtree() << endl;
+			}
+		}
 //		Forest F1 = Forest(T1);
 //		Forest F2 = Forest(gene_trees[i]);
 //		total += rSPR_branch_and_bound(&F1, &F2);
@@ -1875,23 +1888,35 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 }
 
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
+	//cout << "rSPR_total_distance_unrooted" << endl;
 	int total = 0;
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO) firstprivate(MAX_SPR) firstprivate(MIN_SPR)
 	for(int i = 0; i < gene_trees.size(); i++) {
+		//cout << "T1: " << T1->str_subtree() << endl;
+		//cout << "T2: " << gene_trees[i]->str_subtree() << endl;
 		Forest f1 = Forest(T1);
+		//f1.print_components();
 		Forest f2 = Forest(gene_trees[i]);
-		sync_twins(&f1, &f2);
+		//f2.print_components();
+		if (!sync_twins(&f1, &f2))
+			continue;
+		//f1.print_components();
+		//f2.print_components();
 		int size = f2.get_component(0)->size();
 		int best_distance = INT_MAX;
 		int old_max = MAX_SPR;
 		bool done = false;
+//		cout << "boo" << endl;
 		if (!UNROOTED_MIN_APPROX) {
 			for(int k = 0; k <= 15; k++) {
+//				cout << k << endl;
 				MIN_SPR=k;
 				MAX_SPR=k;
 				for(int j = 0; j < size-2; j++) {
+//					cout << i << "," << k << "," << j << endl;
 					f2.get_component(0)->next_rooting();
-	//			cout << i << "," << k << "," << j << endl;
+					//f1.print_components();
+					//f2.print_components();
 	//			cout << T1->str_subtree() << endl;
 	//			cout << gene_trees[i]->str_subtree() << endl;
 					int distance;
@@ -1914,11 +1939,11 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 			MIN_SPR=0;
 			if (!done) {
 				for(int j = 0; j < size-2; j++) {
-					gene_trees[i]->next_rooting();
+					f2.get_component(0)->next_rooting();
 	//				cout << i << "," << j << endl;
 	//				cout << T1->str_subtree() << endl;
 	//				cout << gene_trees[i]->str_subtree() << endl;
-					int distance = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+					int distance = rSPR_branch_and_bound_simple_clustering(f1.get_component(0), f2.get_component(0), VERBOSE);
 					if (distance <= best_distance) {
 							best_distance = distance;
 					}
@@ -1968,7 +1993,8 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	for(int i = 0; i < gene_trees.size(); i++) {
 		Forest f1 = Forest(T1);
 		Forest f2 = Forest(gene_trees[i]);
-		sync_twins(&f1, &f2);
+		if (!sync_twins(&f1, &f2))
+			continue;
 		int size = f2.get_component(0)->size();
 		int best_distance = INT_MAX;
 		for(int j = 0; j < size-2; j++) {
