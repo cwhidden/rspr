@@ -266,6 +266,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-lca") == 0) {
 			LCA_TEST = true;
 		}
+		else if (strcmp(arg, "-find_rate") == 0) {
+			FIND_RATE = true;
+		}
 /*
 		else if (strcmp(arg, "-cluster") == 0) {
 			CLUSTER_REDUCTION = true;
