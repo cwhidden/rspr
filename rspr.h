@@ -62,6 +62,9 @@ int rSPR_3_approx(Forest *T1, Forest *T2);
 int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
 int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync);
 int rSPR_worse_3_approx(Forest *T1, Forest *T2);
+int rSPR_worse_3_approx_binary_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
+int rSPR_worse_3_approx_binary(Forest *T1, Forest *T2, bool sync);
+int rSPR_worse_3_approx_binary(Forest *T1, Forest *T2);
 int rSPR_branch_and_bound(Forest *T1, Forest *T2);
 int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k);
 int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int end_k);
@@ -318,11 +321,15 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		}
 		return num_cut;
 }
+/*******************************************************************************
+	RSPR WORSE_3_APPROX
+*******************************************************************************/
 
 /* rSPR_worse_3_approx
  * Calculate an approximate maximum agreement forest and SPR distance
  * RETURN At most 3 times the rSPR distance
  * NOTE: destructive. The computed forests replace T1 and T2.
+ * T1 must be a binary tree. T2 can be a multifurcating forest.
  */
 int rSPR_worse_3_approx(Forest *T1, Forest *T2) {
 	return rSPR_worse_3_approx(T1, T2, true);
@@ -334,6 +341,8 @@ int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync) {
 		if (!sync_twins(T1, T2))
 			return 0;
 	}
+	cout << "T1: "; T1->print_components();
+	cout << "T1: "; T2->print_components();
 	// find sibling pairs of T1
 	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
 	// find singletons of T2
@@ -360,6 +369,377 @@ int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync) {
 int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests) {
 	#ifdef DEBUG_APPROX
 		cout << "rSPR_worse_3_approx_hlpr" << endl;
+					cout << "\tT1: ";
+					T1->print_components_with_twins();
+					cout << "\tT2: ";
+					T2->print_components_with_twins();
+					cout << "sibling pairs:";
+					for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+						cout << "  ";
+						(*i)->print_subtree_hlpr();
+					}
+					cout << endl;
+	#endif
+	int num_cut = 0;
+	UndoMachine um = UndoMachine();
+	while(!singletons->empty() || !sibling_pairs->empty()) {
+		// Case 1 - Remove singletons
+		while(!singletons->empty()) {
+			#ifdef DEBUG_APPROX
+				cout << "Case 1" << endl;
+			#endif
+
+			Node *T2_a = singletons->back();
+			singletons->pop_back();
+			// find twin in T1
+			Node *T1_a = T2_a->get_twin();
+			// if this is in the first component of T_2 then
+			// it is not really a singleton.
+	// TODO: problem when we cluster and have a singleton as the
+	//		first comp of T2
+	//    NEED TO MODIFY CUTTING?
+	// 		HERE AND IN BB?
+			if (T2_a == T2->get_component(0))
+				continue;
+
+			Node *T1_a_parent = T1_a->parent();
+			if (T1_a_parent == NULL)
+				continue;
+			bool potential_new_sibling_pair = T1_a_parent->is_sibling_pair();
+			// cut the edge above T1_a
+			um.add_event(new CutParent(T1_a));
+			T1_a->cut_parent();
+			um.add_event(new AddComponent(T1));
+			T1->add_component(T1_a);
+			//if (T1_a->get_sibling_pair_status() > 0)
+			//	T1_a->clear_sibling_pair(sibling_pairs);
+			//delete(T1_a);
+
+			ContractEvent(&um, T1_a_parent);
+			Node *node = T1_a_parent->contract();
+			if (potential_new_sibling_pair && node->is_sibling_pair()){
+				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
+				sibling_pairs->push_front(node->rchild());
+				sibling_pairs->push_front(node->lchild());
+			}
+
+	#ifdef DEBUG_APPROX
+					cout << "\tT1: ";
+					T1->print_components();
+					cout << "\tT2: ";
+					T2->print_components();
+	#endif
+		}
+		if(!sibling_pairs->empty()) {
+			Node *T1_a = sibling_pairs->back();
+			sibling_pairs->pop_back();
+			Node *T1_c = sibling_pairs->back();
+			sibling_pairs->pop_back();
+			um.add_event(new PopSiblingPair(T1_a, T1_c, sibling_pairs));
+
+			//if (T1_a->get_sibling_pair_status() == 0 ||
+			//		T1_c->get_sibling_pair_status() == 0) {
+			//	continue;
+			//}
+
+			//T1_a->clear_sibling_pair_status();
+			//T1_c->clear_sibling_pair_status();
+			if (T1_a->parent() == NULL || T1_c->parent() == NULL || T1_a->parent() != T1_c->parent()) {
+				continue;
+			}
+			Node *T1_ac = T1_a->parent();
+			// lookup in T2 and determine the case
+			Node *T2_a = T1_a->get_twin();
+			Node *T2_c = T1_c->get_twin();
+
+			#ifdef DEBUG_APPROX
+				cout << "Fetching sibling pair" << endl;
+				T1_ac->print_subtree();
+				cout << "T2_a" << ": ";
+				cout << " d=" << T2_a->get_depth() << " ";
+				T2_a->print_subtree();
+				cout << "T1_c" << ": ";
+				T1_c->print_subtree();
+				cout << "T2_c" << ": ";
+				cout << " d=" << T2_c->get_depth() << " ";
+				T2_c->print_subtree();
+			#endif
+
+			// Case 2 - Contract identical sibling pair
+			if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent()) {
+				#ifdef DEBUG_APPROX
+					cout << "Case 2" << endl;
+					T1->print_components();
+					T2->print_components();
+				#endif
+				Node *T2_ac = T2_a->parent();
+				um.add_event(new ContractSiblingPair(T1_ac));
+				T1_ac->contract_sibling_pair_undoable();
+				um.add_event(new ContractSiblingPair(T2_ac, T2_a, T2_c, &um));
+				Node *T2_ac_new = T2_ac->contract_sibling_pair_undoable(T2_a, T2_c);
+				if (T2_ac_new != NULL && T2_ac_new != T2_ac) {
+					T2_ac = T2_ac_new;
+					um.add_event(new CreateNode(T2_ac));
+					um.add_event(new ContractSiblingPair(T2_ac));
+					T2_ac->contract_sibling_pair_undoable();
+				}
+				um.add_event(new SetTwin(T1_ac));
+				um.add_event(new SetTwin(T2_ac));
+				T1_ac->set_twin(T2_ac);
+				T2_ac->set_twin(T1_ac);
+				//T2_ac->fix_contracted_order();
+				//T1->add_deleted_node(T1_a);
+				//T1->add_deleted_node(T1_c);
+				//T2->add_deleted_node(T2_a);
+				//T2->add_deleted_node(T2_c);
+
+				// check if T2_ac is a singleton
+				if (T2_ac->is_singleton() && !T1_ac->is_singleton() && T2_ac != T2->get_component(0))
+					singletons->push_back(T2_ac);
+				// check if T1_ac is part of a sibling pair
+				if (T1_ac->parent() != NULL && T1_ac->parent()->is_sibling_pair()) {
+					um.add_event(new AddToSiblingPairs(sibling_pairs));
+					sibling_pairs->push_back(T1_ac->parent()->lchild());
+					sibling_pairs->push_back(T1_ac->parent()->rchild());
+				}
+			}
+			// Case 3
+			else {
+				#ifdef DEBUG_APPROX
+					cout << "Case 3" << endl;
+				#endif
+				
+				//  ensure T2_a is below T2_c
+				if ((T2_a->get_depth() < T2_c->get_depth()
+						&& T2_c->parent() != NULL)
+						|| T2_a->parent() == NULL) {
+					#ifdef DEBUG_APPROX
+						cout << "swapping" << endl;
+					#endif
+				
+					swap(&T1_a, &T1_c);
+					swap(&T2_a, &T2_c);
+
+				}
+				else if (T2_a->get_depth() == T2_c->get_depth()) {
+					if (T2_a->parent() && T2_c->parent() &&
+							(T2_a->parent()->get_depth() <
+							T2_c->parent()->get_depth())) {
+					swap(&T1_a, &T1_c);
+					swap(&T2_a, &T2_c);
+					}
+				}
+
+				// get T2_b
+				Node *T2_ab = T2_a->parent();
+				Node *T2_b = T2_ab->rchild();
+				if (T2_b == T2_a)
+					T2_b = T2_ab->lchild();
+
+				#ifdef DEBUG_APPROX
+				cout << "T2_b" << ": ";
+				cout.flush();
+				T2_b->print_subtree();
+			#endif
+				// cut T1_a, T1_c, T2_a, T2_b, T2_c
+
+				bool cut_b_only = false;
+				if (T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()) {
+					cut_b_only = true;
+					um.add_event(new AddToSiblingPairs(sibling_pairs));
+					sibling_pairs->push_back(T1_c);
+					sibling_pairs->push_back(T1_a);
+				}
+
+				Node *node;
+
+				if (!cut_b_only) {
+					um.add_event(new CutParent(T1_a));
+					T1_a->cut_parent();
+
+					ContractEvent(&um, T1_ac);
+					node = T1_ac->contract();
+
+					um.add_event(new CutParent(T1_c));
+					T1_c->cut_parent();
+
+
+					ContractEvent(&um, node);
+					node = node->contract();
+
+					// contract parents
+					// check for T1_ac sibling pair
+					if (node && node->is_sibling_pair()){
+						um.add_event(new AddToSiblingPairs(sibling_pairs));
+						sibling_pairs->push_back(node->lchild());
+						sibling_pairs->push_back(node->rchild());
+					}
+				}
+
+				bool same_component = true;
+				if (APPROX_CHECK_COMPONENT)
+					same_component = (T2_a->find_root() == T2_c->find_root());
+
+				Node *T2_ab_parent = T2_ab->parent();
+				node = T2_ab;
+				if (!cut_b_only) {
+					um.add_event(new CutParent(T2_a));
+					T2_a->cut_parent();
+
+					//ContractEvent(&um, T2_ab);
+					//node = T2_ab->contract();
+				}
+				bool cut_b = false;
+				if (same_component && T2_ab_parent != NULL) {
+					um.add_event(new CutParent(T2_b));
+					T2_b->cut_parent();
+					//ContractEvent(&um, node);
+					//node = node->contract();
+					cut_b = true;
+				}
+				// T2_b will move up after contraction
+				else {
+					T2_b = T2_b->parent();
+				}
+					ContractEvent(&um, node);
+					node = node->contract();
+				// check for T2 parents as singletons
+				if (node != NULL && node->is_singleton()
+						&& node != T2->get_component(0))
+					singletons->push_back(node);
+
+				// if T2_c is gone then its replacement is in singleton list
+				// contract might delete old T2_c, see where it is
+				bool add_T2_c = true;
+				T2_c = T1_c->get_twin();
+				// ignore T2_c if it is a singleton
+				if (T2_c != node && T2_c->parent() != NULL && !cut_b_only) {
+
+					Node *T2_c_parent = T2_c->parent();
+					um.add_event(new CutParent(T2_c));
+					T2_c->cut_parent();
+					ContractEvent(&um, T2_c_parent);
+					node = T2_c_parent->contract();
+					if (node != NULL && node->is_singleton()
+							&& node != T2->get_component(0))
+						singletons->push_back(node);
+				}
+				else {
+					add_T2_c = false;
+				}
+
+				
+				if (!cut_b_only) {
+					um.add_event(new AddComponent(T1));
+					T1->add_component(T1_a);
+					um.add_event(new AddComponent(T1));
+					T1->add_component(T1_c);
+					// put T2 cut parts into T2
+					um.add_event(new AddComponent(T2));
+					T2->add_component(T2_a);
+					// may have already been added
+				}
+				if (cut_b) {
+					um.add_event(new AddComponent(T2));
+					T2->add_component(T2_b);
+				}
+				// problem if c is deleted
+				if (add_T2_c) {
+					um.add_event(new AddComponent(T2));
+					T2->add_component(T2_c);
+				}
+
+				// may have already been added
+				if (T2_b->is_leaf())
+					singletons->push_back(T2_b);
+
+				num_cut+=3;
+
+			}
+		}
+	}
+		// if the first component of the forests differ then we have cut p
+		if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
+			if (!T1->contains_rho()) {
+				um.add_event(new AddRho(T1));
+				um.add_event(new AddRho(T2));
+				T1->add_rho();
+				T2->add_rho();
+			}
+			else
+				// hack to ignore rho when it shouldn't be in a cluster
+				num_cut -=3;
+		}
+		if (save_forests) {
+			*F1 = new Forest(T1);
+			*F2 = new Forest(T2);
+		}
+		 
+
+#ifdef DEBUG_UNDO
+		 while(um.num_events() > 0) {
+				cout << "Undo step " << um.num_events() << endl;
+				cout << "T1: ";
+				T1->print_components();
+				cout << "T2: ";
+				T2->print_components();
+					cout << "sibling pairs:";
+					for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+						cout << "  ";
+						(*i)->print_subtree_hlpr();
+					}
+					cout << endl;
+			 um.undo();
+			cout << endl;
+		 }
+#else
+		 um.undo_all();
+#endif
+
+		 
+//		 for(int i = 0; i < T1->num_components(); i++)
+//		 	T1->get_component(i)->fix_parents();
+//		 for(int i = 0; i < T2->num_components(); i++)
+//		 	T2->get_component(i)->fix_parents();
+		return num_cut;
+}
+
+/*******************************************************************************
+	RSPR WORSE_3_APPROX_BINARY
+*******************************************************************************/
+
+int rSPR_worse_3_approx_binary(Forest *T1, Forest *T2, bool sync) {
+	// match up nodes of T1 and T2
+	if (sync) {
+		if (!sync_twins(T1, T2))
+			return 0;
+	}
+	// find sibling pairs of T1
+	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
+	// find singletons of T2
+	list<Node *> singletons = T2->find_singletons();
+	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
+
+	Forest *F1;
+	Forest *F2;
+
+	int ans = rSPR_worse_3_approx_binary_hlpr(T1, T2, &singletons, sibling_pairs, &F1, &F2, true);
+
+	F1->swap(T1);
+	F2->swap(T2);
+	sync_twins(T1,T2);
+
+
+	delete sibling_pairs;
+	delete F1;
+	delete F2;
+	return ans;
+}
+
+// rSPR_worse_3_approx_binary recursive helper function
+int rSPR_worse_3_approx_binary_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests) {
+	#ifdef DEBUG_APPROX
+		cout << "rSPR_worse_3_approx_binary_hlpr" << endl;
 					cout << "\tT1: ";
 					T1->print_components_with_twins();
 					cout << "\tT2: ";
@@ -688,6 +1068,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 		return num_cut;
 }
 
+
 int rSPR_branch_and_bound(Forest *T1, Forest *T2) {
 	return rSPR_branch_and_bound_range(T1, T2, MAX_SPR);
 }
@@ -935,9 +1316,15 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				Node *T2_ac = T2_a->parent();
 
 				um.add_event(new ContractSiblingPair(T1_ac));
-				um.add_event(new ContractSiblingPair(T2_ac));
 				T1_ac->contract_sibling_pair_undoable();
-				T2_ac->contract_sibling_pair_undoable();
+				um.add_event(new ContractSiblingPair(T2_ac, T2_a, T2_c, &um));
+				Node *T2_ac_new = T2_ac->contract_sibling_pair_undoable(T2_a, T2_c);
+				if (T2_ac_new != NULL && T2_ac_new != T2_ac) {
+					T2_ac = T2_ac_new;
+					um.add_event(new CreateNode(T2_ac));
+					um.add_event(new ContractSiblingPair(T2_ac));
+					T2_ac->contract_sibling_pair_undoable();
+				}
 
 				um.add_event(new SetTwin(T1_ac));
 				um.add_event(new SetTwin(T2_ac));

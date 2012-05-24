@@ -599,6 +599,30 @@ class Node {
 		return false;
 	}
 
+	/* contract_sibling_pair_undoable
+	 * works with multifurcating trees
+	 * returns NULL for no contract, otherwise returns the contracted
+	 * parent of the nodes
+	 */
+	Node *contract_sibling_pair_undoable(Node *child1, Node *child2) {
+
+		if (child1->parent() != this ||
+				child2->parent() != this)
+			return NULL;
+		if (children.size() == 2) {
+			contract_sibling_pair_undoable();
+			return this;
+		}
+		else {
+			Node *new_child = new Node();
+			add_child(new_child);
+			new_child->add_child(child1);
+			new_child->add_child(child2);
+			//new_child->contract_sibling_pair_undoable();
+			return new_child;
+		}
+	}
+
 	// TODO: binary only
 	void undo_contract_sibling_pair() {
 		// hacky, might hide problems
@@ -608,6 +632,14 @@ class Node {
 			add_child(contracted_rc);
 		contracted_lc = NULL;
 		contracted_rc = NULL;
+	}
+
+	void fix_contracted_order() {
+		if (twin != NULL && twin->contracted_lc->twin != contracted_lc) {
+			Node *swap = contracted_lc;
+			contracted_lc = contracted_rc;
+			contracted_rc = swap;
+		}
 	}
 
 

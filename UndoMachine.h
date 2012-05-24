@@ -223,26 +223,44 @@ class PopSiblingPair : public Undoable {
 class ContractSiblingPair : public Undoable {
 	public:
 		Node *node;
-		int lchild_depth;
-		int rchild_depth;
+		int c1_depth;
+		int c2_depth;
+		bool binary_node;
 		ContractSiblingPair(Node *n) {
+			init(n);
+		}
+		ContractSiblingPair(Node *n, Node *child1, Node *child2,
+				UndoMachine *um) {
+			if (n->get_children().size() == 2)
+				init(n);
+			else {
+				um->add_event(new CutParent(child1));
+				um->add_event(new CutParent(child2));
+				binary_node = false;
+			}
+		}
+
+		void init(Node *n) {
 			node = n;
 			if (n->lchild() != NULL)
-				lchild_depth = n->lchild()->get_depth();
+				c1_depth = n->lchild()->get_depth();
 			else
-				lchild_depth = -1;
+				c1_depth = -1;
 			if (n->rchild() != NULL)
-				rchild_depth = n->rchild()->get_depth();
+				c2_depth = n->rchild()->get_depth();
 			else
-				rchild_depth = -1;
+				c2_depth = -1;
+			binary_node = true;
 		}
 
 		void undo() {
-			node->undo_contract_sibling_pair();
-			if (lchild_depth > -1)
-				node->lchild()->set_depth(lchild_depth);
-			if (rchild_depth > -1)
-				node->rchild()->set_depth(rchild_depth);
+			if (binary_node) {
+				node->undo_contract_sibling_pair();
+				if (c1_depth > -1)
+					node->lchild()->set_depth(c1_depth);
+				if (c2_depth > -1)
+					node->rchild()->set_depth(c2_depth);
+			}
 		}
 };
 
@@ -370,6 +388,20 @@ class AddChild : public Undoable {
 				child->cut_parent();
 				child->set_depth(depth);
 			}
+		}
+};
+
+class CreateNode : public Undoable {
+	public:
+		Node *node;
+
+		CreateNode(Node *n) {
+			node = n;
+		}
+
+		void undo() {
+			if (node != NULL)
+				delete node;
 		}
 };
 
