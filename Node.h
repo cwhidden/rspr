@@ -1166,7 +1166,7 @@ void next_rooting() {
 			right_rotate();
 	else
 		return;
-	if (lc->pre_num < rc->pre_num && (lc->pre_num != 1 || rc->pre_num != 2 || !lc->is_leaf()))
+	if (lchild()->pre_num < rchild()->pre_num && (lchild()->pre_num != 1 || rchild()->pre_num != 2 || !lchild()->is_leaf()))
 		next_rooting();
 }
 
