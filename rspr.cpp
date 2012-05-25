@@ -134,6 +134,7 @@ bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool TOTAL = false;
 bool APPROX = false;
+int MULTI_TEST = 0;
 
 string USAGE =
 "rspr, version 1.02\n"
@@ -311,6 +312,14 @@ int main(int argc, char *argv[]) {
 				cout << "MAX_SPR=" << MAX_SPR << endl;
 			}
 		}
+		else if (strcmp(arg, "-multi_test") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					MULTI_TEST = atoi(arg2);
+				cout << "MULTI_TEST=" << MULTI_TEST << endl;
+			}
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -332,6 +341,11 @@ int main(int argc, char *argv[]) {
 	map<string, int> label_map= map<string, int>();
 	map<int, string> reverse_label_map = map<int, string>();
 
+	// set random seed
+	srand(unsigned(time(0)));
+
+
+
 	// Normal operation
 	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL) {
 		string T1_line = "";
@@ -339,6 +353,15 @@ int main(int argc, char *argv[]) {
 		while (getline(cin, T1_line) && getline(cin, T2_line)) {
 			Node *T1 = build_tree(T1_line);
 			Node *T2 = build_tree(T2_line);
+
+			if (MULTI_TEST > 0) {
+				vector<Node *> interior = T2->find_interior();
+				vector<Node *> remove = random_select(interior, MULTI_TEST);
+				vector<Node *>::iterator i;
+				for(i = remove.begin(); i != remove.end(); i++) {
+					(*i)->contract_node();
+				}
+			}
 			// TODO: should we sync here to prune out additional leaves?
 			if (!QUIET) {
 				cout << "T1: ";

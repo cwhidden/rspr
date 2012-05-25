@@ -29,12 +29,12 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 *******************************************************************************/
 
-//#define DEBUG 1
-// #define DEBUG_CONTRACTED
-//#define DEBUG_APPROX 1
+#define DEBUG 1
+#define DEBUG_CONTRACTED
+#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
-// #define DEBUG_UNDO 1
+ #define DEBUG_UNDO 1
 //#define DEBUG_DEPTHS 1
 
 #include <cstdio>
@@ -531,10 +531,17 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				}
 
 				// get T2_b
+				bool multi_node = false;
 				Node *T2_ab = T2_a->parent();
-				Node *T2_b = T2_ab->rchild();
-				if (T2_b == T2_a)
-					T2_b = T2_ab->lchild();
+				Node *T2_b = T2_ab;
+				if (T2_ab->get_children().size() > 2) {
+					multi_node = true;
+				}
+				else {
+					T2_b = T2_ab->rchild();
+					if (T2_b == T2_a)
+						T2_b = T2_ab->lchild();
+				}
 
 				#ifdef DEBUG_APPROX
 				cout << "T2_b" << ": ";
@@ -591,14 +598,29 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				}
 				bool cut_b = false;
 				if (same_component && T2_ab_parent != NULL) {
-					um.add_event(new CutParent(T2_b));
-					T2_b->cut_parent();
-					//ContractEvent(&um, node);
-					//node = node->contract();
+					if (multi_node) {
+						T2_b = T2_ab;
+						um.add_event(new CutParent(T2_ab));
+						T2_ab->cut_parent();
+						if (T2_a->parent() != NULL) {
+							um.add_event(new CutParent(T2_a));
+							T2_a->cut_parent();
+							um.add_event(new AddChild(T2_a));
+							T2_ab_parent->add_child(T2_a);
+						}
+						else
+							node = T2_ab_parent;
+					}
+					else {
+						um.add_event(new CutParent(T2_b));
+						T2_b->cut_parent();
+						//ContractEvent(&um, node);
+						//node = node->contract();
+					}
 					cut_b = true;
 				}
 				// T2_b will move up after contraction
-				else {
+				else if (!multi_node) {
 					T2_b = T2_b->parent();
 				}
 					ContractEvent(&um, node);
@@ -1771,7 +1793,10 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 
 				// get T2_b
+				bool multi_node = false;
 				T2_ab = T2_a->parent();
+				if (T2_ab->get_children().size() > 2)
+					multi_node = true;
 				T2_b = T2_ab->rchild();
 
 				if (T2_b == T2_a)
@@ -1779,17 +1804,43 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 				if (!CUT_AC_SEPARATE_COMPONENTS || T2_a->find_root() == T2_c->find_root()) {
 					// cut T2_b
-					um.add_event(new CutParent(T2_b));
-					T2_b->cut_parent();
-					ContractEvent(&um, T2_ab);
-					node = T2_ab->contract();
+					if (multi_node) {
+						um.add_event(new CutParent(T2_a));
+						T2_a->cut_parent();
+						Node *T2_ab_parent = T2_ab->parent();
+						if (T2_ab_parent != NULL) {
+							um.add_event(new CutParent(T2_ab));
+							T2_ab->cut_parent();
+							um.add_event(new AddChild(T2_a));
+							T2_ab_parent->add_child(T2_a);
+							um.add_event(new AddComponent(T2));
+							T2->add_component(T2_ab);
+						}
+						else {
+							if (T2->get_component(0) == T2_ab) {
+								um.add_event(new AddComponentToFront(T2));
+								T2->add_component(0, T2_a);
+							}
+							else {
+								um.add_event(new AddComponent(T2));
+								T2->add_component(T2_a);
+								singletons->push_back(T2_a);
+							}
+						}
+					}
+					else {
+						um.add_event(new CutParent(T2_b));
+						T2_b->cut_parent();
+						ContractEvent(&um, T2_ab);
+						node = T2_ab->contract();
 					if (node != NULL && node->is_singleton()
 							&& node != T2->get_component(0))
-						singletons->push_back(node);
-					T2->add_component(T2_b);
-					um.add_event(new AddComponent(T2));
-					if (T2_b->is_leaf())
-						singletons->push_back(T2_b);
+							singletons->push_back(node);
+						um.add_event(new AddComponent(T2));
+						T2->add_component(T2_b);
+						if (T2_b->is_leaf())
+							singletons->push_back(T2_b);
+					}
 					um.add_event(new AddToSiblingPairs(sibling_pairs));
 
 					// TODO: check carefully

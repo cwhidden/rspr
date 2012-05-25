@@ -114,8 +114,17 @@ class AddComponent : public Undoable {
 	}
 };
 
-// TODO: this needs to be fixed with the removal of set_parent
-// TODO: this needs to be fixed with the removal of set_xchild
+class AddComponentToFront : public Undoable {
+	public:
+	Forest *F;
+	AddComponentToFront(Forest *f) {
+		F = f;
+	}
+	void undo() {
+		F->erase_components(0,1);
+	}
+};
+
 // TODO: use new insert_child function with a stored successor sibling
 // does the end work? maybe a seperate variable for that?
 class CutParent : public Undoable {
@@ -132,7 +141,7 @@ class CutParent : public Undoable {
 		if (parent != NULL) {
 			if (parent->lchild() == child)
 				branch = 1;
-			else if (parent->rchild() == child)
+			else
 				branch = 2;
 		}
 	}

@@ -661,6 +661,28 @@ class Node {
 		}
 	}
 
+	// caution: destructive
+	void contract_node() {
+		if (p == NULL || is_leaf())
+			return;
+		list<Node *>::iterator c = children.begin();
+		while(c!= children.end()) {
+			Node *n = *c;
+			c++;
+			p->add_child(n);
+		}
+
+#ifdef COPY_CONTRACTED
+		if (contracted_lc != NULL) {
+			p->add_child(contracted_lc);
+		}
+		if (contracted_rc != NULL) {
+			p->add_child(contracted_rc);
+		}
+#endif
+		delete this;
+	}
+
 	Node *parent() {
 		return p;
 	}
@@ -891,6 +913,26 @@ class Node {
 		return leaves;
 	}
 
+	void find_interior_hlpr(vector<Node *> &interior) {
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			if (!(*c)->is_leaf()) {
+				interior.push_back(*c);
+				(*c)->find_interior_hlpr(interior);
+			}
+		}
+
+	}
+	
+	// find the interior nodes in this node's subtree
+	// does not include this node
+	vector<Node *> find_interior() {
+		vector<Node *> interior = vector<Node *>();
+		if (!is_leaf())
+			find_interior_hlpr(interior);
+		return interior;
+	}
+
 	// make twins point to this tree in this node's subtree
 	void resync() {
 		list<Node *>::iterator c;
@@ -1104,6 +1146,17 @@ Node *get_sibling() {
 		else
 			s--;
 		ret = *s;
+	}
+	return ret;
+}
+
+Node *get_right_sibling() {
+	Node *ret = NULL;
+	if (p != NULL && p->children.size() > 1) {
+		list<Node *>::iterator s = p_link;
+		s++;
+		if (s != children.end())
+			ret = *s;
 	}
 	return ret;
 }
@@ -1578,5 +1631,31 @@ string root(string s) {
 //	cout << r << endl;
 	return r;
 }
+
+template <typename T> vector<T> &random_select(vector <T> &V, int n) {
+	vector<T> *ret = new vector<T>;
+	int end = V.size();
+	for(int i = 0; i < n; i++) {
+		int x = rand() % end;
+		ret->push_back(V[x]);
+		V[x] = V[end-1];
+		// Is it better to remove them or leave them?
+		V.pop_back();
+		end--;
+	}
+	return *ret;
+}
+
+template <typename T> void print_vector(vector <T> V) {
+	int end = V.size();
+	for(int i = 0; i < end; i++) {
+		if (i > 0)
+			cout << ",";
+		cout << V[i];
+	}
+	cout << endl;
+}
+
+
 
 #endif
