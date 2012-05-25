@@ -29,12 +29,12 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 *******************************************************************************/
 
-#define DEBUG 1
-#define DEBUG_CONTRACTED
-#define DEBUG_APPROX 1
+//#define DEBUG 1
+//#define DEBUG_CONTRACTED
+//#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
- #define DEBUG_UNDO 1
+// #define DEBUG_UNDO 1
 //#define DEBUG_DEPTHS 1
 
 #include <cstdio>
@@ -341,8 +341,8 @@ int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync) {
 		if (!sync_twins(T1, T2))
 			return 0;
 	}
-	cout << "T1: "; T1->print_components();
-	cout << "T1: "; T2->print_components();
+//	cout << "T1: "; T1->print_components();
+//	cout << "T2: "; T2->print_components();
 	// find sibling pairs of T1
 	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
 	// find singletons of T2

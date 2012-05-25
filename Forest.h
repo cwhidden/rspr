@@ -627,19 +627,17 @@ void sync_interior_twins_real(Forest *T1, Forest *F2) {
  * assumes that sync_twins has already been called
  */
 void sync_interior_twins(Node *n, LCA *twin_LCA) {
-	Node *lc = n->lchild();
-	Node *rc = n->rchild();
-	if (lc != NULL)
-		sync_interior_twins(lc, twin_LCA);
-	if (rc != NULL)
-		sync_interior_twins(rc, twin_LCA);
-	if (lc == NULL && rc != NULL)
-		n->set_twin(rc->get_twin());
-	else if (lc != NULL && rc == NULL)
-		n->set_twin(lc->get_twin());
-	else if (lc != NULL && rc != NULL) {
-		Node *twin = twin_LCA->get_lca(lc->get_twin(), rc->get_twin());
+	list<Node *>::iterator c = n->get_children().begin();
+	if (c == n->get_children().end())
+		return;
+	sync_interior_twins(*c, twin_LCA);
+	n->set_twin((*c)->get_twin());
+	c++;
+	while(c != n->get_children().end()) {
+		sync_interior_twins(*c, twin_LCA);
+		Node *twin = twin_LCA->get_lca(n->get_twin(), (*c)->get_twin());
 		n->set_twin(twin);
+		c++;
 	}
 }
 
@@ -942,12 +940,10 @@ list<Node *> *find_cluster_points(Forest *F) {
 // find the cluster points
 void find_cluster_points(Node *n, list<Node *> *cluster_points) {
 	//cout << "Start: " << n->str_subtree() << endl;
-	Node *lc = n->lchild();
-	Node *rc = n->rchild();
-	if (lc != NULL)
-		find_cluster_points(lc, cluster_points);
-	if (rc != NULL)
-		find_cluster_points(rc, cluster_points);
+	list<Node *>::iterator c;
+	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+		find_cluster_points(*c, cluster_points);
+	}
 	/*
 	cout << "here" << endl;
 	cout << "n= " << n->str_subtree() << endl;
@@ -977,15 +973,23 @@ void find_cluster_points(Node *n, list<Node *> *cluster_points) {
 		}
 	}
 	*/
-	if (n->get_twin() != NULL
-			&& n->parent() != NULL
-			&& lc != NULL
-			&& rc != NULL
-			&& n->get_depth() <= n->get_twin()->get_twin()->get_depth()
-			&& (lc->get_twin() == NULL
-				|| lc->get_depth() > lc->get_twin()->get_twin()->get_depth()
-				|| rc->get_twin() == NULL
-				|| rc->get_depth() > rc->get_twin()->get_twin()->get_depth())) {
+	bool is_cluster = true;
+	int num_clustered_children = 0;
+	if (n->get_twin() == NULL ||
+			n->parent() == NULL ||
+			n->get_children().size() < 2 ||
+			n->get_depth() > n->get_twin()->get_twin()->get_depth())
+		is_cluster = false;
+	else {
+		for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+			if ((*c)->get_twin() != NULL &&
+					(*c)->get_depth() <= (*c)->get_twin()->get_twin()->get_depth())
+			num_clustered_children++;
+		}
+		if (num_clustered_children == n->get_children().size())
+			is_cluster = false;
+	}
+	if (is_cluster) {
 //		cout << "added cluster_point" << endl;
 		cluster_points->push_back(n);
 	}

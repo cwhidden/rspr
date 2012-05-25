@@ -444,19 +444,19 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 		else {
 
 			// dead component or singleton, will be cleaned up by the forest
-			if (lc == NULL && rc == NULL) {
+			if (n->get_children().empty()) {
 				um->add_event(new ChangeName(n));
 			}
-			else if ((bool)lc xor (bool)rc) {
-				child = lc;
-				if (rc == NULL) {
-					um->add_event(new ChangeRightChild(n));
-					child = lc;
-				}
-				else {
-					um->add_event(new ChangeLeftChild(n));
-					child = rc;
-				}
+			else if (n->get_children().size() == 1) {
+				child = n->get_children().front();
+//				if (rc == NULL) {
+//					um->add_event(new ChangeRightChild(n));
+//					child = lc;
+//				}
+//				else {
+//					um->add_event(new ChangeLeftChild(n));
+//					child = rc;
+//				}
 				um->add_event(new CutParent(child));
 				/* cluster hack - if we delete a cluster node then
 				 * we may try to use it later. This only happens once
@@ -476,8 +476,10 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 					Node *new_lc = child->lchild();
 					Node *new_rc = child->rchild();
 					if (child->is_leaf()) {
-						um->add_event(new SetTwin(n));
-						um->add_event(new SetTwin(child->get_twin()));
+						if (child->get_twin != NULL) {
+							um->add_event(new SetTwin(n));
+							um->add_event(new SetTwin(child->get_twin()));
+						}
 						um->add_event(new ChangeName(n));
 					}
 					//um->add_event(new CutParent(n));

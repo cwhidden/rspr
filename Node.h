@@ -486,10 +486,10 @@ class Node {
 			}
 			else if (children.empty()) {
 				cut_parent();
+				ret = parent->contract(remove);
 				if (remove)
 					delete this;
 				//this->fake_delete();
-				ret = parent->contract(remove);
 			}
 
 		}
