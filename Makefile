@@ -48,3 +48,6 @@ w64:
 omp:
 	$(CC) $(CFLAGS) $(OMPFLAGS) -o rspr-omp rspr.cpp
 	$(CC) $(CFLAGS) $(OMPFLAGS) -o spr_supertree-omp spr_supertree.cpp
+omp-debug:
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(OMPFLAGS) -o rspr-omp rspr.cpp
+	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(OMPFLAGS) -o spr_supertree-omp spr_supertree.cpp

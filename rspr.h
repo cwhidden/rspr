@@ -1833,9 +1833,9 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 						T2_b->cut_parent();
 						ContractEvent(&um, T2_ab);
 						node = T2_ab->contract();
-					if (node != NULL && node->is_singleton()
-							&& node != T2->get_component(0))
-							singletons->push_back(node);
+						if (node != NULL && node->is_singleton()
+								&& node != T2->get_component(0))
+								singletons->push_back(node);
 						um.add_event(new AddComponent(T2));
 						T2->add_component(T2_b);
 						if (T2_b->is_leaf())
@@ -1950,7 +1950,25 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		}
 	}
 
-	um.undo_all();
+#ifdef DEBUG_UNDO
+		 while(um.num_events() > 0) {
+				cout << "Undo step " << um.num_events() << endl;
+				cout << "T1: ";
+				T1->print_components();
+				cout << "T2: ";
+				T2->print_components();
+					cout << "sibling pairs:";
+					for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+						cout << "  ";
+						(*i)->print_subtree_hlpr();
+					}
+					cout << endl;
+			 um.undo();
+			cout << endl;
+		 }
+#else
+		 um.undo_all();
+#endif
 
 	return k;
 }

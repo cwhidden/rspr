@@ -204,6 +204,10 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 	map<int, string> reverse_label_map;
 
 int main(int argc, char *argv[]) {
+
+	// ignore multifurcating trees by default
+	IGNORE_MULTI = true;
+
 	int max_args = argc-1;
 	while (argc > 1) {
 		char *arg = argv[--argc];
@@ -320,6 +324,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-multi_trees") == 0) {
 			MULTI_TREES=true;
 		}
+		else if (strcmp(arg, "-allow_multi") == 0) {
+			IGNORE_MULTI = false;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -335,8 +342,6 @@ int main(int argc, char *argv[]) {
 		BB=true;
 	}
 
-	// ignore multifurcating trees
-	IGNORE_MULTI = true;
 
 
 	// initialize random number generator

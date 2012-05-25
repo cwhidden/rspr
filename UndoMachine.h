@@ -476,18 +476,19 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 					Node *new_lc = child->lchild();
 					Node *new_rc = child->rchild();
 					if (child->is_leaf()) {
-						if (child->get_twin != NULL) {
+						if (child->get_twin() != NULL) {
 							um->add_event(new SetTwin(n));
 							um->add_event(new SetTwin(child->get_twin()));
 						}
 						um->add_event(new ChangeName(n));
 					}
 					//um->add_event(new CutParent(n));
-					if (new_lc != NULL) {
-						um->add_event(new CutParent(new_lc));
+					list<Node *>::iterator c;
+					for(c = child->get_children().begin();
+							c != child->get_children().end();
+							c++) {
+						um->add_event(new CutParent(*c));
 					}
-					if (new_rc != NULL)
-						um->add_event(new CutParent(new_rc));
 				}
 			}
 		}
