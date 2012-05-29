@@ -414,6 +414,20 @@ class CreateNode : public Undoable {
 		}
 };
 
+class ProtectEdge : public Undoable {
+	public:
+		Node *node;
+
+		ProtectEdge(Node *n) {
+			node = n;
+		}
+
+		void undo() {
+			if (node != NULL)
+				node->unprotect_edge();
+		}
+};
+
 void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 		bookmark) {
 		Node *parent = n->parent();

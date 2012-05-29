@@ -80,6 +80,7 @@ class Node {
 	Node *contracted_lc;
 	Node *contracted_rc;
 	bool is_contracted;
+	bool edge_protected;
 
 	public:
 	Node() {
@@ -113,6 +114,7 @@ class Node {
 		this->contracted_lc = NULL;
 		this->contracted_rc = NULL;
 		this->is_contracted = false;
+		this->edge_protected = false;
 		if (lc != NULL)
 			add_child(lc);
 		if (rc != NULL)
@@ -155,6 +157,7 @@ class Node {
 		this->contracted_rc = n.contracted_rc;
 		this->is_contracted = n.is_contracted;
 #endif
+		this->edge_protected = n.edge_protected;
 	}
 
 	Node(const Node &n, Node *parent) {
@@ -195,6 +198,7 @@ class Node {
 		this->contracted_rc = n.contracted_rc;
 		this->is_contracted = n.is_contracted;
 #endif
+		this->edge_protected = n.edge_protected;
 	}
 	// TODO: clear_parent function
 	~Node() {
@@ -376,6 +380,18 @@ class Node {
 	}
 	list<Node *>& get_children() {
 		return children;
+	}
+
+	bool is_protected() {
+		return edge_protected;
+	}
+
+	void protect_edge() {
+		edge_protected = true;
+	}
+
+	void unprotect_edge() {
+		edge_protected = false;
 	}
 
 	int get_component_number() {

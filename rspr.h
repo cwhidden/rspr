@@ -97,6 +97,8 @@ bool CLAMP = false;
 int MAX_SPR = 1000;
 int MIN_SPR = 0;
 bool FIND_RATE = false;
+bool EDGE_PROTECTION = false;
+bool ABORT_AT_FIRST_SOLUTION = false;
 
 	class ProblemSolution {
 		public:
@@ -1729,7 +1731,9 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				// cut T2_a
 				Node *T2_ab = T2_a->parent();
 				Node *node;
-				if (cut_b_only == false) {
+//				if (cut_b_only == false && T2_a->is_protected())
+//					cout << "protected k=" << k << endl;
+				if (cut_b_only == false && !T2_a->is_protected()) {
 					um.add_event(new CutParent(T2_a));
 					T2_a->cut_parent();
 					ContractEvent(&um, T2_ab);
@@ -1803,8 +1807,17 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				if (T2_b == T2_a)
 					T2_b = T2_ab->lchild();
 
-				if (!CUT_AC_SEPARATE_COMPONENTS || T2_a->find_root() == T2_c->find_root()) {
-					// cut T2_b
+
+//				if ((!CUT_AC_SEPARATE_COMPONENTS ||
+//							T2_a->find_root() == T2_c->find_root())
+//						&& (!multi_node && T2_b->is_protected()))
+//					cout << "protected k=" << k << endl;
+
+				// cut T2_b
+				if ((!CUT_AC_SEPARATE_COMPONENTS ||
+							T2_a->find_root() == T2_c->find_root())
+						&& (multi_node || !T2_b->is_protected())
+						&& (!ABORT_AT_FIRST_SOLUTION || best_k < 0)) {
 					if (multi_node) {
 						um.add_event(new CutParent(T2_a));
 						T2_a->cut_parent();
@@ -1889,6 +1902,10 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				sibling_pairs = sibling_pairs_copy;
 				singletons = new list<Node *>();
 				*/
+//				if (T2_c->is_protected())
+//					cout << "protected k=" << k << endl;
+				if ((!T2_c->is_protected()) &&
+				(!ABORT_AT_FIRST_SOLUTION || best_k < 0)) {
 
 					if (T2_c->parent() != NULL) {
 						Node *T2_c_parent = T2_c->parent();
@@ -1906,20 +1923,26 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 						// don't decrease k
 						k++;
 					}
-				if (cut_b_only == false && cut_ab_only == false) {
-					singletons->push_back(T2_c);
-					answer_c =
-						rSPR_branch_and_bound_hlpr(T1, T2, k-1,
-								sibling_pairs, singletons, false, AFs);
-				if (answer_c > best_k
-						|| (answer_c == best_k
-							&& PREFER_RHO
-							&& T2->contains_rho() )) {
-					best_k = answer_c;
-					//swap(&best_T1, &T1);
-					//swap(&best_T2, &T2);
+					if (EDGE_PROTECTION) {
+						um.add_event(new ProtectEdge(T2_a));
+						T2_a->protect_edge();
+					}
+					if (cut_b_only == false && cut_ab_only == false) {
+						singletons->push_back(T2_c);
+						answer_c =
+							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
+									sibling_pairs, singletons, false, AFs);
+						if (answer_c > best_k
+									|| (answer_c == best_k
+									&& PREFER_RHO
+									&& T2->contains_rho() )) {
+							best_k = answer_c;
+							//swap(&best_T1, &T1);
+							//swap(&best_T2, &T2);
+						}
+					}
 				}
-				}
+//				}
 				/*
 				delete T1;
 				delete T2;
@@ -2355,6 +2378,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2) {
 
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
+	MAIN_CALL = false;
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)
 //	for(int j = 0; j < 10; j++)
 //	cout << "T1: " << T1->str_subtree() << endl;
@@ -2384,6 +2408,7 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	//cout << "rSPR_total_distance_unrooted" << endl;
 	int total = 0;
+	MAIN_CALL = false;
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO) firstprivate(MAX_SPR) firstprivate(MIN_SPR)
 	for(int i = 0; i < gene_trees.size(); i++) {
 		//cout << "T1: " << T1->str_subtree() << endl;
@@ -2493,6 +2518,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 
 int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
+	MAIN_CALL = false;
 	#pragma omp parallel for reduction(+ : total)
 	for(int i = 0; i < gene_trees.size(); i++) {
 		Forest f1 = Forest(T1);
@@ -2521,6 +2547,7 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
+	MAIN_CALL = false;
 	#pragma omp parallel for reduction(+ : total)
 	for(int i = 0; i < gene_trees.size(); i++) {
 		Forest F1 = Forest(T1);

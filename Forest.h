@@ -645,44 +645,38 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 	Node *lc = n->lchild();
 	Node *rc = n->rchild();
 	list<Node *> *active_descendants = n->get_active_descendants();
-	// visit left subtree first
-	if (lc != NULL)
-		sync_interior_twins(lc, F2_LCAs);
-	// visit right subtree first
-	if (rc != NULL)
-		sync_interior_twins(rc, F2_LCAs);
+	// visit children first
+	list<Node *>::iterator c;
+	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+		sync_interior_twins(*c, F2_LCAs);
+	}
 	#ifdef DEBUG_SYNC
 	cout << "SYNC_INTERIOR_TWINS()" << endl;
 	cout << n->str_subtree() << endl;
 	#endif
-	if (lc == NULL && rc == NULL) {
+	if (n->get_children().size() == 0) {
 //		cout << "leaf" << endl;
 		active_descendants->push_back(n->get_twin());
 		list<Node *>::iterator node_location = active_descendants->end();
 		node_location--;
 			n->get_twin()->get_removable_descendants()->push_back(node_location);
 	}
-	// no lc so propogate up
-	if (lc == NULL && rc != NULL) {
-//		cout << "no lc" << endl;
-		n->set_twin(rc->get_twin());
-		list<Node *> *rc_active_descendants = rc->get_active_descendants();
-		active_descendants->splice(active_descendants->end(),*rc_active_descendants);
-	}
 	// no rc so propogate up
-	if (lc != NULL && rc == NULL) {
+	if (n->get_children().size() == 1) {
+		Node *lc = n->get_children().front();
 //		cout << "no rc" << endl;
 		n->set_twin(lc->get_twin());
 		list<Node *> *lc_active_descendants = lc->get_active_descendants();
 		active_descendants->splice(active_descendants->end(),*lc_active_descendants);
 	}
+	// TODO: generalize from here for 2 or more children
 	// two children so put their info together
 	else if (lc != NULL && rc != NULL) {
 //		cout << "two children" << endl;
 		list<Node *> *lc_active_descendants = lc->get_active_descendants();
 		list<Node *> *rc_active_descendants = rc->get_active_descendants();
 
-	#ifdef DEBUG_SYNC
+/*	#ifdef DEBUG_SYNC
 	cout << "active_descendants lc" << endl;
 	for(list<Node *>::iterator i =  lc_active_descendants-> begin(); i != lc_active_descendants->end(); i++) {
 		cout << "\t" << (*i)->str_subtree() << endl;
@@ -694,28 +688,41 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 	}
 		cout << endl;
 	#endif
+*/
 
-		bool done = false;
-		if (lc_active_descendants->empty() || rc_active_descendants->empty())
-			done = true;
+		vector<list<Node *>::iterator> node_location =
+				vector<list<Node *>::iterator>();
+		list<Node *>::iterator node1_location;
+		int nonempty_active_descendants_count = 0;
+		for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+			if (!(*c)->get_active_descendants()->empty()) {
+				nonempty_active_descendants_count++;
+				if (nonempty_active_descendants_count > 1) {
+					node1_location = active_descendants->end();
+					node1_location--;
+					node_location.push_back(node1_location);
+				}
 //		cout << active_descendants->size() << endl;
-		active_descendants->splice(active_descendants->end(),*lc_active_descendants);
+				active_descendants->splice(active_descendants->end(),
+						*((*c)->get_active_descendants()));
 //		cout << active_descendants->size() << endl;
-		list<Node *>::iterator node1_location = active_descendants->end();
-		node1_location--;
-		list<Node *>::iterator node2_location = node1_location;
-		active_descendants->splice(active_descendants->end(),*rc_active_descendants);
-		node2_location++;
-		/* check the intersection point to see if we have two
+			}
+		}
+
+		/* check the intersection points to see if we have two
 			leaves from the same component
 		*/
 //		cout << "foo" << endl;
 		#ifdef DEBUG_SYNC
 		cout << active_descendants->size() << endl;
 		#endif
-		if (!done)
+		for(int i = 0; i < node_location.size(); i++) {
+			list<Node *>::iterator node1_location = node_location[i];
+			list<Node *>::iterator node2_location = node1_location;
+			node2_location++;
 			delete_and_merge_LCAs(active_descendants, F2_LCAs, node1_location,
 					node2_location);
+		}
 		#ifdef DEBUG_SYNC
 		cout << "done first merge" << endl;
 		#endif
