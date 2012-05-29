@@ -345,7 +345,6 @@ int main(int argc, char *argv[]) {
 	srand(unsigned(time(0)));
 
 
-
 	// Normal operation
 	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL) {
 		string T1_line = "";

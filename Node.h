@@ -491,6 +491,8 @@ class Node {
 					delete this;
 				//this->fake_delete();
 			}
+			else
+				ret = this;
 
 		}
 		// if no parent then take children of single child and remove it
@@ -933,6 +935,26 @@ class Node {
 		return interior;
 	}
 
+	void find_descendants_hlpr(vector<Node *> &descendants) {
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+				descendants.push_back(*c);
+			if (!(*c)->is_leaf()) {
+				(*c)->find_descendants_hlpr(descendants);
+			}
+		}
+
+	}
+	
+	// find the descendants nodes in this node's subtree
+	// does not include this node
+	vector<Node *> find_descendants() {
+		vector<Node *> descendants = vector<Node *>();
+		if (!is_leaf())
+			find_descendants_hlpr(descendants);
+		return descendants;
+	}
+
 	// make twins point to this tree in this node's subtree
 	void resync() {
 		list<Node *>::iterator c;
@@ -1254,6 +1276,37 @@ void next_rooting() {
 	if (lchild()->pre_num < rchild()->pre_num && (lchild()->pre_num != 1 || rchild()->pre_num != 2 || !lchild()->is_leaf()))
 		next_rooting();
 }
+
+/* reroot
+ * rerooots the tree between new_lc and its parent. Maintains this
+ * Node as the root
+ * assumes that new_lc is a descendant of this Node
+ * assumes this node is the root and has two children
+ * other nodes may be multifurcating
+*/
+void reroot(Node *new_lc) {
+	Node *new_rc = new_lc->parent();
+	if (new_rc == this || new_rc == NULL)
+		return;
+	Node *prev = new_rc;
+	Node *next = new_rc->parent();
+	Node *old_lc = lchild();
+	Node *old_rc_rc = rchild();
+	new_lc->cut_parent();
+	new_rc->cut_parent();
+	while(next != NULL) {
+		Node *current = next;
+		next = current->parent();
+		prev->add_child(current);
+		prev = current;
+	}
+	Node *root = prev;
+	root->parent()->add_child(root->lchild());
+	root->cut_parent();
+	root->add_child(new_lc);
+	root->add_child(new_rc);
+}
+
 
 Node *expand_parent_edge(Node *n) {
 	if (p != NULL) {

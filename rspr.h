@@ -160,7 +160,7 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 			//delete(T1_a);
 
 			Node *node = T1_a_parent->contract();
-			if (potential_new_sibling_pair && node->is_sibling_pair()){
+			if (node != NULL && potential_new_sibling_pair && node->is_sibling_pair()){
 				node->rchild()->add_to_front_sibling_pairs(sibling_pairs, 2);
 				node->lchild()->add_to_front_sibling_pairs(sibling_pairs, 1);
 			}
@@ -239,7 +239,7 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 					// contract parents
 					Node *node = T1_ac->contract();
 					// check for T1_ac sibling pair
-					if (node && node->is_sibling_pair()){
+					if (node != NULL && node && node->is_sibling_pair()){
 						node->lchild()->add_to_sibling_pairs(sibling_pairs,1);
 						node->rchild()->add_to_sibling_pairs(sibling_pairs,2);
 					}
@@ -417,7 +417,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 
 			ContractEvent(&um, T1_a_parent);
 			Node *node = T1_a_parent->contract();
-			if (potential_new_sibling_pair && node->is_sibling_pair()){
+			if (node != NULL && potential_new_sibling_pair &&
+					node->is_sibling_pair()){
 				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
 				sibling_pairs->push_front(node->rchild());
 				sibling_pairs->push_front(node->lchild());
@@ -810,7 +811,7 @@ int rSPR_worse_3_approx_binary_hlpr(Forest *T1, Forest *T2, list<Node *> *single
 
 			ContractEvent(&um, T1_a_parent);
 			Node *node = T1_a_parent->contract();
-			if (potential_new_sibling_pair && node->is_sibling_pair()){
+			if (node != NULL && potential_new_sibling_pair && node->is_sibling_pair()){
 				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
 				sibling_pairs->push_front(node->rchild());
 				sibling_pairs->push_front(node->lchild());
@@ -1287,7 +1288,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 			Node *node = T1_a_parent->contract();
 
-			if (potential_new_sibling_pair && node->is_sibling_pair()){
+			if (node != NULL && potential_new_sibling_pair && node->is_sibling_pair()){
 				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
 				sibling_pairs->push_front(node->rchild());
 				sibling_pairs->push_front(node->lchild());
@@ -1558,7 +1559,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				T1_a->cut_parent();
 				T1->add_component(T1_a);
 				Node *node = T1_a_parent->contract();
-				if (potential_new_sibling_pair && node->is_sibling_pair()){
+				if (node != NULL && potential_new_sibling_pair && node->is_sibling_pair()){
 					sibling_pairs->push_front(node->lchild());
 					sibling_pairs->push_front(node->rchild());
 				}
@@ -2405,11 +2406,17 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 //				cout << k << endl;
 				MIN_SPR=k;
 				MAX_SPR=k;
-				for(int j = 0; j < size-2; j++) {
+				vector<Node *> descendants = 
+					f2.get_component(0)->find_descendants();
+//				Node *original_lc = f2.get_component(0)->lchild();
+				for(int j = 0; j < descendants.size(); j++) {
+//					cout << "J=" << j << endl;
 //					cout << i << "," << k << "," << j << endl;
-					f2.get_component(0)->next_rooting();
-					//f1.print_components();
-					//f2.print_components();
+//					cout << "rooting at: " << descendants[j]->str_subtree() << endl;
+					//f2.get_component(0)->reroot(original_lc);
+					f2.get_component(0)->reroot(descendants[j]);
+//					f2.print_components();
+//					cout << endl;
 	//			cout << T1->str_subtree() << endl;
 	//			cout << gene_trees[i]->str_subtree() << endl;
 					int distance;
@@ -2427,12 +2434,16 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 						break;
 					}
 				}
+				//f2.get_component(0)->reroot(original_lc);
+//				cout << endl;
 			}
 			MAX_SPR=old_max;
 			MIN_SPR=0;
 			if (!done) {
-				for(int j = 0; j < size-2; j++) {
-					f2.get_component(0)->next_rooting();
+				vector<Node *> descendants = 
+					f2.get_component(0)->find_descendants();
+				for(int j = 0; j < descendants.size(); j++) {
+					f2.get_component(0)->reroot(descendants[j]);
 	//				cout << i << "," << j << endl;
 	//				cout << T1->str_subtree() << endl;
 	//				cout << gene_trees[i]->str_subtree() << endl;
@@ -2450,31 +2461,31 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 		}
 		else {
 			int best_approx = INT_MAX;
-			int best_rooting = 0;
+			Node *best_rooting = f2.get_component(0)->lchild();
 			int num_ties = 0;
-			for(int j = 0; j < size-2; j++) {
-				f2.get_component(0)->next_rooting();
+			vector<Node *> descendants = 
+				f2.get_component(0)->find_descendants();
+			for(int j = 0; j < descendants.size(); j++) {
+				f2.get_component(0)->reroot(descendants[j]);
 				Forest F1 = Forest(f1);
 				Forest F2 = Forest(f2);
 				int distance = rSPR_worse_3_approx(&F1, &F2)/3;
 				if (distance < best_approx) {
 					best_approx = distance;
-					best_rooting = j;
+					best_rooting = descendants[j];
 					num_ties = 2;
 				}
 				else if (distance = best_approx) {
 					int r = rand();
 					if (r < RAND_MAX/num_ties) {
 						best_approx = distance;
-						best_rooting = j;
+						best_rooting = descendants[j];
 					}
 					num_ties++;
 				}
 			}
-			for(int j = 0; j <= best_rooting; j++) {
-				f2.get_component(0)->next_rooting();
-			}
-			total += rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+			f2.get_component(0)->reroot(best_rooting);
+			total += rSPR_branch_and_bound_simple_clustering(T1, f2.get_component(0), VERBOSE);
 		}
 	}
 	return total;
@@ -2490,8 +2501,10 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 			continue;
 		int size = f2.get_component(0)->size();
 		int best_distance = INT_MAX;
-		for(int j = 0; j < size-2; j++) {
-			f2.get_component(0)->next_rooting();
+		vector<Node *> descendants = 
+			f2.get_component(0)->find_descendants();
+		for(int j = 0; j < descendants.size(); j++) {
+			f2.get_component(0)->reroot(descendants[j]);
 			Forest F1 = Forest(f1);
 			Forest F2 = Forest(f2);
 
