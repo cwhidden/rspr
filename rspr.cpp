@@ -323,9 +323,21 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-protect_edges") == 0) {
 			EDGE_PROTECTION = true;
+			cout << "EDGE_PROTECTION=" << EDGE_PROTECTION << endl;
+			DEFAULT_OPTIMIZATIONS=false;
 		}
 		else if (strcmp(arg, "-allow_abort") == 0) {
 			ABORT_AT_FIRST_SOLUTION = true;
+			DEFAULT_OPTIMIZATIONS=false;
+		}
+		else if (strcmp(arg, "-preorder_sib_pairs") == 0) {
+			PREORDER_SIBLING_PAIRS = true;
+			NEAR_PREORDER_SIBLING_PAIRS = true;
+			DEFAULT_OPTIMIZATIONS=false;
+		}
+		else if (strcmp(arg, "-near_preorder_sib_pairs") == 0) {
+			NEAR_PREORDER_SIBLING_PAIRS = true;
+			DEFAULT_OPTIMIZATIONS=false;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -338,8 +350,10 @@ int main(int argc, char *argv[]) {
 		CUT_ONE_B = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
-		if (ALL_MAFS == false)
-			ABORT_AT_FIRST_SOLUTION = true;
+//		if (ALL_MAFS == false)
+//			ABORT_AT_FIRST_SOLUTION = true;
+//		PREORDER_SIBLING_PAIRS = true;
+		NEAR_PREORDER_SIBLING_PAIRS = true;
 	}
 	if (DEFAULT_ALGORITHM) {
 		BB=true;
@@ -413,8 +427,8 @@ int main(int argc, char *argv[]) {
 			Forest F4 = Forest(T2);
 
 			if (CLUSTER_TEST) {
-				//int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true, &label_map, &reverse_label_map);
-				int exact_k = rSPR_branch_and_bound_simple_clustering(&F3,&F4,true, &label_map, &reverse_label_map);
+				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true, &label_map, &reverse_label_map);
+				//int exact_k = rSPR_branch_and_bound_simple_clustering(&F3,&F4,true, &label_map, &reverse_label_map);
 
 				T1->delete_tree();
 				T2->delete_tree();

@@ -99,8 +99,9 @@ int MIN_SPR = 0;
 bool FIND_RATE = false;
 bool EDGE_PROTECTION = false;
 bool ABORT_AT_FIRST_SOLUTION = false;
-
-	class ProblemSolution {
+bool PREORDER_SIBLING_PAIRS = false;
+bool NEAR_PREORDER_SIBLING_PAIRS = false;
+class ProblemSolution {
 		public:
 		string T1;
 		string T2;
@@ -434,6 +435,57 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	#endif
 		}
 		if(!sibling_pairs->empty()) {
+			/*
+			if (PREORDER_SIBLING_PAIRS) {
+				T1->get_component(0)->preorder_number();
+				list<Node *>::iterator c;
+				list<Node *>::iterator best_sib = sibling_pairs->end();
+				int best_prenum = INT_MAX;
+				list<Node *>::iterator T1_a_i;
+				list<Node *>::iterator T1_c_i;
+				for(c = sibling_pairs->begin(); c != sibling_pairs->end(); ) {
+						T1_c_i = c;
+						T1_c = *c;
+						c++;
+						T1_a_i = c;
+						T1_a = *c;
+						c++;
+						cout << T1_a->str_subtree() << endl;
+						cout << T1_c->str_subtree() << endl;
+//					if (T1_a->parent() == NULL || T1_a->parent() != T1_c->parent()) {
+//						cout << "invalid" << endl;
+//						sibling_pairs->erase(T1_c_i);
+//						sibling_pairs->erase(T1_a_i);
+//						um.add_event(new PopSiblingPair(T1_a, T1_c, sibling_pairs));
+//						continue;
+//					}
+//					else {
+						//int prenum = T1_a->parent()->get_preorder_number();
+						int prenum = T1_a->get_preorder_number();
+						cout << "prenum=" << prenum << endl;
+						cout << "old_prenum=" << best_prenum << endl;
+						if (prenum < best_prenum) {
+							best_sib = T1_c_i; 
+							best_prenum = prenum;
+						}
+						cout << "new_prenum=" << best_prenum << endl;
+//					}
+				}
+				cout << endl;
+				if (best_prenum == INT_MAX)
+					continue;
+				else {
+					T1_c_i = best_sib;
+					T1_c = *T1_c_i;
+					best_sib++;
+					T1_a_i = best_sib;
+					T1_a = *T1_a_i;
+					sibling_pairs->erase(T1_a_i);
+					sibling_pairs->erase(T1_c_i);
+				}
+			}
+			else {
+			*/
 			Node *T1_a = sibling_pairs->back();
 			sibling_pairs->pop_back();
 			Node *T1_c = sibling_pairs->back();
@@ -443,7 +495,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			//if (T1_a->get_sibling_pair_status() == 0 ||
 			//		T1_c->get_sibling_pair_status() == 0) {
 			//	continue;
-			//}
+//			}
 
 			//T1_a->clear_sibling_pair_status();
 			//T1_c->clear_sibling_pair_status();
@@ -1239,6 +1291,17 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 	UndoMachine um = UndoMachine();
 
+/*		if (PREORDER_SIBLING_PAIRS) {
+				list<Node *> *new_sibling_pairs =	T1->find_sibling_pairs();
+				sibling_pairs->clear();
+				sibling_pairs->splice(sibling_pairs->begin(), *new_sibling_pairs,
+						new_sibling_pairs->begin(),new_sibling_pairs->end());
+				new_sibling_pairs->clear();
+				delete new_sibling_pairs;
+//				sibling_pairs->reverse();
+		}
+		*/
+
 	
 	while(!singletons->empty() || !sibling_pairs->empty()) {
 		// Case 1 - Remove singletons
@@ -1291,9 +1354,32 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			Node *node = T1_a_parent->contract();
 
 			if (node != NULL && potential_new_sibling_pair && node->is_sibling_pair()){
-				um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
-				sibling_pairs->push_front(node->rchild());
-				sibling_pairs->push_front(node->lchild());
+				if (cut_b_only || !NEAR_PREORDER_SIBLING_PAIRS) {
+					if (0 && PREORDER_SIBLING_PAIRS && !sibling_pairs->empty()) {
+						Node *old_c = sibling_pairs->back();
+						sibling_pairs->pop_back();
+						Node *old_a = sibling_pairs->back();
+						sibling_pairs->pop_back();
+						um.add_event(new PopSiblingPair(old_a, old_c, sibling_pairs));
+						um.add_event(new AddToSiblingPairs(sibling_pairs));
+						sibling_pairs->push_back(node->lchild());
+						sibling_pairs->push_back(node->rchild());
+						um.add_event(new AddToSiblingPairs(sibling_pairs));
+						sibling_pairs->push_back(old_a);
+						sibling_pairs->push_back(old_c);
+					}
+					else {
+						um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
+						sibling_pairs->push_front(node->rchild());
+						sibling_pairs->push_front(node->lchild());
+					}
+
+				}
+				else {
+					um.add_event(new AddToSiblingPairs(sibling_pairs));
+					sibling_pairs->push_back(node->lchild());
+					sibling_pairs->push_back(node->rchild());
+				}
 			}
 			#ifdef DEBUG
 				cout << "\tT1: ";
@@ -1303,10 +1389,85 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			#endif
 		}
 		if(!sibling_pairs->empty()) {
-			Node *T1_a = sibling_pairs->back();
-			sibling_pairs->pop_back();
-			Node *T1_c = sibling_pairs->back();
-			sibling_pairs->pop_back();
+			Node *T1_a;
+			Node *T1_c;
+			if (!cut_b_only && PREORDER_SIBLING_PAIRS) {
+				list<Node *> *new_sibling_pairs =	T1->find_sibling_pairs();
+				sibling_pairs->clear();
+				sibling_pairs->splice(sibling_pairs->begin(), *new_sibling_pairs,
+						new_sibling_pairs->begin(),new_sibling_pairs->end());
+				new_sibling_pairs->clear();
+				delete new_sibling_pairs;
+			}
+			
+				/*
+				T1->get_component(0)->preorder_number();
+				list<Node *>::iterator c;
+				list<Node *>::iterator best_sib = sibling_pairs->end();
+				int best_prenum = INT_MAX;
+				list<Node *>::iterator T1_a_i;
+				list<Node *>::iterator T1_c_i;
+				for(c = sibling_pairs->begin(); c != sibling_pairs->end(); ) {
+						T1_c_i = c;
+						T1_c = *c;
+						c++;
+						T1_a_i = c;
+						T1_a = *c;
+						c++;
+//						cout << T1_a->str_subtree() << endl;
+//						cout << T1_c->str_subtree() << endl;
+//					if (T1_a->parent() == NULL || T1_a->parent() != T1_c->parent()) {
+//						cout << "invalid" << endl;
+//						sibling_pairs->erase(T1_c_i);
+//						sibling_pairs->erase(T1_a_i);
+//						um.add_event(new PopSiblingPair(T1_a, T1_c, sibling_pairs));
+//						continue;
+//					}
+//					else {
+						//int prenum = T1_a->parent()->get_preorder_number();
+						int prenum = T1_a->get_preorder_number();
+//						cout << "prenum=" << prenum << endl;
+//						cout << "old_prenum=" << best_prenum << endl;
+						if (prenum < best_prenum) {
+							best_sib = T1_c_i; 
+							best_prenum = prenum;
+						}
+//						cout << "new_prenum=" << best_prenum << endl;
+//					}
+				}
+//				cout << endl;
+				if (best_prenum == INT_MAX)
+					continue;
+				else {
+					T1_c_i = best_sib;
+					T1_c = *T1_c_i;
+					best_sib++;
+					T1_a_i = best_sib;
+					T1_a = *T1_a_i;
+					sibling_pairs->erase(T1_a_i);
+					sibling_pairs->erase(T1_c_i);
+				}
+				*/
+//				T1_c = sibling_pairs->front();
+//				sibling_pairs->pop_front();
+//				T1_a = sibling_pairs->front();
+//				sibling_pairs->pop_front();
+			/*	T1_a = sibling_pairs->back();
+				sibling_pairs->pop_back();
+				T1_c = sibling_pairs->back();
+				sibling_pairs->pop_back();
+				*/
+//			}
+//			else {
+				T1_a = sibling_pairs->back();
+				sibling_pairs->pop_back();
+				T1_c = sibling_pairs->back();
+				sibling_pairs->pop_back();
+				//T1_c = sibling_pairs->front();
+				//sibling_pairs->pop_front();
+				//T1_a = sibling_pairs->front();
+				//sibling_pairs->pop_front();
+//			}
 			
 			//if (T1_a->get_sibling_pair_status() == 0 ||
 			//		T1_c->get_sibling_pair_status() == 0) {
@@ -1817,7 +1978,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				if ((!CUT_AC_SEPARATE_COMPONENTS ||
 							T2_a->find_root() == T2_c->find_root())
 						&& (multi_node || !T2_b->is_protected())
-						&& (!ABORT_AT_FIRST_SOLUTION || best_k < 0)) {
+						&& (!ABORT_AT_FIRST_SOLUTION || best_k < 0
+							|| (answer_b == best_k && PREFER_RHO && T2->contains_rho() ))) {
 					if (multi_node) {
 						um.add_event(new CutParent(T2_a));
 						T2_a->cut_parent();
@@ -1905,7 +2067,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 //				if (T2_c->is_protected())
 //					cout << "protected k=" << k << endl;
 				if ((!T2_c->is_protected()) &&
-				(!ABORT_AT_FIRST_SOLUTION || best_k < 0)) {
+						(!ABORT_AT_FIRST_SOLUTION || best_k < 0
+							|| (answer_b == best_k && PREFER_RHO && T2->contains_rho() ))) {
 
 					if (T2_c->parent() != NULL) {
 						Node *T2_c_parent = T2_c->parent();

@@ -329,9 +329,15 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-protect_edges") == 0) {
 			EDGE_PROTECTION = true;
+			DEFAULT_OPTIMIZATIONS=false;
 		}
 		else if (strcmp(arg, "-allow_abort") == 0) {
 			ABORT_AT_FIRST_SOLUTION = true;
+			DEFAULT_OPTIMIZATIONS=false;
+		}
+		else if (strcmp(arg, "-preorder_sib_pairs") == 0) {
+			PREORDER_SIBLING_PAIRS = true;
+			DEFAULT_OPTIMIZATIONS=false;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -344,8 +350,9 @@ int main(int argc, char *argv[]) {
 		CUT_ONE_B = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
-		if (ALL_MAFS == false)
-			ABORT_AT_FIRST_SOLUTION = true;
+//		if (ALL_MAFS == false)
+//			ABORT_AT_FIRST_SOLUTION = true;
+		PREORDER_SIBLING_PAIRS = true;
 	}
 	if (DEFAULT_ALGORITHM) {
 		BB=true;
