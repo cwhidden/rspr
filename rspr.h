@@ -753,7 +753,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			*F2 = new Forest(T2);
 		}
 		 
-
+#ifdef DEBUG_APPROX
 #ifdef DEBUG_UNDO
 		 while(um.num_events() > 0) {
 				cout << "Undo step " << um.num_events() << endl;
@@ -770,6 +770,9 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			 um.undo();
 			cout << endl;
 		 }
+#else
+		 um.undo_all();
+#endif
 #else
 		 um.undo_all();
 #endif
@@ -1278,7 +1281,7 @@ void add_sibling_pair(set<SiblingPair> *sibling_pairs, Node *a, Node *c, UndoMac
 	SiblingPair sp = SiblingPair(a,c);
 	pair< set<SiblingPair>::iterator, bool> ins = 
 			sibling_pairs->insert(sp);
-	if (ins.second = false) {
+	if (ins.second == false) {
 		um->add_event(new RemoveSetSiblingPairs(sibling_pairs, *(ins.first)));
 		sibling_pairs->erase(ins.first);
 		ins = sibling_pairs->insert(sp);
@@ -1496,7 +1499,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				if (T2_a->parent()->parent() == T2_c->parent()
 					&& T2_c->parent() != NULL)
 					cut_b_only=true;
-					cob=true;
+					//cob=true;
 			}
 			else if (CUT_ONE_AB) {
 				if (T2_a->parent()->parent() == T2_c->parent()
@@ -1599,21 +1602,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 						#ifdef DEBUG
 							cout << "approx failed" << endl;
 						#endif
-					for (set<SiblingPair>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
-						cout << "  ";
-						(*i).a->print_subtree_hlpr();
-						cout << ",";
-						(*i).c->print_subtree_hlpr();
-					}
-					cout << endl;
 						um.undo_all();
-					for (set<SiblingPair>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
-						cout << "  ";
-						(*i).a->print_subtree_hlpr();
-						cout << ",";
-						(*i).c->print_subtree_hlpr();
-					}
-					cout << endl;
 						return -1;
 					}
 				um.undo_to(undo_state);
@@ -2039,7 +2028,27 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				//T1 = best_T1;
 				//T2 = best_T2;
 
-				um.undo_all();
+#ifdef DEBUG_UNDO
+		 while(um.num_events() > 0) {
+				cout << "Undo step " << um.num_events() << endl;
+				cout << "T1: ";
+				T1->print_components();
+				cout << "T2: ";
+				T2->print_components();
+					cout << "sibling pairs:";
+					for (set<SiblingPair>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+						cout << "  ";
+						(*i).a->print_subtree_hlpr();
+						cout << ",";
+						(*i).c->print_subtree_hlpr();
+					}
+					cout << endl;
+			 um.undo();
+			cout << endl;
+		 }
+#else
+		 um.undo_all();
+#endif
 				singletons->clear();
 				return best_k;
 			}
