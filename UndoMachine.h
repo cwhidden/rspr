@@ -301,6 +301,32 @@ class AddToSiblingPairs : public Undoable {
 		}
 };
 
+class AddInSiblingPairs : public Undoable {
+	public:
+		list<Node *> *sibling_pairs;
+		int pos;
+		AddInSiblingPairs(list<Node *> *s, int p) {
+			sibling_pairs = s;
+			pos = p;
+		}
+		void undo() {
+			if (!sibling_pairs->empty()) {
+				list<Node *>::iterator c = sibling_pairs->begin();
+				for(int i = 0; i <= pos && c != sibling_pairs->end(); i++) {
+					c++;
+				}
+				if (c != sibling_pairs->end()) {
+					list<Node *>::iterator rem = c;
+					c++;
+					sibling_pairs->erase(rem);
+					rem = c;
+					c++;
+					sibling_pairs->erase(rem);
+				}
+			}
+		}
+};
+
 class SetTwin : public Undoable {
 	public:
 		Node *node;

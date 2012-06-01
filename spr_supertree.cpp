@@ -337,6 +337,11 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-preorder_sib_pairs") == 0) {
 			PREORDER_SIBLING_PAIRS = true;
+			NEAR_PREORDER_SIBLING_PAIRS = true;
+			DEFAULT_OPTIMIZATIONS=false;
+		}
+		else if (strcmp(arg, "-near_preorder_sib_pairs") == 0) {
+			NEAR_PREORDER_SIBLING_PAIRS = true;
 			DEFAULT_OPTIMIZATIONS=false;
 		}
 		else if (strcmp(arg, "--help") == 0) {
@@ -352,7 +357,8 @@ int main(int argc, char *argv[]) {
 		EDGE_PROTECTION = true;
 //		if (ALL_MAFS == false)
 //			ABORT_AT_FIRST_SOLUTION = true;
-		PREORDER_SIBLING_PAIRS = true;
+//		PREORDER_SIBLING_PAIRS = true;
+		NEAR_PREORDER_SIBLING_PAIRS = true;
 	}
 	if (DEFAULT_ALGORITHM) {
 		BB=true;

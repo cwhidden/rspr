@@ -1291,6 +1291,10 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 	UndoMachine um = UndoMachine();
 
+	if (PREORDER_SIBLING_PAIRS &&
+			T1->get_component(0)->get_preorder_number() == -1)
+		T1->get_component(0)->preorder_number();
+
 /*		if (PREORDER_SIBLING_PAIRS) {
 				list<Node *> *new_sibling_pairs =	T1->find_sibling_pairs();
 				sibling_pairs->clear();
@@ -1355,18 +1359,39 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 
 			if (node != NULL && potential_new_sibling_pair && node->is_sibling_pair()){
 				if (cut_b_only || !NEAR_PREORDER_SIBLING_PAIRS) {
-					if (0 && PREORDER_SIBLING_PAIRS && !sibling_pairs->empty()) {
-						Node *old_c = sibling_pairs->back();
-						sibling_pairs->pop_back();
-						Node *old_a = sibling_pairs->back();
-						sibling_pairs->pop_back();
-						um.add_event(new PopSiblingPair(old_a, old_c, sibling_pairs));
-						um.add_event(new AddToSiblingPairs(sibling_pairs));
-						sibling_pairs->push_back(node->lchild());
-						sibling_pairs->push_back(node->rchild());
-						um.add_event(new AddToSiblingPairs(sibling_pairs));
-						sibling_pairs->push_back(old_a);
-						sibling_pairs->push_back(old_c);
+					if (PREORDER_SIBLING_PAIRS && !sibling_pairs->empty()) {
+//						if (T1->get_component(0)->get_preorder_number() == -1)
+//							T1->get_component(0)->preorder_number();
+						list<Node *>::iterator c;
+						int prenum = node->lchild()->get_preorder_number();
+						int pos = 0;
+						for(c = sibling_pairs->begin(); c != sibling_pairs->end();
+								c++) {
+//							cout << "checking c=" << (*c)->str_subtree() << endl;
+							if ((*c)->get_preorder_number() >= prenum)
+								break;
+							pos += 2;
+							c++;
+						}
+						if (c == sibling_pairs->end())
+							pos -= 2;
+//						um.add_event(new AddInSiblingPairs(sibling_pairs, pos));
+//						cout << "pos=" << pos << endl;
+//						cout << "c=" << (*c)->str_subtree() << endl;
+//	cout << "sibling pairs:";
+//	for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+//		cout << "  ";
+//		(*i)->print_subtree_hlpr();
+//	}
+//	cout << endl;
+						sibling_pairs->insert(c, node->lchild());
+						sibling_pairs->insert(c, node->rchild());
+//	cout << "sibling pairs:";
+//	for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+//		cout << "  ";
+//		(*i)->print_subtree_hlpr();
+//	}
+//	cout << endl;
 					}
 					else {
 						um.add_event(new AddToFrontSiblingPairs(sibling_pairs));
@@ -1391,7 +1416,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		if(!sibling_pairs->empty()) {
 			Node *T1_a;
 			Node *T1_c;
-			if (!cut_b_only && PREORDER_SIBLING_PAIRS) {
+/*			if (!cut_b_only && PREORDER_SIBLING_PAIRS) {
 				list<Node *> *new_sibling_pairs =	T1->find_sibling_pairs();
 				sibling_pairs->clear();
 				sibling_pairs->splice(sibling_pairs->begin(), *new_sibling_pairs,
@@ -1399,6 +1424,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				new_sibling_pairs->clear();
 				delete new_sibling_pairs;
 			}
+			*/
 			
 				/*
 				T1->get_component(0)->preorder_number();
@@ -1568,6 +1594,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				int answer_b = -1;
 				int answer_c = -1;
 				bool cut_ab_only = false;
+				bool cut_a_only = false;
+				bool cut_c_only = false;
 				int undo_state = um.num_events();
 				//  ensure T2_a is below T2_c
 				if ((T2_a->get_depth() < T2_c->get_depth()
@@ -1596,12 +1624,14 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					&& T2_c->parent() != NULL)
 					cut_b_only=true;
 			}
-			if (CUT_ONE_AB) {
+			else if (CUT_ONE_AB) {
 				if (T2_a->parent()->parent() == T2_c->parent()
 					&& T2_c->parent() != NULL)
 					cut_ab_only=true;
 			}
-				#ifdef DEBUG
+//			if (REVERSE_CUT_ONE_B && !cut_b_only) {
+//			}
+			#ifdef DEBUG
 					cout << "Case 3" << endl;
 					cout << "\tT1: ";
 					T1->print_components();
