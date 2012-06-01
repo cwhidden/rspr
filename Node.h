@@ -37,6 +37,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <iostream>
 #include <sstream>
 #include <map>
+#include <set>
 #include "Forest.h"
 
 using namespace std;
@@ -904,9 +905,9 @@ class Node {
 	}
 
 	// find the sibling pairs in this node's subtree
-	list<Node *> find_sibling_pairs() {
-		list<Node *> sibling_pairs = list<Node *>();
-		find_sibling_pairs_hlpr(&sibling_pairs);
+	list<Node *> *find_sibling_pairs() {
+		list<Node *> *sibling_pairs = new list<Node *>();
+		find_sibling_pairs_hlpr(sibling_pairs);
 		return sibling_pairs;
 	}
 	

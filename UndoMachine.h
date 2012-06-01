@@ -301,6 +301,35 @@ class AddToSiblingPairs : public Undoable {
 		}
 };
 
+class AddToSetSiblingPairs : public Undoable {
+	public:
+		set<SiblingPair> *sibling_pairs;
+		SiblingPair pair;
+		AddToSetSiblingPairs(set<SiblingPair> *sp, SiblingPair p) {
+			sibling_pairs = sp;
+			//pair = SiblingPair(p->a,p->c);
+			pair = p;
+		}
+		void undo() {
+			if (!sibling_pairs->empty()) {
+				sibling_pairs->erase(pair);
+			}
+		}
+};
+
+class RemoveSetSiblingPairs : public Undoable {
+	public:
+		set<SiblingPair> *sibling_pairs;
+		SiblingPair pair;
+		RemoveSetSiblingPairs(set<SiblingPair> *sp, SiblingPair p) {
+			sibling_pairs = sp;
+			pair = p;
+		}
+		void undo() {
+			sibling_pairs->insert(pair);
+		}
+};
+
 class AddInSiblingPairs : public Undoable {
 	public:
 		list<Node *> *sibling_pairs;

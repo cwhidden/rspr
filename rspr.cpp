@@ -354,6 +354,7 @@ int main(int argc, char *argv[]) {
 //			ABORT_AT_FIRST_SOLUTION = true;
 //		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
+		PREORDER_SIBLING_PAIRS = true;
 	}
 	if (DEFAULT_ALGORITHM) {
 		BB=true;
