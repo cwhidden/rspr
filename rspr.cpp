@@ -339,6 +339,9 @@ int main(int argc, char *argv[]) {
 			NEAR_PREORDER_SIBLING_PAIRS = true;
 			DEFAULT_OPTIMIZATIONS=false;
 		}
+		else if (strcmp(arg, "-leaf_reduction") == 0) {
+			LEAF_REDUCTION = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -355,6 +358,7 @@ int main(int argc, char *argv[]) {
 //		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		PREORDER_SIBLING_PAIRS = true;
+		LEAF_REDUCTION = true;
 	}
 	if (DEFAULT_ALGORITHM) {
 		BB=true;

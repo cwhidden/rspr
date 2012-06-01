@@ -102,6 +102,8 @@ bool EDGE_PROTECTION = false;
 bool ABORT_AT_FIRST_SOLUTION = false;
 bool PREORDER_SIBLING_PAIRS = false;
 bool NEAR_PREORDER_SIBLING_PAIRS = false;
+bool LEAF_REDUCTION = false;
+
 class ProblemSolution {
 		public:
 		string T1;
@@ -1381,9 +1383,42 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 			#endif
 		}
 		if(!sibling_pairs->empty()) {
-			SiblingPair spair = pop_sibling_pair(sibling_pairs, &um);
-			Node *T1_a = spair.a;
-			Node *T1_c = spair.c;
+			Node *T1_a;
+			Node *T1_c;
+			if (LEAF_REDUCTION) {
+				set<SiblingPair>::iterator i = sibling_pairs->begin();
+				while (i != sibling_pairs->end()) {
+					T1_a = (*i).a;
+					T1_c = (*i).c;
+					if (T1_a->parent() == NULL || T1_a->parent() != T1_c->parent()) {
+						um.add_event(new RemoveSetSiblingPairs(sibling_pairs,
+									SiblingPair(T1_a, T1_c)));
+						set<SiblingPair>::iterator rem = i;
+						i++;
+						sibling_pairs->erase(rem);
+						continue;
+					}
+					Node *T2_a = T1_a->get_twin();
+					Node *T2_c = T1_c->get_twin();
+					if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent())
+						break;
+					i++;
+				}
+				if (i == sibling_pairs->end()) {
+					if (sibling_pairs->empty())
+						continue;
+					else {
+						SiblingPair spair = pop_sibling_pair(sibling_pairs, &um);
+						T1_a = spair.a;
+						T1_c = spair.c;
+					}
+				}
+			}
+			else {
+				SiblingPair spair = pop_sibling_pair(sibling_pairs, &um);
+				T1_a = spair.a;
+				T1_c = spair.c;
+			}
 //			if (T1_a->parent() != NULL)
 //				cout << "a_p: " << T1_a->parent()->str_subtree() << endl;
 //			if (T1_c->parent() != NULL)
