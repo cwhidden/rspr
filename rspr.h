@@ -1254,13 +1254,13 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 //	cout << "foo4" << endl;
 
 	int split_k = 0;
-	if (SPLIT_APPROX) {
+	if (false && SPLIT_APPROX) {
 		Node *split_node = T1->get_component(0)->find_median();
 //		if (split_node != T1->get_component(0) &&
 //				!split_node->get_sibling()->is_leaf()) {
 		if (split_node != T1->get_component(0)) {
 			//UndoMachine um = UndoMachine();
-			Node *split_node_p = split_node->parent();
+//			Node *split_node_p = split_node->parent();
 			//split_node->cut_parent();
 //			int pre_start = split_node->get_preorder_number();
 //			int pre_end = split_node_p->lchild()->get_preorder_number();
@@ -1280,7 +1280,8 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 			split_k = 
 				//rSPR_branch_and_bound_hlpr(&split_forest, T2, k, sibling_pairs, &singletons, false, &AFs);
 				rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs, &singletons, false, &AFs);
-//			cout << "split_k: " << split_k << endl;
+			if (VERBOSE)
+				cout << "split_k: " << split_k << endl;
 	//		split_forest.print_components();
 //			T1->print_components();
 //			T2->print_components();
@@ -2380,9 +2381,53 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		cout << endl;
 		}
 
-			int min_spr = approx_spr / 3;
-			if (min_spr < MIN_SPR - total_k)
-				min_spr = MIN_SPR - total_k;
+		int min_spr = approx_spr / 3;
+		if (min_spr < MIN_SPR - total_k)
+			min_spr = MIN_SPR - total_k;
+		int split_k = 0;
+
+		if (SPLIT_APPROX) {
+			for(k = min_spr; true; k++) {
+				Forest f1s = Forest(f1);
+				Forest f2s = Forest(f2);
+				if (!sync_twins(&f1s, &f2s)) {
+					k = 0;
+					break;
+				}
+				Node *split_node = f1s.get_component(0)->find_median();
+//				cout << "split_node: " << split_node->str_subtree();
+				if (split_node != f1s.get_component(0)) {
+					set<SiblingPair > *sibling_pairs =
+						find_sibling_pairs_set(split_node);
+					list<Node *> singletons = f2s.find_singletons();
+					list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
+					//f1s.print_components();
+					//f2s.print_components();
+					split_k = rSPR_branch_and_bound_hlpr(&f1s, &f2s, k,
+							sibling_pairs, &singletons, false, &AFs);
+					delete sibling_pairs;
+					if (verbose)
+						cout << "split_k: " << split_k << endl;
+					if (!AFs.empty()) {
+						AFs.front().first.swap(&f1);
+						AFs.front().second.swap(&f2);
+						AFs.clear();
+						split_k = k - split_k;
+						break;
+					}
+				}
+				else
+					break;
+			}
+		}
+
+		// TODO: approx again? seperate approxes ?
+		min_spr -= split_k;
+
+
+
+
+
 			for(k = min_spr; true; k++) {
 				Forest f1t = Forest(f1);
 				Forest f2t = Forest(f2);
@@ -2411,6 +2456,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 						F2.join_cluster(&f2t);
 					}
 					if (exact_spr >= 0) {
+						exact_spr += split_k;
 						if (verbose) {
 	  					cout << endl;
 	  					cout << "F" << i << "_1: ";
