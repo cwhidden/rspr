@@ -1256,20 +1256,21 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 	int split_k = 0;
 	if (SPLIT_APPROX) {
 		Node *split_node = T1->get_component(0)->find_median();
-		if (split_node != T1->get_component(0) &&
-				!split_node->get_sibling()->is_leaf()) {
-			UndoMachine um = UndoMachine();
+//		if (split_node != T1->get_component(0) &&
+//				!split_node->get_sibling()->is_leaf()) {
+		if (split_node != T1->get_component(0)) {
+			//UndoMachine um = UndoMachine();
 			Node *split_node_p = split_node->parent();
-			split_node->cut_parent();
-			int pre_start = split_node->get_preorder_number();
-			int pre_end = split_node_p->lchild()->get_preorder_number();
-			if (pre_end < pre_start)
-				pre_end = INT_MAX;
-			ContractEvent(&um, split_node_p);
-			split_node_p->contract();
-			vector<Node *> v = vector<Node *>();
-			v.push_back(split_node);
-			Forest split_forest = Forest(v);
+			//split_node->cut_parent();
+//			int pre_start = split_node->get_preorder_number();
+//			int pre_end = split_node_p->lchild()->get_preorder_number();
+//			if (pre_end < pre_start)
+//				pre_end = INT_MAX;
+			//ContractEvent(&um, split_node_p);
+			//split_node_p->contract();
+			//vector<Node *> v = vector<Node *>();
+			//v.push_back(split_node);
+			//Forest split_forest = Forest(v);
 //			cout << "split_subtree: " << split_node->str_subtree() << endl;
 			sibling_pairs = find_sibling_pairs_set(split_node);
 			singletons = T2->find_singletons();
@@ -1277,15 +1278,16 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 			// Two potential problems: approx for BB is wrong and/or
 			// need to do this split during the clustering algorithm
 			split_k = 
-				rSPR_branch_and_bound_hlpr(&split_forest, T2, k, sibling_pairs, &singletons, false, &AFs);
-			cout << "split_k: " << split_k << endl;
+				//rSPR_branch_and_bound_hlpr(&split_forest, T2, k, sibling_pairs, &singletons, false, &AFs);
+				rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs, &singletons, false, &AFs);
+//			cout << "split_k: " << split_k << endl;
 	//		split_forest.print_components();
 //			T1->print_components();
 //			T2->print_components();
 			if (!AFs.empty()) {
 				//cout << "AF1: "; AFs.front().first.print_components();
 				//cout << "AF2: "; AFs.front().second.print_components();
-				Forest *F1 = &(AFs.front().first);
+/*				Forest *F1 = &(AFs.front().first);
 				int comp = 0;
 				if (!F1->contains_rho()) {
 //					T1->print_components();
@@ -1311,9 +1313,10 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 					}
 				}
 				F1->erase_components();
-				//AFs.front().first.swap(T1);
+*/
+				AFs.front().first.swap(T1);
 				AFs.front().second.swap(T2);
-				if (T2->contains_rho()) {
+/*				if (T2->contains_rho()) {
 					for(int i = 0; i < T2->num_components(); i++) {
 						if (T2->get_component(i)->get_name() == "p") {
 							T2->erase_components(i,i+1);
@@ -1322,6 +1325,7 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 						}
 					}
 				}
+*/
 				sync_twins(T1,T2);
 				AFs.clear();
 			}
