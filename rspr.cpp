@@ -246,6 +246,16 @@ int main(int argc, char *argv[]) {
 			CUT_ONE_B = true;
 			DEFAULT_OPTIMIZATIONS=false;
 		}
+		else if (strcmp(arg, "-reverse_cut_one_b") == 0 ||
+				strcmp(arg, "-rcob") == 0) {
+			REVERSE_CUT_ONE_B = true;
+			DEFAULT_OPTIMIZATIONS=false;
+		}
+		else if (strcmp(arg, "-cut_two_b") == 0 ||
+				strcmp(arg, "-c2b") == 0) {
+			CUT_TWO_B = true;
+			DEFAULT_OPTIMIZATIONS=false;
+		}
 		else if (strcmp(arg, "-cut_all_b") == 0 ||
 				strcmp(arg, "-cab") == 0) {
 			CUT_ALL_B = true;
@@ -342,6 +352,12 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-leaf_reduction") == 0) {
 			LEAF_REDUCTION = true;
 		}
+		else if (strcmp(arg, "-leaf_reduction2") == 0) {
+			LEAF_REDUCTION2 = true;
+		}
+		else if (strcmp(arg, "-split_approx") == 0) {
+			SPLIT_APPROX = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -351,15 +367,18 @@ int main(int argc, char *argv[]) {
 	if (DEFAULT_OPTIMIZATIONS) {
 		CUT_ALL_B=true;
 		CUT_ONE_B = true;
+		REVERSE_CUT_ONE_B = true;
+		CUT_TWO_B = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
 //		if (ALL_MAFS == false)
 //			ABORT_AT_FIRST_SOLUTION = true;
 //		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
-		PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
+		LEAF_REDUCTION2 = true;
 	}
+	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {
 		BB=true;
 		CLUSTER_TEST = true;

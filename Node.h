@@ -1520,6 +1520,58 @@ Node *spr(Node *new_sibling) {
 	spr(new_sibling, na);
 }
 
+void find_descendant_counts_hlpr(vector<int> *dc) {
+	int num_descendants = 0;
+	list<Node *>::iterator c;
+	for(c = children.begin(); c != children.end(); c++) {
+		(*c)->find_descendant_counts_hlpr(dc);
+		num_descendants += (*dc)[(*c)->get_preorder_number()];
+		num_descendants += 1;
+	}
+	if (dc->size() <= get_preorder_number())
+		dc->resize(get_preorder_number() + 1, -1);
+	(*dc)[get_preorder_number()] = num_descendants;
+}
+
+vector<int> *find_descendant_counts() {
+	vector<int> *dc = new vector<int>();
+	find_descendant_counts_hlpr(dc);
+	return dc;
+}
+
+Node *find_median() {
+	vector<int> *dc = find_descendant_counts();
+	return find_median_hlpr(dc, (*dc)[get_preorder_number()] / 4);
+}
+
+Node *find_median_hlpr(vector<int> *dc, int target_size) {
+	Node *largest_child_subtree = NULL;
+	int lcs_size = 0;
+	list<Node *>::iterator c;
+	for(c = children.begin(); c != children.end(); c++) {
+		int cs_size = (*dc)[(*c)->get_preorder_number()] + 1; 
+		if (cs_size > lcs_size) {
+			largest_child_subtree = *c;
+			lcs_size = cs_size;
+		}
+	}
+	if (lcs_size > target_size)
+		return largest_child_subtree->find_median_hlpr(dc, target_size);
+	else
+		return this;
+}
+
+int any_leaf_preorder_number() {
+	if (is_leaf()) {
+		if (contracted_lc != NULL)
+			return contracted_lc->any_leaf_preorder_number();
+		else return get_preorder_number();
+	}
+	else
+		return (*children.begin())->any_leaf_preorder_number();
+}
+
+
 };
 
 // function prototypes

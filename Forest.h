@@ -47,6 +47,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 
 class ClusterInstance;
+extern bool LEAF_REDUCTION2;
 
 class Forest {
 	public:
@@ -944,6 +945,7 @@ list<Node *> *find_cluster_points(Forest *F) {
 	return cluster_points;
 }
 
+
 // find the cluster points
 void find_cluster_points(Node *n, list<Node *> *cluster_points) {
 	//cout << "Start: " << n->str_subtree() << endl;
@@ -988,13 +990,19 @@ void find_cluster_points(Node *n, list<Node *> *cluster_points) {
 			n->get_depth() > n->get_twin()->get_twin()->get_depth())
 		is_cluster = false;
 	else {
-		for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
-			if ((*c)->get_twin() != NULL &&
-					(*c)->get_depth() <= (*c)->get_twin()->get_twin()->get_depth())
-			num_clustered_children++;
+#ifdef RSPR
+		if (!LEAF_REDUCTION2){
+#endif
+			for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+				if ((*c)->get_twin() != NULL &&
+						(*c)->get_depth() <= (*c)->get_twin()->get_twin()->get_depth())
+				num_clustered_children++;
+			}
+			if (num_clustered_children == n->get_children().size())
+				is_cluster = false;
+#ifdef RSPR
 		}
-		if (num_clustered_children == n->get_children().size())
-			is_cluster = false;
+#endif
 	}
 	if (is_cluster) {
 //		cout << "added cluster_point" << endl;
