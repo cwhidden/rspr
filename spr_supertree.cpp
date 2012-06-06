@@ -366,6 +366,13 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-split_approx") == 0) {
 			SPLIT_APPROX = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SPLIT_APPROX_THRESHOLD = atof(arg2);
+				cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
+						<< endl;
+			}
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -385,6 +392,11 @@ int main(int argc, char *argv[]) {
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
 		LEAF_REDUCTION2 = true;
+
+		APPROX_CUT_ONE_B = true;
+		APPROX_CUT_TWO_B = true;
+		APPROX_REVERSE_CUT_ONE_B = true;
+		APPROX_EDGE_PROTECTION = true;
 	}
 	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {
@@ -475,7 +487,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	if (CONVERT_LIST) {
-		for(auto i = labels.rbegin(); i != labels.rend(); i++) {
+		for(multimap<int, int>::reverse_iterator i = labels.rbegin(); i != labels.rend(); i++) {
 			int num = i->second;
 			string name = reverse_label_map.find(num)->second;
 			cout << num << ","
@@ -492,7 +504,7 @@ int main(int argc, char *argv[]) {
 //	}
 
 	// 4 most common leaves
-	auto label = labels.rbegin();
+	multimap<int, int>::reverse_iterator label = labels.rbegin();
 	vector<int> l = vector<int>(4);
 	for(int i = 0; i < 4; i++) {
 		l[i] = label->second;

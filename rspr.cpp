@@ -134,6 +134,7 @@ bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool TOTAL = false;
 bool APPROX = false;
+bool LOWER_BOUND = false;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -230,6 +231,32 @@ int main(int argc, char *argv[]) {
 			DEFAULT_ALGORITHM=false;
 			APPROX=true;
 		}
+		else if (strcmp(arg, "-lower_bound") == 0) {
+			DEFAULT_ALGORITHM=false;
+			APPROX=true;
+			LOWER_BOUND=true;
+		}
+		else if (strcmp(arg, "-fast_approx") == 0) {
+			APPROX_CUT_ONE_B = true;
+			APPROX_CUT_TWO_B = true;
+			APPROX_REVERSE_CUT_ONE_B = true;
+			APPROX_EDGE_PROTECTION = true;
+		}
+		else if (strcmp(arg, "-a_cob") == 0) {
+			APPROX_CUT_ONE_B = true;
+		}
+		else if (strcmp(arg, "-a_c2b") == 0) {
+			APPROX_CUT_TWO_B = true;
+		}
+		else if (strcmp(arg, "-a_rcob") == 0) {
+			APPROX_REVERSE_CUT_ONE_B = true;
+		}
+		else if (strcmp(arg, "-a_rcob2") == 0) {
+			APPROX_REVERSE_CUT_ONE_B_2 = true;
+		}
+		else if (strcmp(arg, "-a_protection") == 0) {
+			APPROX_EDGE_PROTECTION = true;
+		}
 		else if (strcmp(arg, "-q") == 0)
 			QUIET = true;
 		else if (strcmp(arg, "-cc") == 0)
@@ -250,6 +277,10 @@ int main(int argc, char *argv[]) {
 				strcmp(arg, "-rcob") == 0) {
 			REVERSE_CUT_ONE_B = true;
 			DEFAULT_OPTIMIZATIONS=false;
+		}
+		else if (strcmp(arg, "-reverse_cut_one_b_2") == 0 ||
+				strcmp(arg, "-rcob2") == 0) {
+			REVERSE_CUT_ONE_B_2 = true;
 		}
 		else if (strcmp(arg, "-cut_two_b") == 0 ||
 				strcmp(arg, "-c2b") == 0) {
@@ -318,9 +349,19 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-max") == 0) {
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
-				if (arg2[0] != '-')
+				if (arg2[0] != '-') {
 					MAX_SPR = atoi(arg2);
+					CLUSTER_MAX_SPR = MAX_SPR;
+				}
 				cout << "MAX_SPR=" << MAX_SPR << endl;
+			}
+		}
+		else if (strcmp(arg, "-cmax") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					CLUSTER_MAX_SPR = atoi(arg2);
+				cout << "CLUSTER_MAX_SPR=" << CLUSTER_MAX_SPR << endl;
 			}
 		}
 		else if (strcmp(arg, "-multi_test") == 0) {
@@ -357,6 +398,13 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-split_approx") == 0) {
 			SPLIT_APPROX = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SPLIT_APPROX_THRESHOLD = atof(arg2);
+				cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
+						<< endl;
+			}
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -377,6 +425,11 @@ int main(int argc, char *argv[]) {
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
 		LEAF_REDUCTION2 = true;
+
+		APPROX_CUT_ONE_B = true;
+		APPROX_CUT_TWO_B = true;
+		APPROX_REVERSE_CUT_ONE_B = true;
+		APPROX_EDGE_PROTECTION = true;
 	}
 	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {
@@ -471,6 +524,8 @@ int main(int argc, char *argv[]) {
 				F2.print_components();
 				// what the AF shows
 				cout << "approx drSPR=" << F2.num_components()-1 << endl;
+				if (LOWER_BOUND)
+					cout << "lower bound drSPR=" << min_spr << endl;
 				/* what we use to get the lower bound: 3 * the number of cutting rounds in
 					 the approx algorithm
 				*/
