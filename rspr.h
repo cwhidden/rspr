@@ -118,6 +118,7 @@ bool NEAR_PREORDER_SIBLING_PAIRS = false;
 bool LEAF_REDUCTION = false;
 bool LEAF_REDUCTION2 = false;
 bool SPLIT_APPROX = false;
+bool IN_SPLIT_APPROX = false;
 int SPLIT_APPROX_THRESHOLD = 25;
 float INITIAL_TREE_FRACTION = 0.4;
 
@@ -1808,18 +1809,19 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					}
 					cout << endl;
 					*/
-				list<Node *> *spairs;
-				if (SPLIT_APPROX) {
+					list<Node *> *spairs;
+				//if (SPLIT_APPROX && IN_SPLIT_APPROX) {
+		//		if (SPLIT_APPROX) {
 					spairs = new list<Node *>();
-					for (set<SiblingPair>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
-						spairs->push_back((*i).c);
-						spairs->push_back((*i).a);
-					}
 					spairs->push_back(T1_c);
 					spairs->push_back(T1_a);
-				}
-				else
-					spairs = T1->get_component(0)->find_sibling_pairs();
+					for (set<SiblingPair>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
+						spairs->push_back((*i).a);
+						spairs->push_back((*i).c);
+					}
+			//	}
+			//	else
+			//		spairs = T1->get_component(0)->find_sibling_pairs();
 
 				int approx_spr = rSPR_worse_3_approx_hlpr(T1, T2,
 						singletons, spairs, NULL, NULL, false);
@@ -2540,6 +2542,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 				}
 			}
 			if (SPLIT_APPROX && !done_cluster) {
+				//IN_SPLIT_APPROX = true;
 				for(k = 0; true; k++) {
 					if (k > SPLIT_APPROX_THRESHOLD) {
 						k = 0;
@@ -2589,6 +2592,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 					else
 						break;
 				}
+				//IN_SPLIT_APPROX = false;
 			}
 	
 			// TODO: approx again? seperate approxes ?
@@ -2903,7 +2907,7 @@ bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end) {
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
 	MAIN_CALL = false;
-	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)// firstprivate(IN_SPLIT_APPROX)
 //	for(int j = 0; j < 10; j++)
 //	cout << "T1: " << T1->str_subtree() << endl;
 	for(int i = 0; i < gene_trees.size(); i++) {
@@ -2933,7 +2937,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	//cout << "rSPR_total_distance_unrooted" << endl;
 	int total = 0;
 	MAIN_CALL = false;
-	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO) firstprivate(MAX_SPR) firstprivate(MIN_SPR)
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO) firstprivate(MAX_SPR) firstprivate(MIN_SPR) //firstprivate(IN_SPLIT_APPROX)
 	for(int i = 0; i < gene_trees.size(); i++) {
 		//cout << "T1: " << T1->str_subtree() << endl;
 		//cout << "T2: " << gene_trees[i]->str_subtree() << endl;
