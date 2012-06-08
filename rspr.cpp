@@ -401,7 +401,7 @@ int main(int argc, char *argv[]) {
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
 				if (arg2[0] != '-')
-					SPLIT_APPROX_THRESHOLD = atof(arg2);
+					SPLIT_APPROX_THRESHOLD = atoi(arg2);
 				cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
 						<< endl;
 			}
