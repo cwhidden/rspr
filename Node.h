@@ -43,6 +43,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 
 bool IGNORE_MULTI = false;
+double REQUIRED_SUPPORT = 0.0;
 
 
 // representation of a component with no leaves
@@ -82,6 +83,7 @@ class Node {
 	Node *contracted_rc;
 	bool is_contracted;
 	bool edge_protected;
+	bool allow_siblings;
 
 	public:
 	Node() {
@@ -116,6 +118,7 @@ class Node {
 		this->contracted_rc = NULL;
 		this->is_contracted = false;
 		this->edge_protected = false;
+		this->allow_siblings = true;
 		if (lc != NULL)
 			add_child(lc);
 		if (rc != NULL)
@@ -159,6 +162,7 @@ class Node {
 		this->is_contracted = n.is_contracted;
 #endif
 		this->edge_protected = n.edge_protected;
+		this->allow_siblings = n.allow_siblings;
 	}
 
 	Node(const Node &n, Node *parent) {
@@ -200,6 +204,7 @@ class Node {
 		this->is_contracted = n.is_contracted;
 #endif
 		this->edge_protected = n.edge_protected;
+		this->allow_siblings = n.allow_siblings;
 	}
 	// TODO: clear_parent function
 	~Node() {
@@ -393,6 +398,22 @@ class Node {
 
 	void unprotect_edge() {
 		edge_protected = false;
+	}
+
+	void unprotect_subtree() {
+		unprotect_edge();
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->unprotect_edge();
+		}
+	}
+
+	bool can_be_sibling() {
+		return allow_siblings;
+	}
+
+	void disallow_siblings() {
+		allow_siblings = false;
 	}
 
 	int get_component_number() {
@@ -972,6 +993,19 @@ class Node {
 		return descendants;
 	}
 
+	bool contains_leaf(int number) {
+		if (stomini(get_name()) == number)
+			return true;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			bool ans = (*c)->contains_leaf(number);
+			if (ans == true)
+				return true;
+		}
+		vector<Node *> descendants = vector<Node *>();
+		return false;
+	}
+
 	// make twins point to this tree in this node's subtree
 	void resync() {
 		list<Node *>::iterator c;
@@ -1546,7 +1580,7 @@ Node *find_median() {
 
 Node *find_subtree_of_size(double percentage) {
 	vector<int> *dc = find_descendant_counts();
-	return find_median_hlpr(dc, (*dc)[get_preorder_number()] * percentage);
+	return find_median_hlpr(dc, (int)((*dc)[get_preorder_number()] * percentage));
 }
 
 Node *find_median_hlpr(vector<int> *dc, int target_size) {
@@ -1574,6 +1608,30 @@ int any_leaf_preorder_number() {
 	}
 	else
 		return (*children.begin())->any_leaf_preorder_number();
+}
+
+Node *find_by_prenum(int prenum) {
+//	cout << "find_by_prenum: " << str_subtree() << endl;
+	if (prenum == get_preorder_number())
+		return this;
+	Node *search_child = NULL;
+	int best_prenum = -1;
+	list<Node *>::iterator c;
+	for(c = children.begin(); c != children.end(); c++) {
+//		cout << "\tchild: " << (*c)->str_subtree() << endl;
+//		cout << "\tpre: " << (*c)->get_preorder_number() << endl;
+		int p = (*c)->get_preorder_number();
+		if (p == prenum)
+			return *c;
+		else if (p < prenum && p > best_prenum) {
+			best_prenum = p;
+			search_child = *c;
+		}
+	}
+	if (search_child != NULL)
+		return search_child->find_by_prenum(prenum);
+	else
+		return NULL;
 }
 
 
@@ -1616,6 +1674,9 @@ int build_tree_helper(int start, const string& s, Node *parent,
 	int loc = s.find_first_of("(,)", start);
 	if (loc == string::npos) {
 		string name = s.substr(start, s.size() - start);
+		int name_end = name.find(':');
+		if (name_end != string::npos)
+			name = name.substr(0, name_end);
 		Node *node = new Node(name);
 		parent->add_child(node);
 		loc = s.size()-1;
@@ -1627,6 +1688,9 @@ int build_tree_helper(int start, const string& s, Node *parent,
 	while(s[end] == ' ' || s[end] == '\t')
 		end--;
 	string name = s.substr(start, end - start);
+	int name_end = name.find(':');
+	if (name_end != string::npos)
+		name = name.substr(0, name_end);
 	Node *node = new Node(name);
 	parent->add_child(node);
 
@@ -1645,8 +1709,24 @@ int build_tree_helper(int start, const string& s, Node *parent,
 				valid = false;
 					return s.size()-1;
 			}
-			//loc = build_tree_helper(loc + 1, s, node);
+			// TODO: get the support values here (and branch lengths?)
+			// contract_node() if support is less than a threshold
 			loc++;
+			if (s[loc-1] == ')') {
+				int next = s.find_first_of(",)", loc);
+				if (next != string::npos) {
+					if (next > loc && REQUIRED_SUPPORT > 0) {
+						string info = s.substr(loc, next - loc);
+						if (info[0] != ':') {
+							double support = atof(info.c_str());
+//							cout << "support=" << support << endl;
+							if (support < REQUIRED_SUPPORT)
+								node->contract_node();
+						}
+					}
+					loc=next;
+				}
+			}
 	}
 	return loc;
 }

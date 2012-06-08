@@ -369,8 +369,17 @@ int main(int argc, char *argv[]) {
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
 				if (arg2[0] != '-')
-					SPLIT_APPROX_THRESHOLD = atof(arg2);
+					SPLIT_APPROX_THRESHOLD = atoi(arg2);
 				cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
+						<< endl;
+			}
+		}
+		else if (strcmp(arg, "-support") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					REQUIRED_SUPPORT = atof(arg2);
+				cout << "REQUIRED_SUPPORT=" << REQUIRED_SUPPORT
 						<< endl;
 			}
 		}
@@ -391,7 +400,7 @@ int main(int argc, char *argv[]) {
 //		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
-		LEAF_REDUCTION2 = true;
+//		LEAF_REDUCTION2 = true;
 
 		APPROX_CUT_ONE_B = true;
 		APPROX_CUT_TWO_B = true;
@@ -633,7 +642,15 @@ int main(int argc, char *argv[]) {
 			cout << "\t" << current_time << "\t" << time;
 		}
 		cout << endl;
-		Node *best_sibling = find_best_sibling(super_tree, gene_trees, label->second);
+		vector<Node *> current_gene_trees = vector<Node *>();
+		for(int i = 0; i < gene_trees.size(); i++) {
+			if (gene_trees[i]->contains_leaf(label->second))
+				current_gene_trees.push_back(gene_trees[i]);
+		}
+		cout << "gene_trees: " << gene_trees.size() << endl;
+		cout << "current_gene_trees: " << current_gene_trees.size() << endl;
+		Node *best_sibling = find_best_sibling(super_tree,
+				current_gene_trees, label->second);
 		Node *node = best_sibling->expand_parent_edge(best_sibling);
 
 		node->add_child(new Node(itos(label->second)));
