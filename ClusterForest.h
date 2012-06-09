@@ -110,14 +110,19 @@ class ClusterForest: public Forest {
 				cluster_parent->contract(true);
 		}
 		else {
-			cluster_parent->add_child(new Node(*(solved_cluster->get_component(0))));
+			cluster_parent->add_child(solved_cluster->get_component(0));
+			//cluster_parent->add_child(new Node(*(solved_cluster->get_component(0))));
 			start = 1;
 		}
 		// should we add these to a finished_components or something?
 		for(int i = start; i < solved_cluster->num_components(); i++) {
 			if (solved_cluster->get_component(i)->str() != "p")
-				add_component(new Node(*(solved_cluster->get_component(i))));
+				add_component(solved_cluster->get_component(i));
+				//add_component(new Node(*(solved_cluster->get_component(i))));
+			else
+				solved_cluster->get_component(i)->delete_tree();
 		}
+		solved_cluster->erase_components();
 
 	}
 
@@ -127,14 +132,19 @@ class ClusterForest: public Forest {
 			add_rho();
 		}
 		else {
-			add_component(0,new Node(*(solved_cluster->get_component(0))));
+			add_component(0,solved_cluster->get_component(0));
+			//add_component(0,new Node(*(solved_cluster->get_component(0))));
 			start = 1;
 		}
 		// should we add these to a finished_components or something?
 		for(int i = start; i < solved_cluster->num_components(); i++) {
 			if (solved_cluster->get_component(i)->str() != "p")
-				add_component(new Node(*(solved_cluster->get_component(i))));
+				//add_component(new Node(*(solved_cluster->get_component(i))));
+				add_component(solved_cluster->get_component(i));
+			else
+				solved_cluster->get_component(i)->delete_tree();
 		}
+		solved_cluster->erase_components();
 
 	}
 

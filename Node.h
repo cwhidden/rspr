@@ -218,6 +218,16 @@ class Node {
 		active_descendants.clear();
 		root_lcas.clear();
 		removable_descendants.clear();
+#ifdef COPY_CONTRACTED
+		if (contracted_lc != NULL) {
+			contracted_lc->delete_tree();
+		}
+		contracted_lc = NULL;
+		if (contracted_rc != NULL) {
+			contracted_rc->delete_tree();
+		}
+		contracted_rc = NULL;
+#endif
 	}
 	// TODO: is this still useful?
 	/*

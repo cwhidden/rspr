@@ -560,7 +560,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			if (T1_a->parent() == NULL || T1_c->parent() == NULL || T1_a->parent() != T1_c->parent()) {
 				continue;
 			}
-			if (!T1_a->can_be_sibling() || !T1_c->can_be_sibling()) {
+			if (!T1_a->can_be_sibling() || !T1_c->can_be_sibling()
+			|| num_cut >= INT_MAX - 3) {
 				continue;
 			}
 			Node *T1_ac = T1_a->parent();
@@ -844,7 +845,6 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 
 				if (cut_a == false && cut_b == false && cut_c == false) {
 					num_cut = INT_MAX;
-					break;
 				}
 
 			}
@@ -1497,7 +1497,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		if(!sibling_pairs->empty()) {
 			Node *T1_a;
 			Node *T1_c;
-			if (LEAF_REDUCTION) {
+			if (LEAF_REDUCTION && !cut_b_only) {
 				set<SiblingPair>::iterator i = sibling_pairs->begin();
 				bool found = false;
 				while (i != sibling_pairs->end()) {
@@ -2343,6 +2343,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	int num_clusters = F1.num_components();
 	int total_k = 0;
 
+
 	for(int i = 1; i < num_clusters; i++) {
 		int exact_spr = -1;
 		Forest f1 = Forest(F1.get_component(i));
@@ -2409,14 +2410,6 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 						f1t.swap(&f1a);
 						f2t.swap(&f2a);
 					}
-					if ( i < num_clusters - 1) {
-						F1.join_cluster(i,&f1t);
-						F2.join_cluster(i,&f2t);
-					}
-					else {
-						F1.join_cluster(&f1t);
-						F2.join_cluster(&f2t);
-					}
 					if (exact_spr >= 0) {
 						exact_spr += total_split_k;
 						if (verbose) {
@@ -2451,6 +2444,14 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 									total_k += approx_spr;
 							}
 						}
+					}
+					if ( i < num_clusters - 1) {
+						F1.join_cluster(i,&f1t);
+						F2.join_cluster(i,&f2t);
+					}
+					else {
+						F1.join_cluster(&f1t);
+						F2.join_cluster(&f2t);
 					}
 					break;
 				}
@@ -2705,6 +2706,7 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		delete cluster_points;
 	}
 	else {
+		delete cluster_points;
 		full_approx_spr /= 3;
 		total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
 		int i = 1;
