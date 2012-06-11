@@ -83,7 +83,7 @@ class Node {
 	Node *contracted_rc;
 	bool is_contracted;
 	bool edge_protected;
-	bool allow_siblings;
+	bool allow_sibling;
 
 	public:
 	Node() {
@@ -118,7 +118,7 @@ class Node {
 		this->contracted_rc = NULL;
 		this->is_contracted = false;
 		this->edge_protected = false;
-		this->allow_siblings = true;
+		this->allow_sibling = true;
 		if (lc != NULL)
 			add_child(lc);
 		if (rc != NULL)
@@ -162,7 +162,7 @@ class Node {
 		this->is_contracted = n.is_contracted;
 #endif
 		this->edge_protected = n.edge_protected;
-		this->allow_siblings = n.allow_siblings;
+		this->allow_sibling = n.allow_sibling;
 	}
 
 	Node(const Node &n, Node *parent) {
@@ -204,7 +204,7 @@ class Node {
 		this->is_contracted = n.is_contracted;
 #endif
 		this->edge_protected = n.edge_protected;
-		this->allow_siblings = n.allow_siblings;
+		this->allow_sibling = n.allow_sibling;
 	}
 	// TODO: clear_parent function
 	~Node() {
@@ -419,11 +419,31 @@ class Node {
 	}
 
 	bool can_be_sibling() {
-		return allow_siblings;
+		return allow_sibling;
 	}
 
 	void disallow_siblings() {
-		allow_siblings = false;
+		allow_sibling = false;
+	}
+
+	void disallow_siblings_subtree() {
+		allow_sibling = false;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->disallow_siblings_subtree();
+		}
+	}
+
+	void allow_siblings() {
+		allow_sibling = true;
+	}
+
+	void allow_siblings_subtree() {
+		allow_sibling = true;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->allow_siblings_subtree();
+		}
 	}
 
 	int get_component_number() {

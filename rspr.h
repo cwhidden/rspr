@@ -2470,7 +2470,11 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 					Forest f2a = Forest(f2);
 					Node *a_split_node =
 					f1a.find_by_prenum(original_split_node->get_preorder_number());
-					a_split_node->disallow_siblings();
+					f1a.get_component(0)->disallow_siblings_subtree();
+					if (a_split_node->lchild() != NULL)
+						a_split_node->lchild()->allow_siblings_subtree();
+					if (a_split_node->rchild() != NULL)
+						a_split_node->rchild()->allow_siblings_subtree();
 					// something odd going on here
 					int start = rSPR_worse_3_approx(a_split_node, &f1a, &f2a);
 					if (start == INT_MAX)
@@ -2495,15 +2499,18 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		  				cout.flush();
 						}
 						Node *split_node = f1s.find_by_prenum(original_split_node->get_preorder_number());
-						split_node->disallow_siblings();
+						f1s.get_component(0)->disallow_siblings_subtree();
+						if (split_node->lchild() != NULL)
+							split_node->lchild()->allow_siblings_subtree();
+						if (split_node->rchild() != NULL)
+							split_node->rchild()->allow_siblings_subtree();
 							//f1s.get_component(0)->find_subtree_of_size(tree_fraction);
-		//				cout << "split_node: " << split_node->str_subtree();
 							set<SiblingPair > *sibling_pairs =
 								find_sibling_pairs_set(split_node);
 							list<Node *> singletons = f2s.find_singletons();
 							list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
-							//f1s.print_components();
-							//f2s.print_components();
+
+
 							int split_k = rSPR_branch_and_bound_hlpr(&f1s, &f2s, k,
 									sibling_pairs, &singletons, false, &AFs);
 							delete sibling_pairs;
@@ -2513,11 +2520,11 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 								f2.unprotect_edges();
 								AFs.clear();
 								total_split_k += k - split_k;
-								if (k < SPLIT_APPROX_THRESHOLD * 0.75) {
-									tree_fraction *= 2;
-									if (tree_fraction > INITIAL_TREE_FRACTION)
-										tree_fraction = INITIAL_TREE_FRACTION;
-								}
+		//						if (k < SPLIT_APPROX_THRESHOLD * 0.75) {
+		//							tree_fraction *= 2;
+		//							if (tree_fraction > INITIAL_TREE_FRACTION)
+		//								tree_fraction = INITIAL_TREE_FRACTION;
+		//						}
 								if (verbose)
 									cout << "split_k: " << k << endl;
 								break;
@@ -2527,6 +2534,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 				//IN_SPLIT_APPROX = false;
 				num_splits++;
 			}
+			f1.get_component(0)->allow_siblings_subtree();
 	
 			// TODO: approx again? seperate approxes ?
 		}
@@ -3041,7 +3049,12 @@ Node *find_subtree_of_approx_distance_hlpr(Node *n, Forest *F1, Forest *F2, int 
 		Forest f1 = Forest(F1);
 		Forest f2 = Forest(F2);
 		Node *subtree = f1.find_by_prenum((*c)->get_preorder_number());
-		subtree->disallow_siblings();
+		f1.get_component(0)->disallow_siblings_subtree();
+		if (subtree->lchild() != NULL)
+		subtree->lchild()->allow_siblings_subtree();
+		if (subtree->rchild() != NULL)
+			subtree->rchild()->allow_siblings_subtree();
+
 		int cs_size = rSPR_worse_3_approx(subtree, &f1, &f2);
 		if (cs_size > lcs_size) {
 			largest_child_subtree = *c;
@@ -3061,7 +3074,11 @@ Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int targe
 		Forest f1 = Forest(F1);
 		Forest f2 = Forest(F2);
 		Node *subtree = f1.find_by_prenum(n->get_preorder_number());
-		subtree->disallow_siblings();
+		f1.get_component(0)->disallow_siblings_subtree();
+		if (subtree->lchild() != NULL)
+		subtree->lchild()->allow_siblings_subtree();
+		if (subtree->rchild() != NULL)
+			subtree->rchild()->allow_siblings_subtree();
 		int size = rSPR_worse_3_approx(subtree, &f1, &f2);
 		if (size > target_size)
 			return find_subtree_of_approx_distance_hlpr(n, F1, F2, target_size);

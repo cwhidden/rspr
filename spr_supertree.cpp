@@ -204,7 +204,7 @@ void find_best_root_hlpr(Node *T2, int pre_separator, int group_1_total,
 		int group_2_total, Node **best_root, double *best_root_b_acc);
 void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 		int group_2_total, Node **best_root, double *best_root_b_acc,
-		int *p_group_1_descendants, int *p_group_2_descendants);
+		int *p_group_1_descendants, int *p_group_2_descendants, int *num_ties);
 
 	map<string, int> label_map;
 	map<int, string> reverse_label_map;
@@ -1018,23 +1018,24 @@ void find_best_root_hlpr(Node *T2, int pre_separator, int group_1_total,
 	list<Node*>::iterator c;
 	int group_1_descendants = 0;
 	int group_2_descendants = 0;
+	int num_ties = 2;
 	for(c = T2->get_children().begin(); c != T2->get_children().end(); c++) {
 		find_best_root_hlpr(*c, pre_separator, group_1_total,
 				group_2_total, best_root, best_root_b_acc,
-				&group_1_descendants, &group_2_descendants);
+				&group_1_descendants, &group_2_descendants, &num_ties);
 	}
 }
 
 void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 		int group_2_total, Node **best_root, double *best_root_b_acc,
-		int *p_group_1_descendants, int *p_group_2_descendants) {
+		int *p_group_1_descendants, int *p_group_2_descendants, int *num_ties) {
 	list<Node*>::iterator c;
 	int group_1_descendants = 0;
 	int group_2_descendants = 0;
 	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
 		find_best_root_hlpr(*c, pre_separator, group_1_total,
 				group_2_total, best_root, best_root_b_acc,
-				&group_1_descendants, &group_2_descendants);
+				&group_1_descendants, &group_2_descendants, num_ties);
 	}
 	if (n->is_leaf()) {
 		int pre = n->get_twin()->get_preorder_number();
@@ -1064,6 +1065,15 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 	if (b_acc > *best_root_b_acc) {
 		*best_root = n;
 		*best_root_b_acc = b_acc;
+		*num_ties = 2;
+	}
+	else if(b_acc == *best_root_b_acc) {
+		int r = rand();
+		if (r < RAND_MAX/ *num_ties) {
+		*best_root = n;
+		*best_root_b_acc = b_acc;
+		*num_ties = 2;
+		}
 	}
 	*p_group_1_descendants += group_1_descendants;
 	*p_group_2_descendants += group_2_descendants;
