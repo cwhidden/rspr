@@ -124,7 +124,7 @@ bool CONVERT_LIST = false;
 bool VALID_TREES = false;
 bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
-int NUM_SIBLINGS = 10;
+int APPROX_SIBLINGS = 0;
 
 string USAGE =
 "spr_supertrees, version 1.00\n"
@@ -403,6 +403,15 @@ int main(int argc, char *argv[]) {
 				if (arg2[0] != '-')
 					REQUIRED_SUPPORT = atof(arg2);
 				cout << "REQUIRED_SUPPORT=" << REQUIRED_SUPPORT
+						<< endl;
+			}
+		}
+		else if (strcmp(arg, "-approx_siblings") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					APPROX_SIBLINGS = atoi(arg2);
+				cout << "APPROX_SIBLINGS=" << APPROX_SIBLINGS
 						<< endl;
 			}
 		}
@@ -787,19 +796,19 @@ int main(int argc, char *argv[]) {
 					current_gene_trees[i]->reroot(new_root);
 			}
 		}
-		vector<Node *> *best_siblings = find_best_siblings(super_tree,
-				gene_trees, label->second, NUM_SIBLINGS);
+		Node *best_sibling;
+		if (APPROX_SIBLINGS > 0) {
+			vector<Node *> *best_siblings = find_best_siblings(super_tree,
+					gene_trees, label->second, APPROX_SIBLINGS);
+			best_sibling = find_best_sibling(super_tree,
+					current_gene_trees, best_siblings, label->second);
+			delete best_siblings;
+		}
+		else {
+			best_sibling = find_best_sibling(super_tree,
+					current_gene_trees, label->second);
+		}
 
-//		super_tree->numbers_to_labels(&reverse_label_map);
-//		for(int i = 0; i < best_siblings->size(); i++) {
-//			cout << i << ": " << (*best_siblings)[i]->str_subtree() << endl;
-//		}
-//		super_tree->labels_to_numbers(&label_map, &reverse_label_map);
-
-		Node *best_sibling = find_best_sibling(super_tree,
-				current_gene_trees, best_siblings, label->second);
-//				current_gene_trees, label->second);
-		delete best_siblings;
 
 		Node *node = best_sibling->expand_parent_edge(best_sibling);
 
