@@ -1186,6 +1186,17 @@ class Node {
 			return children.back()->size_using_prenum();
 	}
 
+	int max_depth() {
+		int d  = 0;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			int c_d = (*c)->max_depth();
+			if (c_d > d)
+				d = c_d;
+		}
+		return d+1;
+	}
+
 	// TODO: binary only
 	// these will potentially be removed
 
@@ -1367,8 +1378,9 @@ void next_rooting() {
 */
 void reroot(Node *new_lc) {
 	Node *new_rc = new_lc->parent();
-	if (new_rc == this || new_rc == NULL)
+	if (new_rc == this || new_rc == NULL) {
 		return;
+	}
 	Node *prev = new_rc;
 	Node *next = new_rc->parent();
 	Node *old_lc = lchild();
@@ -1386,6 +1398,15 @@ void reroot(Node *new_lc) {
 	root->cut_parent();
 	root->add_child(new_lc);
 	root->add_child(new_rc);
+}
+
+// make the root binay again
+void fixroot() {
+	Node *new_lc = new Node();
+	while(get_children().size() > 1) {
+		new_lc->add_child(get_children().back());
+	}
+	add_child(new_lc);
 }
 
 
