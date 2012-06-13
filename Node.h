@@ -45,6 +45,12 @@ using namespace std;
 bool IGNORE_MULTI = false;
 double REQUIRED_SUPPORT = 0.0;
 
+struct StringCompare {
+	bool operator() (const string &a, const string &b) const {
+		return strcmp(a.c_str(), b.c_str()) < 0;
+	}
+};
+
 
 // representation of a component with no leaves
 #define DEAD_COMPONENT "*"
@@ -1690,30 +1696,39 @@ Node *find_by_prenum(int prenum) {
 
 // function prototypes
 Node *build_tree(string s);
+Node *build_tree(string s, set<string, StringCompare> *include_only);
 Node *build_tree(string s, int start_depth);
+Node *build_tree(string s, int start_depth, set<string, StringCompare> *include_only);
 int build_tree_helper(int start, const string& s, Node *parent,
-		bool &valid);
+		bool &valid, set<string, StringCompare> *include_only);
 //void preorder_number(Node *node);
 //int preorder_number(Node *node, int next);
 
 
 // build a tree from a newick string
 Node *build_tree(string s) {
-	return build_tree(s, 0);
+	return build_tree(s, 0, NULL);
 }
 Node *build_tree(string s, int start_depth) {
+	return build_tree(s, start_depth, NULL);
+}
+Node *build_tree(string s, set<string, StringCompare> *include_only) {
+	return build_tree(s, 0, include_only);
+}
+Node *build_tree(string s, int start_depth, set<string, StringCompare> *include_only) {
 	if (s == "")
 		return new Node();
 	Node *dummy_head = new Node("p", start_depth-1);
 	bool valid = true;
-	build_tree_helper(0, s, dummy_head, valid);
+	build_tree_helper(0, s, dummy_head, valid, include_only);
 	Node *head = dummy_head->lchild();
-	if (valid) {
+	if (valid && head != NULL) {
 		delete dummy_head;
 		return head;
 	}
 	else {
-		head->delete_tree();
+		if (head != NULL)
+			head->delete_tree();
 		return dummy_head;
 	}
 
@@ -1721,15 +1736,18 @@ Node *build_tree(string s, int start_depth) {
 
 // build_tree recursive helper function
 int build_tree_helper(int start, const string& s, Node *parent,
-		bool &valid) {
+		bool &valid, set<string, StringCompare> *include_only) {
 	int loc = s.find_first_of("(,)", start);
 	if (loc == string::npos) {
 		string name = s.substr(start, s.size() - start);
 		int name_end = name.find(':');
 		if (name_end != string::npos)
 			name = name.substr(0, name_end);
-		Node *node = new Node(name);
-		parent->add_child(node);
+		if (include_only == NULL ||
+				include_only->find(name) != include_only->end()) {
+			Node *node = new Node(name);
+			parent->add_child(node);
+		}
 		loc = s.size()-1;
 		return loc;
 	}
@@ -1742,14 +1760,18 @@ int build_tree_helper(int start, const string& s, Node *parent,
 	int name_end = name.find(':');
 	if (name_end != string::npos)
 		name = name.substr(0, name_end);
-	Node *node = new Node(name);
-	parent->add_child(node);
+	Node *node = NULL;
+	if (include_only == NULL ||
+			include_only->find(name) != include_only->end()) {
+		node = new Node(name);
+		parent->add_child(node);
+	}
 
 	int count = 1;
 	if (s[loc] == '(') {
-			loc = build_tree_helper(loc + 1, s, node, valid);
+			loc = build_tree_helper(loc + 1, s, node, valid, include_only);
 			while(s[loc] == ',') {
-				loc = build_tree_helper(loc + 1, s, node, valid);
+				loc = build_tree_helper(loc + 1, s, node, valid, include_only);
 				count++;
 			}
 //			int loc_check = s.find_first_of("(,)", loc);
@@ -1764,6 +1786,8 @@ int build_tree_helper(int start, const string& s, Node *parent,
 			// contract_node() if support is less than a threshold
 			loc++;
 			if (s[loc-1] == ')') {
+				int numc = node->get_children().size();
+				bool contracted = false;
 				int next = s.find_first_of(",)", loc);
 				if (next != string::npos) {
 					if (next > loc && REQUIRED_SUPPORT > 0) {
@@ -1771,11 +1795,21 @@ int build_tree_helper(int start, const string& s, Node *parent,
 						if (info[0] != ':') {
 							double support = atof(info.c_str());
 //							cout << "support=" << support << endl;
-							if (support < REQUIRED_SUPPORT)
+							if (support < REQUIRED_SUPPORT && numc > 0) {
 								node->contract_node();
+								contracted = true;
+							}
 						}
 					}
 					loc=next;
+				}
+				if (!contracted) {
+					if (numc == 1)
+						node->contract_node();
+					else if (numc == 0 && name == "") {
+						node->cut_parent();
+						delete node;
+					}
 				}
 			}
 	}

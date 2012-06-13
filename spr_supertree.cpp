@@ -90,6 +90,7 @@ OTHER OPTIONS
 #include <string>
 #include <cstring>
 #include <iostream>
+#include <fstream>
 #include <sstream>
 #include <climits>
 #include <vector>
@@ -228,6 +229,7 @@ int main(int argc, char *argv[]) {
 
 	// ignore multifurcating trees by default
 	IGNORE_MULTI = true;
+	string INCLUDE_ONLY = "";
 
 	int max_args = argc-1;
 	while (argc > 1) {
@@ -415,6 +417,15 @@ int main(int argc, char *argv[]) {
 						<< endl;
 			}
 		}
+		else if (strcmp(arg, "-include_only") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					INCLUDE_ONLY = string(arg2);
+				cout << "INCLUDE_ONLY=" << INCLUDE_ONLY
+						<< endl;
+			}
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -456,9 +467,31 @@ int main(int argc, char *argv[]) {
 
 	string T_line = "";
 	vector<Node *> gene_trees = vector<Node *>();
-	multimap<int, pair<Node*, string> > gene_tree_map
-		= multimap<int, pair<Node*, string> >();
+//	multimap<int, pair<Node*, string> > gene_tree_map
+//		= multimap<int, pair<Node*, string> >();
 	vector<string> gene_tree_names = vector<string>();
+	set<string, StringCompare> include_only;
+	if (INCLUDE_ONLY != "") {
+		include_only.insert("");
+		ifstream include_only_file;
+		include_only_file.open(INCLUDE_ONLY.c_str());
+		if (include_only_file.is_open()) {
+			string line;
+			while(include_only_file.good()) {
+				getline(include_only_file, line);
+//				cout << "\"" << line << "\"" << endl;
+				include_only.insert(line);
+			}
+//			cout << endl;
+			include_only_file.close();
+			for(set<string, StringCompare>::iterator i = include_only.begin();
+					i != include_only.end(); i++) {
+//				cout << "\"" << *i << "\"" << endl;
+			}
+		}
+		else
+			INCLUDE_ONLY = "";
+	}
 	int skipped_multifurcating = 0;
 	int skipped_small = 0;
 	int skipped_no_bracket = 0;
@@ -474,7 +507,12 @@ int main(int argc, char *argv[]) {
 			if (UNROOTED || SIMPLE_UNROOTED) {
 				T_line = root(T_line);
 			}
-			Node *T = build_tree(T_line);
+			Node *T;
+			if (INCLUDE_ONLY != "")
+				T = build_tree(T_line, &include_only);
+			else
+				T = build_tree(T_line);
+//			cout << T->str_subtree() << endl;
 			// TODO: check that this works
 			if ((UNROOTED || SIMPLE_UNROOTED) &&
 					T->get_children().size() > 2) {
@@ -523,9 +561,9 @@ int main(int argc, char *argv[]) {
 			}
 			if (UNROOTED || SIMPLE_UNROOTED)
 				T->preorder_number();
-			//gene_tree_names.push_back(name);
-			//gene_trees.push_back(T);
-			gene_tree_map.insert(make_pair(T->size(), make_pair(T, name)));
+			gene_tree_names.push_back(name);
+			gene_trees.push_back(T);
+			//gene_tree_map.insert(make_pair(T->size(), make_pair(T, name)));
 		}
 		else
 			skipped_no_bracket++;
@@ -545,7 +583,7 @@ int main(int argc, char *argv[]) {
 		cout << "skipped " << skipped_star << " star trees" << endl;
 	}
 
-	int end = gene_tree_map.size();
+/*	int end = gene_tree_map.size();
 	for(int i = 0; i < end; i++) {
 		multimap<int,  pair<Node *, string> >::iterator p =
 			gene_tree_map.begin();
@@ -553,6 +591,8 @@ int main(int argc, char *argv[]) {
 		gene_tree_names.push_back(p->second.second);
 		gene_tree_map.erase(p);
 	}
+*/
+
 
 	cout << gene_trees.size() << " gene trees remaining" << endl;
 
@@ -664,19 +704,31 @@ int main(int argc, char *argv[]) {
 	ST.push_back(build_tree(ss.str()));
 	ss.str("");
 
+		vector<Node *> current_gene_trees = vector<Node *>();
+		for(int i = 0; i < gene_trees.size(); i++) {
+			if (gene_trees[i]->contains_leaf(l[0]))
+				current_gene_trees.push_back(gene_trees[i]);
+			else if (gene_trees[i]->contains_leaf(l[1]))
+				current_gene_trees.push_back(gene_trees[i]);
+			else if (gene_trees[i]->contains_leaf(l[2]))
+				current_gene_trees.push_back(gene_trees[i]);
+			else if (gene_trees[i]->contains_leaf(l[3]))
+				current_gene_trees.push_back(gene_trees[i]);
+		}
+
 
 	// choose the best starting tree
 	int best_distance;
 	if (APPROX)
 		if (UNROOTED)
-			best_distance = rSPR_total_approx_distance_unrooted(ST[0], gene_trees); 
+			best_distance = rSPR_total_approx_distance_unrooted(ST[0], current_gene_trees); 
 		else
-			best_distance = rSPR_total_approx_distance(ST[0], gene_trees); 
+			best_distance = rSPR_total_approx_distance(ST[0], current_gene_trees); 
 	else 
 		if (UNROOTED)
-			best_distance = rSPR_total_distance_unrooted(ST[0], gene_trees); 
+			best_distance = rSPR_total_distance_unrooted(ST[0], current_gene_trees); 
 		else
-			best_distance = rSPR_total_distance(ST[0], gene_trees); 
+			best_distance = rSPR_total_distance(ST[0], current_gene_trees); 
 	int best_tree = 0;
 //	cout << best_distance <<  ": ";
 //	cout << ST[0]->str_subtree() << endl;
@@ -685,14 +737,14 @@ int main(int argc, char *argv[]) {
 		int distance;
 		if (APPROX)
 			if (UNROOTED)
-				distance = rSPR_total_approx_distance_unrooted(ST[j], gene_trees);
+				distance = rSPR_total_approx_distance_unrooted(ST[j], current_gene_trees);
 			else
-				distance = rSPR_total_approx_distance(ST[j], gene_trees);
+				distance = rSPR_total_approx_distance(ST[j], current_gene_trees);
 		else
 			if (UNROOTED || SIMPLE_UNROOTED)
-				distance = rSPR_total_distance_unrooted(ST[j], gene_trees);
+				distance = rSPR_total_distance_unrooted(ST[j], current_gene_trees);
 			else
-				distance = rSPR_total_distance(ST[j], gene_trees);
+				distance = rSPR_total_distance(ST[j], current_gene_trees);
 //		cout << distance <<  ": ";
 //		cout << ST[j]->str_subtree() << endl;
 		if (distance < best_distance) {
@@ -706,6 +758,7 @@ int main(int argc, char *argv[]) {
 		if (i != best_tree)
 			ST[i]->delete_tree();
 	}
+	current_gene_trees.clear();
 
 	cout << endl;
 	cout << "Initial Supertree:  " << super_tree->str_subtree() << endl;
@@ -737,6 +790,7 @@ int main(int argc, char *argv[]) {
 		bool APPROX_ROOTING = false;
 		if (SIMPLE_UNROOTED) {
 			if (is_pow_2(leaf_num-5)) {
+				cout << "rerooting super_tree" << endl;
 				// reroot the supertree based on the balanced accuracy of splits
 				vector<Node *> descendants =
 					super_tree->find_interior();
@@ -756,38 +810,48 @@ int main(int argc, char *argv[]) {
 						//root_avg_acc = -rSPR_total_distance_unrooted(super_tree, current_gene_trees);
 					}
 					else {
-						for(int i = 0; i < current_gene_trees.size(); i++) {
+						int end = current_gene_trees.size();
+						#pragma omp parallel for schedule(static) reduction(+: root_avg_acc) reduction(+: count)
+						for(int i = 0; i < end; i++) {
 							double acc;
 							acc = find_best_root_acc(super_tree, current_gene_trees[i]);
 		//					cout <<  j << "\t" << i << "\t" << acc << endl;
 							if (acc > -1) {
-								root_avg_acc += (acc - root_avg_acc) / count;
+								root_avg_acc += acc;
+								//root_avg_acc += (acc - root_avg_acc) / count;
 								count++;
 							}
 						}
+						if (count > 0)
+							root_avg_acc /= count;
 						int lsize = super_tree->lchild()->size_using_prenum();
 						int rsize = super_tree->rchild()->size_using_prenum();
 						int size = (lsize < rsize) ? lsize : rsize;
 						root_avg_acc *= mylog2(size);
 					}
-					if (root_avg_acc > best_root_avg_acc) {
-						best_root = descendants[j];
-						best_root_avg_acc = root_avg_acc;
-					}
-					else if (root_avg_acc == best_root_avg_acc) {
-						int r = rand();
-						if (r < RAND_MAX/ num_ties) {
+					#pragma omp critical
+					{
+						if (root_avg_acc > best_root_avg_acc) {
 							best_root = descendants[j];
 							best_root_avg_acc = root_avg_acc;
-							num_ties = 2;
+						}
+						else if (root_avg_acc == best_root_avg_acc) {
+							int r = rand();
+							if (r < RAND_MAX/ num_ties) {
+								best_root = descendants[j];
+								best_root_avg_acc = root_avg_acc;
+								num_ties = 2;
+							}
 						}
 					}
 				}
 				super_tree->reroot(best_root);
 			}
 
+			cout << "rerooting gene trees" << endl;
 			// reroot the gene trees based on the balanced accuracy of splits
 			super_tree->preorder_number();
+			#pragma omp parallel for
 			for(int i = 0; i < current_gene_trees.size(); i++) {
 				current_gene_trees[i]->preorder_number();
 				Node *new_root =
@@ -798,13 +862,16 @@ int main(int argc, char *argv[]) {
 		}
 		Node *best_sibling;
 		if (APPROX_SIBLINGS > 0) {
+			cout << "finding approx best siblings" << endl;
 			vector<Node *> *best_siblings = find_best_siblings(super_tree,
-					gene_trees, label->second, APPROX_SIBLINGS);
+					current_gene_trees, label->second, APPROX_SIBLINGS);
+			cout << "finding best sibling from " << best_siblings->size() << endl;
 			best_sibling = find_best_sibling(super_tree,
 					current_gene_trees, best_siblings, label->second);
 			delete best_siblings;
 		}
 		else {
+			cout << "finding best sibling" << endl;
 			best_sibling = find_best_sibling(super_tree,
 					current_gene_trees, label->second);
 		}
@@ -1028,6 +1095,12 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
 		multimap<int, Node*> *best_siblings, int num_siblings) {
 
+/*	vector<Node *> descendants = N->find_descendants();
+	descendants.push_back(N);
+	int end = descendants.size();
+	for(int i = 0; i < end; i++) {
+		Node *n = descendants[i];
+		*/
 	if (n->lchild() != NULL) {
 		find_best_siblings_helper(n->lchild(), new_leaf, super_tree,
 				gene_trees, min_distance, num_ties, best_siblings, num_siblings);
@@ -1055,6 +1128,7 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 	int distance;
 	distance = rSPR_total_approx_distance(super_tree, gene_trees,
 			min_distance);
+{
 	if (distance < min_distance) {
 		best_siblings->insert(make_pair(distance, n));
 		if (best_siblings->size() > num_siblings) {
@@ -1073,6 +1147,7 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 		}
 		num_ties++;
 	}
+}
 //	cout << "distance: " << distance;
 //	cout << endl;
 
@@ -1092,6 +1167,7 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
 //	cout << "Reverted: " << super_tree->str_subtree() << endl;
+//	}
 
 }
 

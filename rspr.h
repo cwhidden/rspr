@@ -2854,10 +2854,11 @@ bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end) {
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
 	MAIN_CALL = false;
-	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)// firstprivate(IN_SPLIT_APPROX)
+	int end = gene_trees.size();
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
 //	for(int j = 0; j < 10; j++)
 //	cout << "T1: " << T1->str_subtree() << endl;
-	for(int i = 0; i < gene_trees.size(); i++) {
+	for(int i = 0; i < end; i++) {
 			//		cout << i << endl;
 		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
 		total += k;
@@ -2882,13 +2883,14 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees, int threshold) {
 	int total = 0;
 	MAIN_CALL = false;
-	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)// firstprivate(IN_SPLIT_APPROX)
-	for(int i = 0; i < gene_trees.size(); i++) {
+	int end = gene_trees.size();
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
+	for(int i = 0; i < end; i++) {
 		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
 		total += k;
-		if (total > threshold) {
-			break;
-		}
+//		if (total > threshold) {
+//			break;
+//		}
 	}
 	return total;
 }
@@ -3006,8 +3008,8 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 			f2.get_component(0)->reroot(best_rooting);
 			total += rSPR_branch_and_bound_simple_clustering(T1, f2.get_component(0), VERBOSE);
 		}
-		if (total > threshold)
-			break;
+//		if (total > threshold)
+//			break;
 	}
 	return total;
 }
@@ -3059,8 +3061,8 @@ int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
 //		cout << T1->str_subtree() << endl;
 //		cout << gene_trees[i]->str_subtree() << endl;
 		total += rSPR_worse_3_approx(&F1, &F2)/3;
-		if (total > threshold)
-			break;
+//		if (total > threshold)
+//			break;
 	}
 	return total;
 }
