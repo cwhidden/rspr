@@ -82,6 +82,8 @@ int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
 		int threshold);
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees);
+int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
+		vector<int> *original_scores);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2);
@@ -621,7 +623,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				//T2->add_deleted_node(T2_c);
 
 				// check if T2_ac is a singleton
-				if (T2_ac->is_singleton() && !T1_ac->is_singleton() && T2_ac != T2->get_component(0))
+				//if (T2_ac->is_singleton() && !T1_ac->is_singleton() && T2_ac != T2->get_component(0))
+				if (T2_ac->is_singleton() && T1_ac != T1->get_component(0) && T2_ac != T2->get_component(0))
 					singletons->push_back(T2_ac);
 				// check if T1_ac is part of a sibling pair
 				if (T1_ac->parent() != NULL && T1_ac->parent()->is_sibling_pair()) {
@@ -2868,6 +2871,11 @@ bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end) {
 }
 
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
+	return rSPR_total_distance(T1, gene_trees, NULL);
+}
+
+int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
+		vector<int> *original_scores) {
 	int total = 0;
 	MAIN_CALL = false;
 	int end = gene_trees.size();
@@ -2877,6 +2885,8 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	for(int i = 0; i < end; i++) {
 			//		cout << i << endl;
 		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+		if (original_scores != NULL)
+			(*original_scores)[i] = k;
 		total += k;
 //		cout << "T2: " << gene_trees[i]->str_subtree() << endl;
 //		cout << " k: " << k << endl;
@@ -2931,7 +2941,8 @@ int rSPR_total_approx_distance(Forest *T1, vector<Node *> &gene_trees) {
 //		cout << i << endl;
 //		cout << T1->str_subtree() << endl;
 //		cout << gene_trees[i]->str_subtree() << endl;
-		total += rSPR_worse_3_approx(&F2, &F1)/3;
+		//total += rSPR_worse_3_approx(&F2, &F1)/3;
+		total += rSPR_worse_3_approx(&F1, &F2)/3;
 	}
 	return total;
 }
