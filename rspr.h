@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #define RSPR
 
 //#define DEBUG 1
-#define DEBUG_CONTRACTED 1
+//#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -2379,6 +2379,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		int total_split_k = 0;
 
 		bool done_cluster = false;
+		bool done_split = false;
 
 		double tree_fraction = INITIAL_TREE_FRACTION;
 
@@ -2388,7 +2389,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 			for(k = min_spr - total_split_k; true; k++) {
 				if (k < 0)
 					k = 0;
-				if (SPLIT_APPROX && k >= SPLIT_APPROX_THRESHOLD) {
+				if (SPLIT_APPROX && !done_split && k >= SPLIT_APPROX_THRESHOLD) {
 					done_cluster = false;
 					break;
 				}
@@ -2460,7 +2461,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 					break;
 				}
 			}
-			bool done_split = done_cluster;
+			done_split = done_cluster;
 			bool num_splits = 0;
 			while (SPLIT_APPROX && !done_split) {
 				//IN_SPLIT_APPROX = true;
@@ -2522,6 +2523,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 								AFs.front().first.swap(&f1);
 								AFs.front().second.swap(&f2);
 								f2.unprotect_edges();
+								f1.get_component(0)->allow_siblings_subtree();
 								AFs.clear();
 								total_split_k += k - split_k;
 		//						if (k < SPLIT_APPROX_THRESHOLD * 0.75) {
@@ -2538,7 +2540,6 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 				//IN_SPLIT_APPROX = false;
 				num_splits++;
 			}
-			f1.get_component(0)->allow_siblings_subtree();
 	
 			// TODO: approx again? seperate approxes ?
 		}
@@ -3086,7 +3087,7 @@ Node *find_subtree_of_approx_distance_hlpr(Node *n, Forest *F1, Forest *F2, int 
 		Node *subtree = f1.find_by_prenum((*c)->get_preorder_number());
 		f1.get_component(0)->disallow_siblings_subtree();
 		if (subtree->lchild() != NULL)
-		subtree->lchild()->allow_siblings_subtree();
+			subtree->lchild()->allow_siblings_subtree();
 		if (subtree->rchild() != NULL)
 			subtree->rchild()->allow_siblings_subtree();
 
@@ -3111,7 +3112,7 @@ Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int targe
 		Node *subtree = f1.find_by_prenum(n->get_preorder_number());
 		f1.get_component(0)->disallow_siblings_subtree();
 		if (subtree->lchild() != NULL)
-		subtree->lchild()->allow_siblings_subtree();
+			subtree->lchild()->allow_siblings_subtree();
 		if (subtree->rchild() != NULL)
 			subtree->rchild()->allow_siblings_subtree();
 		int size = rSPR_worse_3_approx(subtree, &f1, &f2);

@@ -230,6 +230,7 @@ int main(int argc, char *argv[]) {
 	// ignore multifurcating trees by default
 	IGNORE_MULTI = true;
 	string INCLUDE_ONLY = "";
+	string INITIAL_SUPER_TREE = "";
 
 	int max_args = argc-1;
 	while (argc > 1) {
@@ -423,6 +424,15 @@ int main(int argc, char *argv[]) {
 				if (arg2[0] != '-')
 					INCLUDE_ONLY = string(arg2);
 				cout << "INCLUDE_ONLY=" << INCLUDE_ONLY
+						<< endl;
+			}
+		}
+		else if (strcmp(arg, "-initial_super_tree") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					INITIAL_SUPER_TREE = string(arg2);
+				cout << "INITIAL_SUPER_TREE=" << INITIAL_SUPER_TREE
 						<< endl;
 			}
 		}
@@ -630,135 +640,155 @@ int main(int argc, char *argv[]) {
 		exit(0);
 	}
 
+	int best_distance;
+	Node *super_tree;
+	multimap<int, int>::reverse_iterator label = labels.rbegin();
+	int leaf_num = 1;
 
 //	for(auto label = labels.rbegin(); label != labels.rend(); label++) {
 //		cout << label->second ;
 //		cout << " (" << reverse_label_map.find(label->second)->second << ") ";
 //		cout << ": " << label->first << endl;
 //	}
-
-	// 4 most common leaves
-	multimap<int, int>::reverse_iterator label = labels.rbegin();
-	vector<int> l = vector<int>(4);
-	for(int i = 0; i < 4; i++) {
-		l[i] = label->second;
-		label++;
-		//cout << l[i] << endl;
-	}
-
-//	cout << endl;
-//	cout << "Starting Trees:" << endl;
-
-	// create all trees on the 4 leaves
-	vector<Node *> ST = vector<Node *>();
-	int st_size = 0;
-	stringstream ss;
-	ss << "((" << l[0] << "," << l[1] << "),(" << l[2] << "," << l[3] <<"))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "((" << l[0] << "," << l[2] << "),(" << l[1] << "," << l[3] <<"))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "((" << l[0] << "," << l[3] << "),(" << l[1] << "," << l[2] <<"))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-
-	// testing other rooted trees
-	ss << "(" << l[0] << "," << "(" << l[3] << ",(" << l[1] << "," << l[2] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "(" << l[0] << "," << "(" << l[1] << ",(" << l[3] << "," << l[2] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "(" << l[0] << "," << "(" << l[2] << ",(" << l[1] << "," << l[3] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	// testing other rooted trees
-	ss << "(" << l[1] << "," << "(" << l[3] << ",(" << l[0] << "," << l[2] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "(" << l[1] << "," << "(" << l[0] << ",(" << l[3] << "," << l[2] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "(" << l[1] << "," << "(" << l[2] << ",(" << l[0] << "," << l[3] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	// testing other rooted trees
-	ss << "(" << l[2] << "," << "(" << l[3] << ",(" << l[1] << "," << l[0] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "(" << l[2] << "," << "(" << l[1] << ",(" << l[3] << "," << l[0] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "(" << l[2] << "," << "(" << l[0] << ",(" << l[1] << "," << l[3] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	// testing other rooted trees
-	ss << "(" << l[3] << "," << "(" << l[0] << ",(" << l[1] << "," << l[2] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "(" << l[3] << "," << "(" << l[1] << ",(" << l[0] << "," << l[2] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-	ss << "(" << l[3] << "," << "(" << l[2] << ",(" << l[1] << "," << l[0] <<")))";
-	ST.push_back(build_tree(ss.str()));
-	ss.str("");
-
-		vector<Node *> current_gene_trees = vector<Node *>();
-		for(int i = 0; i < gene_trees.size(); i++) {
-			if (gene_trees[i]->contains_leaf(l[0]))
-				current_gene_trees.push_back(gene_trees[i]);
-			else if (gene_trees[i]->contains_leaf(l[1]))
-				current_gene_trees.push_back(gene_trees[i]);
-			else if (gene_trees[i]->contains_leaf(l[2]))
-				current_gene_trees.push_back(gene_trees[i]);
-			else if (gene_trees[i]->contains_leaf(l[3]))
-				current_gene_trees.push_back(gene_trees[i]);
+	if (INITIAL_SUPER_TREE != "") {
+		ifstream super_tree_file;
+		super_tree_file.open(INITIAL_SUPER_TREE.c_str());
+		if (super_tree_file.is_open()) {
+			string line;
+			if(super_tree_file.good()) {
+				getline(super_tree_file, line);
+				super_tree = build_tree(line);
+				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+			}
+			super_tree_file.close();
 		}
-
-
-	// choose the best starting tree
-	int best_distance;
-	if (APPROX)
-		if (UNROOTED)
-			best_distance = rSPR_total_approx_distance_unrooted(ST[0], current_gene_trees); 
 		else
-			best_distance = rSPR_total_approx_distance(ST[0], current_gene_trees); 
-	else 
-		if (UNROOTED)
-			best_distance = rSPR_total_distance_unrooted(ST[0], current_gene_trees); 
-		else
-			best_distance = rSPR_total_distance(ST[0], current_gene_trees); 
-	int best_tree = 0;
-//	cout << best_distance <<  ": ";
-//	cout << ST[0]->str_subtree() << endl;
-	for(int j = 1; j < ST.size(); j++) {
-		//cout << ST[j]->str_subtree() << endl;
-		int distance;
+			INITIAL_SUPER_TREE = "";
+	}
+	if (INITIAL_SUPER_TREE == "") {
+
+		// 4 most common leaves
+		vector<int> l = vector<int>(4);
+		for(int i = 0; i < 4; i++) {
+			l[i] = label->second;
+			label++;
+			//cout << l[i] << endl;
+		}
+	
+	//	cout << endl;
+	//	cout << "Starting Trees:" << endl;
+	
+		// create all trees on the 4 leaves
+		vector<Node *> ST = vector<Node *>();
+		int st_size = 0;
+		stringstream ss;
+		ss << "((" << l[0] << "," << l[1] << "),(" << l[2] << "," << l[3] <<"))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "((" << l[0] << "," << l[2] << "),(" << l[1] << "," << l[3] <<"))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "((" << l[0] << "," << l[3] << "),(" << l[1] << "," << l[2] <<"))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+	
+		// testing other rooted trees
+		ss << "(" << l[0] << "," << "(" << l[3] << ",(" << l[1] << "," << l[2] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "(" << l[0] << "," << "(" << l[1] << ",(" << l[3] << "," << l[2] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "(" << l[0] << "," << "(" << l[2] << ",(" << l[1] << "," << l[3] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		// testing other rooted trees
+		ss << "(" << l[1] << "," << "(" << l[3] << ",(" << l[0] << "," << l[2] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "(" << l[1] << "," << "(" << l[0] << ",(" << l[3] << "," << l[2] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "(" << l[1] << "," << "(" << l[2] << ",(" << l[0] << "," << l[3] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		// testing other rooted trees
+		ss << "(" << l[2] << "," << "(" << l[3] << ",(" << l[1] << "," << l[0] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "(" << l[2] << "," << "(" << l[1] << ",(" << l[3] << "," << l[0] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "(" << l[2] << "," << "(" << l[0] << ",(" << l[1] << "," << l[3] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		// testing other rooted trees
+		ss << "(" << l[3] << "," << "(" << l[0] << ",(" << l[1] << "," << l[2] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "(" << l[3] << "," << "(" << l[1] << ",(" << l[0] << "," << l[2] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+		ss << "(" << l[3] << "," << "(" << l[2] << ",(" << l[1] << "," << l[0] <<")))";
+		ST.push_back(build_tree(ss.str()));
+		ss.str("");
+	
+			vector<Node *> current_gene_trees = vector<Node *>();
+			for(int i = 0; i < gene_trees.size(); i++) {
+				if (gene_trees[i]->contains_leaf(l[0]))
+					current_gene_trees.push_back(gene_trees[i]);
+				else if (gene_trees[i]->contains_leaf(l[1]))
+					current_gene_trees.push_back(gene_trees[i]);
+				else if (gene_trees[i]->contains_leaf(l[2]))
+					current_gene_trees.push_back(gene_trees[i]);
+				else if (gene_trees[i]->contains_leaf(l[3]))
+					current_gene_trees.push_back(gene_trees[i]);
+			}
+	
+	
+		// choose the best starting tree
 		if (APPROX)
 			if (UNROOTED)
-				distance = rSPR_total_approx_distance_unrooted(ST[j], current_gene_trees);
+				best_distance = rSPR_total_approx_distance_unrooted(ST[0], current_gene_trees); 
 			else
-				distance = rSPR_total_approx_distance(ST[j], current_gene_trees);
-		else
-			if (UNROOTED || SIMPLE_UNROOTED)
-				distance = rSPR_total_distance_unrooted(ST[j], current_gene_trees);
+				best_distance = rSPR_total_approx_distance(ST[0], current_gene_trees); 
+		else 
+			if (UNROOTED)
+				best_distance = rSPR_total_distance_unrooted(ST[0], current_gene_trees); 
 			else
-				distance = rSPR_total_distance(ST[j], current_gene_trees);
-//		cout << distance <<  ": ";
-//		cout << ST[j]->str_subtree() << endl;
-		if (distance < best_distance) {
-			best_distance = distance;
-			best_tree = j;
+				best_distance = rSPR_total_distance(ST[0], current_gene_trees); 
+		int best_tree = 0;
+	//	cout << best_distance <<  ": ";
+	//	cout << ST[0]->str_subtree() << endl;
+		for(int j = 1; j < ST.size(); j++) {
+			//cout << ST[j]->str_subtree() << endl;
+			int distance;
+			if (APPROX)
+				if (UNROOTED)
+					distance = rSPR_total_approx_distance_unrooted(ST[j], current_gene_trees);
+				else
+					distance = rSPR_total_approx_distance(ST[j], current_gene_trees);
+			else
+				if (UNROOTED || SIMPLE_UNROOTED)
+					distance = rSPR_total_distance_unrooted(ST[j], current_gene_trees);
+				else
+					distance = rSPR_total_distance(ST[j], current_gene_trees);
+	//		cout << distance <<  ": ";
+	//		cout << ST[j]->str_subtree() << endl;
+			if (distance < best_distance) {
+				best_distance = distance;
+				best_tree = j;
+			}
 		}
+		super_tree = ST[best_tree];
+	
+		for(int i = 0; i < ST.size(); i++) {
+			if (i != best_tree)
+				ST[i]->delete_tree();
+		}
+		current_gene_trees.clear();
+		leaf_num = 5;
 	}
-	Node *super_tree = ST[best_tree];
-
-	for(int i = 0; i < ST.size(); i++) {
-		if (i != best_tree)
-			ST[i]->delete_tree();
-	}
-	current_gene_trees.clear();
 
 	cout << endl;
 	cout << "Initial Supertree:  " << super_tree->str_subtree() << endl;
@@ -768,9 +798,13 @@ int main(int argc, char *argv[]) {
 		time = clock()/(double)CLOCKS_PER_SEC;
 
 	int x = 0;
-	int leaf_num = 5;
 	for(; label != labels.rend() &&
 			NUM_LEAVES < 0 || leaf_num <= NUM_LEAVES; label++) {
+		if (INITIAL_SUPER_TREE != "" &&
+				super_tree->contains_leaf(label->second)) {
+			leaf_num++;
+			continue;
+		}
 		cout << "Adding leaf " << label->second;
 		cout << "\t("<< leaf_num++ << "/" <<  labels.size() << ")";
 		if (TIMING) {
