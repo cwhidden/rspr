@@ -90,6 +90,12 @@ void reduction_leaf(Forest *T1, Forest *T2);
 bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end);
 Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int target_size);
 
+/*Joel's part*/
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2);
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose);
+int rSPR_total_distance(Forest *T1, vector<Node *> &gene_trees);
+
 bool BB = false;
 bool APPROX_CHECK_COMPONENT = false;
 bool APPROX_REVERSE_CUT_ONE_B = false;
@@ -2745,6 +2751,15 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 	return total_k;
 }
 
+/*Joel's part*/
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose){
+	return rSPR_branch_and_bound_simple_clustering(T1, T2, false, NULL, NULL);
+}
+
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2){
+	return rSPR_branch_and_bound_simple_clustering(T1, T2, false, NULL, NULL);
+}
+
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
 	return rSPR_branch_and_bound_simple_clustering(T1, T2, false, NULL, NULL);
 }
@@ -2895,6 +2910,32 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees, int threshold) {
 	}
 	return total;
 }
+
+/*Joel's part*/
+int rSPR_total_distance(Forest *T1, vector<Node *> &gene_trees){
+	int total = 0;
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)
+	for(int i = 0; i < gene_trees.size(); i++) {
+		Forest T2 = Forest(gene_trees[i]);
+		total += rSPR_branch_and_bound_simple_clustering(&T2, T1, VERBOSE);
+	}
+	return total;
+}
+
+int rSPR_total_approx_distance(Forest *T1, vector<Node *> &gene_trees) {
+	int total = 0;
+	#pragma omp parallel for reduction(+ : total)
+	for(int i = 0; i < gene_trees.size(); i++) {
+		Forest F1 = Forest(T1);
+		Forest F2 = Forest(gene_trees[i]);
+//		cout << i << endl;
+//		cout << T1->str_subtree() << endl;
+//		cout << gene_trees[i]->str_subtree() << endl;
+		total += rSPR_worse_3_approx(&F2, &F1)/3;
+	}
+	return total;
+}
+
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	rSPR_total_distance_unrooted(T1, gene_trees, INT_MAX);
 }
