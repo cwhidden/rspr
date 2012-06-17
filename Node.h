@@ -90,6 +90,7 @@ class Node {
 	bool is_contracted;
 	bool edge_protected;
 	bool allow_sibling;
+	int lost_children;
 
 	public:
 	Node() {
@@ -125,6 +126,7 @@ class Node {
 		this->is_contracted = false;
 		this->edge_protected = false;
 		this->allow_sibling = true;
+		this->lost_children = 0;
 		if (lc != NULL)
 			add_child(lc);
 		if (rc != NULL)
@@ -169,6 +171,7 @@ class Node {
 #endif
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
+		this->lost_children = n.lost_children;
 	}
 
 	Node(const Node &n, Node *parent) {
@@ -211,6 +214,7 @@ class Node {
 #endif
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
+		this->lost_children = n.lost_children;
 	}
 	// TODO: clear_parent function
 	~Node() {
@@ -449,6 +453,37 @@ class Node {
 		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->allow_siblings_subtree();
+		}
+	}
+
+	// TODO: make this an int?
+	int num_lost_children() {
+		return lost_children;
+	}
+
+	int count_lost_children_subtree() {
+		int lost_children_count = lost_children;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			lost_children_count += (*c)->count_lost_children_subtree();
+		}
+		return lost_children_count;
+	}
+
+
+	void lost_child() {
+		lost_children++;
+	}
+
+	void no_lost_children() {
+		lost_children = 0;
+	}
+
+	void no_lost_children_subtree() {
+		lost_children = 0;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->no_lost_children_subtree();
 		}
 	}
 

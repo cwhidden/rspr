@@ -136,6 +136,7 @@ bool SPLIT_APPROX = false;
 bool IN_SPLIT_APPROX = false;
 int SPLIT_APPROX_THRESHOLD = 25;
 float INITIAL_TREE_FRACTION = 0.4;
+bool COUNT_LOSSES = false;
 
 class ProblemSolution {
 		public:
@@ -717,9 +718,11 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 						cut_a_only=true;
 					}
 				}
-				else if (APPROX_REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
+				else if (APPROX_REVERSE_CUT_ONE_B_2) {
+					if (T2_c->parent() != NULL
 						&& chain_match(T1_s, T2_c->get_sibling(), T2_a))
 					cut_a_only = true;
+				}
 			}
 
 				Node *node;
@@ -2302,6 +2305,11 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		return 0;
 	if (F1.get_component(0)->is_leaf())
 		return 0;
+	int loss = 0;
+	if (COUNT_LOSSES) {
+		loss += F1.get_component(0)->count_lost_children_subtree();
+		loss += F2.get_component(0)->count_lost_children_subtree();
+	}
 	if (LEAF_REDUCTION2)
 		reduction_leaf(&F1, &F2);
 	sync_interior_twins(&F1, &F2);
@@ -2485,16 +2493,24 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 					Node *a_split_node =
 					f1a.find_by_prenum(original_split_node->get_preorder_number());
 					f1a.get_component(0)->disallow_siblings_subtree();
-					if (a_split_node->lchild() != NULL)
-						a_split_node->lchild()->allow_siblings_subtree();
-					if (a_split_node->rchild() != NULL)
-						a_split_node->rchild()->allow_siblings_subtree();
+						a_split_node->allow_siblings_subtree();
+//					if (a_split_node->lchild() != NULL)
+//						a_split_node->lchild()->allow_siblings_subtree();
+//					if (a_split_node->rchild() != NULL)
+//						a_split_node->rchild()->allow_siblings_subtree();
 					// something odd going on here
 					int start = rSPR_worse_3_approx(a_split_node, &f1a, &f2a);
 					if (start == INT_MAX)
 						start = 0;
 					start /= 3;
+					int end = f1.get_component(0)->size();
 					for(k = start; true; k++) {
+						// TODO: figure out the bug here
+						if (k > end) {
+							k = 0;
+							done_split = true;
+							break;
+						}
 				/*	if (k > SPLIT_APPROX_THRESHOLD) {
 						k = 0;
 						tree_fraction *= 0.75;
@@ -2506,6 +2522,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 						Forest f2s = Forest(f2);
 						if (!sync_twins(&f1s, &f2s)) {
 							k = 0;
+							done_split = true;
 							break;
 						}
 						if (verbose) {
@@ -2514,10 +2531,11 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 						}
 						Node *split_node = f1s.find_by_prenum(original_split_node->get_preorder_number());
 						f1s.get_component(0)->disallow_siblings_subtree();
-						if (split_node->lchild() != NULL)
-							split_node->lchild()->allow_siblings_subtree();
-						if (split_node->rchild() != NULL)
-							split_node->rchild()->allow_siblings_subtree();
+							split_node->allow_siblings_subtree();
+//						if (split_node->lchild() != NULL)
+//							split_node->lchild()->allow_siblings_subtree();
+//						if (split_node->rchild() != NULL)
+//							split_node->rchild()->allow_siblings_subtree();
 							//f1s.get_component(0)->find_subtree_of_size(tree_fraction);
 							set<SiblingPair > *sibling_pairs =
 								find_sibling_pairs_set(split_node);
@@ -2583,7 +2601,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 
 	delete cluster_points;
 //	PREFER_RHO = old_rho;
-	return total_k;
+	return total_k + loss;
 }
 
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map) {
@@ -2879,6 +2897,7 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 	int total = 0;
 	MAIN_CALL = false;
 	int end = gene_trees.size();
+	T1->preorder_number();
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
 //	for(int j = 0; j < 10; j++)
 //	cout << "T1: " << T1->str_subtree() << endl;
@@ -3138,10 +3157,11 @@ Node *find_subtree_of_approx_distance_hlpr(Node *n, Forest *F1, Forest *F2, int 
 		Forest f2 = Forest(F2);
 		Node *subtree = f1.find_by_prenum((*c)->get_preorder_number());
 		f1.get_component(0)->disallow_siblings_subtree();
-		if (subtree->lchild() != NULL)
-			subtree->lchild()->allow_siblings_subtree();
-		if (subtree->rchild() != NULL)
-			subtree->rchild()->allow_siblings_subtree();
+		subtree->allow_siblings_subtree();
+//		if (subtree->lchild() != NULL)
+//			subtree->lchild()->allow_siblings_subtree();
+//		if (subtree->rchild() != NULL)
+//			subtree->rchild()->allow_siblings_subtree();
 
 		int cs_size = rSPR_worse_3_approx(subtree, &f1, &f2);
 		if (cs_size > lcs_size) {
@@ -3163,10 +3183,11 @@ Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int targe
 		Forest f2 = Forest(F2);
 		Node *subtree = f1.find_by_prenum(n->get_preorder_number());
 		f1.get_component(0)->disallow_siblings_subtree();
-		if (subtree->lchild() != NULL)
-			subtree->lchild()->allow_siblings_subtree();
-		if (subtree->rchild() != NULL)
-			subtree->rchild()->allow_siblings_subtree();
+		subtree->allow_siblings_subtree();
+//		if (subtree->lchild() != NULL)
+//			subtree->lchild()->allow_siblings_subtree();
+//		if (subtree->rchild() != NULL)
+//			subtree->rchild()->allow_siblings_subtree();
 		int size = rSPR_worse_3_approx(subtree, &f1, &f2);
 		if (size > target_size)
 			return find_subtree_of_approx_distance_hlpr(n, F1, F2, target_size);

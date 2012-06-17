@@ -415,6 +415,9 @@ int main(int argc, char *argv[]) {
 						<< endl;
 			}
 		}
+		else if (strcmp(arg, "-count_losses") == 0) {
+			COUNT_LOSSES = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;

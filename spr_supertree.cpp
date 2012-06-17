@@ -128,6 +128,8 @@ bool VALID_TREES = false;
 bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
 int APPROX_SIBLINGS = 0;
+int C_SOURCE = -1;
+int NUM_SOURCE = -1;
 
 /*variables Joel aadded*/
 int R_DISTANCE;
@@ -572,6 +574,9 @@ int main(int argc, char *argv[]) {
 				cout << "INITIAL_TREE=" << INITIAL_SUPER_TREE
 						<< endl;
 			}
+		}
+		else if (strcmp(arg, "-count_losses") == 0) {
+			COUNT_LOSSES = true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -1158,10 +1163,13 @@ int main(int argc, char *argv[]) {
 			if (!UNROOTED && !APPROX) {
 				original_scores = new vector<int>(gene_trees.size(), 0);
 				rSPR_total_distance(super_tree, gene_trees, original_scores);
+				NUM_SOURCE = super_tree->size();
+				C_SOURCE = 1;
 			}
 			find_best_spr_r(super_tree, gene_trees, best_subtree_root, best_sibling,r, original_scores);
 			if (!UNROOTED && !APPROX)
 				delete original_scores;
+				cout << endl;
 		}
 /*Limiting Starting point*/
 		else if(S_LIMIT && !R_LIMIT){
@@ -1294,6 +1302,8 @@ int main(int argc, char *argv[]) {
 		}
 		if(!GREEDY && !GREEDY_REFINED){
 			best_subtree_root->spr(best_sibling);
+			super_tree->set_depth(0);
+			super_tree->fix_depths();
 			super_tree->numbers_to_labels(&reverse_label_map);
 			cout << "Current Supertree: " <<  super_tree->str_subtree() << endl;
 			super_tree->labels_to_numbers(&label_map, &reverse_label_map);
@@ -2053,8 +2063,10 @@ void find_best_spr_helper(Node *n, Node *super_tree,
 				break;
 			}
 		}
-		if (include)
+		//int r = rand();
+		if (include) {// && r < RAND_MAX/10) {
 				current_gene_trees.push_back(gene_trees[i]);
+		}
 		else {
 			Forest F1 = Forest(super_tree);
 			Forest F2 = Forest(gene_trees[i]);
@@ -2212,8 +2224,13 @@ void find_best_spr_r_helper(Node *n, Node *super_tree,
 	vector<Node *> current_gene_trees;
 	vector<Node *> *gene_trees_p = &gene_trees;
 	int offset = 0;
+	if (C_SOURCE != 1)
+		cout << '\r';
+	cout << C_SOURCE << "/" << NUM_SOURCE << flush;
+	C_SOURCE++;
 	
 	if (original_scores != NULL) {
+//		cout << "selecting gene_trees" << endl;
 		vector<Node *> leaves = n->find_leaves();
 		current_gene_trees = vector<Node *>();
 		for(int i = 0; i < gene_trees.size(); i++) {
@@ -2231,8 +2248,8 @@ void find_best_spr_r_helper(Node *n, Node *super_tree,
 			}
 		}
 		gene_trees_p = &current_gene_trees;
-		cout << "gene_trees: " << gene_trees.size() << endl;
-		cout << "c_gene_trees: " << current_gene_trees.size() << endl;
+//		cout << "gene_trees: " << gene_trees.size() << endl;
+//		cout << "c_gene_trees: " << current_gene_trees.size() << endl;
 	}
 	if(n->parent() != NULL) {
 		if(!R_CONTROL  && R_RAND)

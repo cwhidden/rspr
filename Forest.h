@@ -478,7 +478,11 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				T2_labels[stomini(sibling->str())] = sibling;
 			}
 			delete T2_a;
-			node->contract(true);
+			if (node->get_children().size() < 2) {
+				if (node->get_children().size() == 1)
+					node->lchild()->lost_child();
+				node = node->contract(true);
+			}
 		}
 		else if (T2_a == NULL && T1_a != NULL) {
 			Node *node = T1_a->parent();
@@ -493,7 +497,11 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				T1_labels[stomini(sibling->str())] = sibling;
 			}
 			delete T1_a;
-			node->contract(true);
+			if (node->get_children().size() < 2) {
+				if (node->get_children().size() == 1)
+					node->lchild()->lost_child();
+				node = node->contract(true);
+			}
 			
 		}
 		if (T1_a != NULL && T2_a != NULL) {
@@ -516,7 +524,11 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				T1_labels[stomini(sibling->str())] = sibling;
 			}
 			delete T1_a;
-			node->contract(true);
+			if (node->get_children().size() < 2) {
+				if (node->get_children().size() == 1)
+					node->lchild()->lost_child();
+				node = node->contract(true);
+			}
 			
 		}
 	}
@@ -534,9 +546,22 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				T2_labels[stomini(sibling->str())] = sibling;
 			}
 			delete T2_a;
-			node->contract(true);
+			if (node->get_children().size() < 2) {
+				if (node->get_children().size() == 1)
+					node->lchild()->lost_child();
+				node = node->contract(true);
+			}
 		}
 	}
+//	if (T1_loss != NULL)
+//		*T1_loss = T1->get_component(0)->count_lost_children_subtree();
+//		- T1->get_component(0)->num_lost_children();;
+//	cout << "T1_lost = " << T1_lost << endl;
+//	if (T2_loss != NULL)
+//		*T2_loss = T2->get_component(0)->count_lost_children_subtree();
+//		- T2->get_component(0)->num_lost_children();;
+//	cout << "T2_lost = " << T2_lost << endl;
+
 //	cout << "Finished Syncing Twins" << endl;
 	return true;
 }
