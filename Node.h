@@ -43,6 +43,13 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 
 bool IGNORE_MULTI = false;
+double REQUIRED_SUPPORT = 0.0;
+
+struct StringCompare {
+	bool operator() (const string &a, const string &b) const {
+		return strcmp(a.c_str(), b.c_str()) < 0;
+	}
+};
 
 
 // representation of a component with no leaves
@@ -82,6 +89,8 @@ class Node {
 	Node *contracted_rc;
 	bool is_contracted;
 	bool edge_protected;
+	bool allow_sibling;
+	int lost_children;
 
 	public:
 	Node() {
@@ -116,6 +125,8 @@ class Node {
 		this->contracted_rc = NULL;
 		this->is_contracted = false;
 		this->edge_protected = false;
+		this->allow_sibling = true;
+		this->lost_children = 0;
 		if (lc != NULL)
 			add_child(lc);
 		if (rc != NULL)
@@ -159,6 +170,8 @@ class Node {
 		this->is_contracted = n.is_contracted;
 #endif
 		this->edge_protected = n.edge_protected;
+		this->allow_sibling = n.allow_sibling;
+		this->lost_children = n.lost_children;
 	}
 
 	Node(const Node &n, Node *parent) {
@@ -200,6 +213,8 @@ class Node {
 		this->is_contracted = n.is_contracted;
 #endif
 		this->edge_protected = n.edge_protected;
+		this->allow_sibling = n.allow_sibling;
+		this->lost_children = n.lost_children;
 	}
 	// TODO: clear_parent function
 	~Node() {
@@ -213,6 +228,16 @@ class Node {
 		active_descendants.clear();
 		root_lcas.clear();
 		removable_descendants.clear();
+#ifdef COPY_CONTRACTED
+		if (contracted_lc != NULL) {
+			contracted_lc->delete_tree();
+		}
+		contracted_lc = NULL;
+		if (contracted_rc != NULL) {
+			contracted_rc->delete_tree();
+		}
+		contracted_rc = NULL;
+#endif
 	}
 	// TODO: is this still useful?
 	/*
@@ -393,6 +418,73 @@ class Node {
 
 	void unprotect_edge() {
 		edge_protected = false;
+	}
+
+	void unprotect_subtree() {
+		unprotect_edge();
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->unprotect_edge();
+		}
+	}
+
+	bool can_be_sibling() {
+		return allow_sibling;
+	}
+
+	void disallow_siblings() {
+		allow_sibling = false;
+	}
+
+	void disallow_siblings_subtree() {
+		allow_sibling = false;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->disallow_siblings_subtree();
+		}
+	}
+
+	void allow_siblings() {
+		allow_sibling = true;
+	}
+
+	void allow_siblings_subtree() {
+		allow_sibling = true;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->allow_siblings_subtree();
+		}
+	}
+
+	// TODO: make this an int?
+	int num_lost_children() {
+		return lost_children;
+	}
+
+	int count_lost_children_subtree() {
+		int lost_children_count = lost_children;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			lost_children_count += (*c)->count_lost_children_subtree();
+		}
+		return lost_children_count;
+	}
+
+
+	void lost_child() {
+		lost_children++;
+	}
+
+	void no_lost_children() {
+		lost_children = 0;
+	}
+
+	void no_lost_children_subtree() {
+		lost_children = 0;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->no_lost_children_subtree();
+		}
 	}
 
 	int get_component_number() {
@@ -972,6 +1064,19 @@ class Node {
 		return descendants;
 	}
 
+	bool contains_leaf(int number) {
+		if (stomini(get_name()) == number)
+			return true;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			bool ans = (*c)->contains_leaf(number);
+			if (ans == true)
+				return true;
+		}
+		vector<Node *> descendants = vector<Node *>();
+		return false;
+	}
+
 	// make twins point to this tree in this node's subtree
 	void resync() {
 		list<Node *>::iterator c;
@@ -1120,6 +1225,17 @@ class Node {
 			return get_preorder_number();
 		else
 			return children.back()->size_using_prenum();
+	}
+
+	int max_depth() {
+		int d  = 0;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			int c_d = (*c)->max_depth();
+			if (c_d > d)
+				d = c_d;
+		}
+		return d+1;
 	}
 
 	// TODO: binary only
@@ -1303,8 +1419,9 @@ void next_rooting() {
 */
 void reroot(Node *new_lc) {
 	Node *new_rc = new_lc->parent();
-	if (new_rc == this || new_rc == NULL)
+	if (new_rc == this || new_rc == NULL) {
 		return;
+	}
 	Node *prev = new_rc;
 	Node *next = new_rc->parent();
 	Node *old_lc = lchild();
@@ -1322,6 +1439,15 @@ void reroot(Node *new_lc) {
 	root->cut_parent();
 	root->add_child(new_lc);
 	root->add_child(new_rc);
+}
+
+// make the root binay again
+void fixroot() {
+	Node *new_lc = new Node();
+	while(get_children().size() > 1) {
+		new_lc->add_child(get_children().back());
+	}
+	add_child(new_lc);
 }
 
 
@@ -1576,35 +1702,68 @@ int any_leaf_preorder_number() {
 		return (*children.begin())->any_leaf_preorder_number();
 }
 
+Node *find_by_prenum(int prenum) {
+//	cout << "find_by_prenum: " << str_subtree() << endl;
+	if (prenum == get_preorder_number())
+		return this;
+	Node *search_child = NULL;
+	int best_prenum = -1;
+	list<Node *>::iterator c;
+	for(c = children.begin(); c != children.end(); c++) {
+//		cout << "\tchild: " << (*c)->str_subtree() << endl;
+//		cout << "\tpre: " << (*c)->get_preorder_number() << endl;
+		int p = (*c)->get_preorder_number();
+		if (p == prenum)
+			return *c;
+		else if (p < prenum && p > best_prenum) {
+			best_prenum = p;
+			search_child = *c;
+		}
+	}
+	if (search_child != NULL)
+		return search_child->find_by_prenum(prenum);
+	else
+		return NULL;
+}
+
 
 };
 
 // function prototypes
 Node *build_tree(string s);
+Node *build_tree(string s, set<string, StringCompare> *include_only);
 Node *build_tree(string s, int start_depth);
+Node *build_tree(string s, int start_depth, set<string, StringCompare> *include_only);
 int build_tree_helper(int start, const string& s, Node *parent,
-		bool &valid);
+		bool &valid, set<string, StringCompare> *include_only);
 //void preorder_number(Node *node);
 //int preorder_number(Node *node, int next);
 
 
 // build a tree from a newick string
 Node *build_tree(string s) {
-	return build_tree(s, 0);
+	return build_tree(s, 0, NULL);
 }
 Node *build_tree(string s, int start_depth) {
+	return build_tree(s, start_depth, NULL);
+}
+Node *build_tree(string s, set<string, StringCompare> *include_only) {
+	return build_tree(s, 0, include_only);
+}
+Node *build_tree(string s, int start_depth, set<string, StringCompare> *include_only) {
 	if (s == "")
 		return new Node();
 	Node *dummy_head = new Node("p", start_depth-1);
 	bool valid = true;
-	build_tree_helper(0, s, dummy_head, valid);
+	build_tree_helper(0, s, dummy_head, valid, include_only);
 	Node *head = dummy_head->lchild();
-	if (valid) {
+	if (valid && head != NULL) {
 		delete dummy_head;
 		return head;
 	}
 	else {
-		head->delete_tree();
+		if (head != NULL)
+			head->delete_tree();
 		return dummy_head;
 	}
 
@@ -1612,12 +1771,18 @@ Node *build_tree(string s, int start_depth) {
 
 // build_tree recursive helper function
 int build_tree_helper(int start, const string& s, Node *parent,
-		bool &valid) {
+		bool &valid, set<string, StringCompare> *include_only) {
 	int loc = s.find_first_of("(,)", start);
 	if (loc == string::npos) {
 		string name = s.substr(start, s.size() - start);
-		Node *node = new Node(name);
-		parent->add_child(node);
+		int name_end = name.find(':');
+		if (name_end != string::npos)
+			name = name.substr(0, name_end);
+		if (include_only == NULL ||
+				include_only->find(name) != include_only->end()) {
+			Node *node = new Node(name);
+			parent->add_child(node);
+		}
 		loc = s.size()-1;
 		return loc;
 	}
@@ -1627,14 +1792,21 @@ int build_tree_helper(int start, const string& s, Node *parent,
 	while(s[end] == ' ' || s[end] == '\t')
 		end--;
 	string name = s.substr(start, end - start);
-	Node *node = new Node(name);
-	parent->add_child(node);
+	int name_end = name.find(':');
+	if (name_end != string::npos)
+		name = name.substr(0, name_end);
+	Node *node = NULL;
+	if (include_only == NULL ||
+			include_only->find(name) != include_only->end()) {
+		node = new Node(name);
+		parent->add_child(node);
+	}
 
 	int count = 1;
 	if (s[loc] == '(') {
-			loc = build_tree_helper(loc + 1, s, node, valid);
+			loc = build_tree_helper(loc + 1, s, node, valid, include_only);
 			while(s[loc] == ',') {
-				loc = build_tree_helper(loc + 1, s, node, valid);
+				loc = build_tree_helper(loc + 1, s, node, valid, include_only);
 				count++;
 			}
 //			int loc_check = s.find_first_of("(,)", loc);
@@ -1645,8 +1817,36 @@ int build_tree_helper(int start, const string& s, Node *parent,
 				valid = false;
 					return s.size()-1;
 			}
-			//loc = build_tree_helper(loc + 1, s, node);
+			// TODO: get the support values here (and branch lengths?)
+			// contract_node() if support is less than a threshold
 			loc++;
+			if (s[loc-1] == ')') {
+				int numc = node->get_children().size();
+				bool contracted = false;
+				int next = s.find_first_of(",)", loc);
+				if (next != string::npos) {
+					if (next > loc && REQUIRED_SUPPORT > 0) {
+						string info = s.substr(loc, next - loc);
+						if (info[0] != ':') {
+							double support = atof(info.c_str());
+//							cout << "support=" << support << endl;
+							if (support < REQUIRED_SUPPORT && numc > 0) {
+								node->contract_node();
+								contracted = true;
+							}
+						}
+					}
+					loc=next;
+				}
+				if (!contracted) {
+					if (numc == 1)
+						node->contract_node();
+					else if (numc == 0 && name == "") {
+						node->cut_parent();
+						delete node;
+					}
+				}
+			}
 	}
 	return loc;
 }

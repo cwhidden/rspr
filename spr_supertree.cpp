@@ -95,11 +95,8 @@ OTHER OPTIONS
 #include <climits>
 #include <vector>
 #include <map>
-<<<<<<< HEAD:spr_supertree.cpp
-=======
 #include <utility>
 #include <algorithm>
->>>>>>> neptune/multi:spr_supertree.cpp
 #include <list>
 #include <time.h>
 #include "rspr.h"
@@ -541,12 +538,9 @@ int main(int argc, char *argv[]) {
 				char *arg2 = argv[argc+1];
 				if (arg2[0] != '-')
 					SPLIT_APPROX_THRESHOLD = atoi(arg2);
-<<<<<<< HEAD:spr_supertree.cpp
-=======
-			}
->>>>>>> neptune/multi:spr_supertree.cpp
 				cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
 						<< endl;
+			}
 		}
 		else if (strcmp(arg, "-support") == 0) {
 			if (max_args > argc) {
