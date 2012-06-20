@@ -119,6 +119,7 @@ bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
 bool SIMPLE_UNROOTED = false;
+bool REROOT = false;
 bool APPROX = false;
 bool TIMING = false;
 int NUM_ITERATIONS = 25;
@@ -318,6 +319,8 @@ int main(int argc, char *argv[]) {
 			UNROOTED = true;
 		else if (strcmp(arg, "-simple_unrooted") == 0)
 			SIMPLE_UNROOTED = true;
+		else if (strcmp(arg, "-reroot") == 0)
+			REROOT = true;
 		else if (strcmp(arg, "-unrooted_min_approx") == 0) {
 			UNROOTED = true;
 			UNROOTED_MIN_APPROX = true;
@@ -985,6 +988,8 @@ int main(int argc, char *argv[]) {
 					double root_avg_acc = 0;
 					int count = 1;
 					super_tree->reroot(descendants[j]);
+					super_tree->set_depth(0);
+					super_tree->fix_depths();
 					super_tree->preorder_number();
 					if (APPROX_ROOTING) {
 						root_avg_acc = -rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
@@ -995,6 +1000,7 @@ int main(int argc, char *argv[]) {
 						#pragma omp parallel for schedule(static) reduction(+: root_avg_acc) reduction(+: count)
 						for(int i = 0; i < end; i++) {
 							double acc;
+							current_gene_trees[i]->preorder_number();
 							acc = find_best_root_acc(super_tree, current_gene_trees[i]);
 		//					cout <<  j << "\t" << i << "\t" << acc << endl;
 							if (acc > -1) {
@@ -1027,18 +1033,24 @@ int main(int argc, char *argv[]) {
 					}
 				}
 				super_tree->reroot(best_root);
+				super_tree->set_depth(0);
+				super_tree->fix_depths();
 			}
 
 			cout << "rerooting gene trees" << endl;
 			// reroot the gene trees based on the balanced accuracy of splits
 			super_tree->preorder_number();
+			int end = current_gene_trees.size();
 			#pragma omp parallel for
-			for(int i = 0; i < current_gene_trees.size(); i++) {
+			for(int i = 0; i < end; i++) {
 				current_gene_trees[i]->preorder_number();
 				Node *new_root =
 					find_best_root(super_tree, current_gene_trees[i]);
-				if (new_root != NULL)
+				if (new_root != NULL) {
 					current_gene_trees[i]->reroot(new_root);
+					current_gene_trees[i]->set_depth(0);
+					current_gene_trees[i]->fix_depths();
+				}
 			}
 		}
 		Node *best_sibling;
@@ -1072,19 +1084,94 @@ int main(int argc, char *argv[]) {
 	super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 	Node *best_supertree = new Node(*super_tree);
 
+			bool APPROX_ROOTING = false;
+			if (REROOT) {
+				cout << "rerooting super_tree" << endl;
+				// reroot the supertree based on the balanced accuracy of splits
+				vector<Node *> descendants =
+					super_tree->find_interior();
+					//super_tree->find_descendants();
+				Node *best_root = super_tree->lchild();
+				double best_root_avg_acc = 0;
+				if (APPROX_ROOTING)
+					best_root_avg_acc = -INT_MAX;
+				int num_ties = 2;
+				for(int j = 0; j < descendants.size(); j++) {
+					double root_avg_acc = 0;
+					int count = 1;
+					super_tree->reroot(descendants[j]);
+					super_tree->set_depth(0);
+					super_tree->fix_depths();
+					super_tree->preorder_number();
+					if (APPROX_ROOTING) {
+						root_avg_acc = -rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+						//root_avg_acc = -rSPR_total_distance_unrooted(super_tree, current_gene_trees);
+					}
+					else {
+						int end = gene_trees.size();
+						#pragma omp parallel for schedule(static) reduction(+: root_avg_acc) reduction(+: count)
+						for(int i = 0; i < end; i++) {
+							gene_trees[i]->preorder_number();
+							double acc;
+							acc = 
+								find_best_root_acc(super_tree, gene_trees[i]);
+		//					cout <<  j << "\t" << i << "\t" << acc << endl;
+							if (acc > -1) {
+								root_avg_acc += acc;
+								//root_avg_acc += (acc - root_avg_acc) / count;
+								count++;
+							}
+						}
+						if (count > 0)
+							root_avg_acc /= count;
+						int lsize = super_tree->lchild()->size_using_prenum();
+						int rsize = super_tree->rchild()->size_using_prenum();
+						int size = (lsize < rsize) ? lsize : rsize;
+						root_avg_acc *= mylog2(size);
+					}
+					#pragma omp critical
+					{
+						if (root_avg_acc > best_root_avg_acc) {
+							best_root = descendants[j];
+							best_root_avg_acc = root_avg_acc;
+						}
+						else if (root_avg_acc == best_root_avg_acc) {
+							int r = rand();
+							if (r < RAND_MAX/ num_ties) {
+								best_root = descendants[j];
+								best_root_avg_acc = root_avg_acc;
+								num_ties = 2;
+							}
+						}
+					}
+				}
+				super_tree->reroot(best_root);
+				super_tree->set_depth(0);
+				super_tree->fix_depths();
+				super_tree->numbers_to_labels(&reverse_label_map);
+				cout << "Rerooted Supertree: " <<  super_tree->str_subtree() << endl;
+				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+			}
 	if (SIMPLE_UNROOTED) {
 		cout << "rerooting gene trees" << endl;
 		// reroot the gene trees based on the balanced accuracy of splits
 		super_tree->preorder_number();
+		int end = gene_trees.size();
 		#pragma omp parallel for
-		for(int i = 0; i < gene_trees.size(); i++) {
+		for(int i = 0; i < end; i++) {
 			gene_trees[i]->preorder_number();
 			Node *new_root =
 				find_best_root(super_tree, gene_trees[i]);
+				//find_best_root(super_tree, gene_trees[i]);
 			if (new_root != NULL)
 				gene_trees[i]->reroot(new_root);
+				gene_trees[i]->set_depth(0);
+				gene_trees[i]->fix_depths();
 		}
 	}
+	super_tree->set_depth(0);
+	super_tree->fix_depths();
+	super_tree->preorder_number();
 
 	if (APPROX)
 		if (UNROOTED)
@@ -1764,12 +1851,22 @@ Node *find_best_root(Node *T1, Node *T2, double *best_root_b_acc) {
 }
 Node *find_best_root(Node *T1, Node *T2) {
 	double best_root_b_acc = 0;
-	return find_best_root(T1, T2, &best_root_b_acc);
+	Forest f1 = Forest(T1);
+	Forest f2 = Forest(T2);
+	sync_twins(&f1, &f2);
+	Node *new_root =
+		find_best_root(f1.get_component(0), f2.get_component(0), &best_root_b_acc);
+	if (new_root != NULL)
+		new_root = T2->find_by_prenum(new_root->get_preorder_number());
+	return new_root;
 }
 
 double find_best_root_acc(Node *T1, Node *T2) {
 	double best_root_b_acc = -1;
-	find_best_root(T1, T2, &best_root_b_acc);
+	Forest f1 = Forest(T1);
+	Forest f2 = Forest(T2);
+	sync_twins(&f1, &f2);
+	find_best_root(f1.get_component(0), f2.get_component(0), &best_root_b_acc);
 	return best_root_b_acc;
 }
 

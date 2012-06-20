@@ -2961,7 +2961,7 @@ int rSPR_total_approx_distance(Forest *T1, vector<Node *> &gene_trees) {
 //		cout << T1->str_subtree() << endl;
 //		cout << gene_trees[i]->str_subtree() << endl;
 		//total += rSPR_worse_3_approx(&F2, &F1)/3;
-		total += rSPR_worse_3_approx(&F1, &F2)/3;
+		total += rSPR_worse_3_approx(&F2, &F1)/3;
 	}
 	return total;
 }
