@@ -309,6 +309,16 @@ class Forest {
 			(*i)->unsync_interior();
 		}
 	}
+	// clear twin pointers
+	Node *find_by_prenum(int prenum) {
+		vector<Node *>::iterator i;
+		for(i = components.begin(); i != components.end(); i++) {
+			Node *ans = (*i)->find_by_prenum(prenum);
+			if (ans != NULL)
+				return ans;
+		}
+		return NULL;
+	}
 
 void labels_to_numbers(map<string, int> *label_map, map<int, string> *reverse_label_map) {
 	vector<Node *>::iterator i;
@@ -364,6 +374,12 @@ void move_first_component_to_end() {
 	components[0] = components[components.size()-1];
 	components[components.size()-1] = temp;
 }
+void unprotect_edges() {
+	for(int i = 0; i < size(); i++) {
+		get_component(i)->unprotect_subtree();
+	}
+}
+
 };
 
 // Functions
@@ -407,9 +423,11 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				// find smallest number contained in the label
 				int number = stomini(leaf->str());
 //				cout << "\t" << number << endl;
-				if (number >= T1_labels.size())
-					T1_labels.resize(number+1, 0);
-				T1_labels[number] = leaf;
+				if (number < INT_MAX) {
+					if (number >= T1_labels.size())
+						T1_labels.resize(number+1, 0);
+					T1_labels[number] = leaf;
+				}
 			}
 		}
 	}
@@ -427,9 +445,11 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				// find smallest number contained in the label
 				int number = stomini(leaf->str());
 //				cout << "\t" << number << endl;
-				if (number >= T2_labels.size())
-					T2_labels.resize(number+1, NULL);
-				T2_labels[number] = leaf;
+				if (number < INT_MAX) {
+					if (number >= T2_labels.size())
+						T2_labels.resize(number+1, 0);
+					T2_labels[number] = leaf;
+				}
 			}
 		}
 	}
@@ -449,7 +469,8 @@ bool sync_twins(Forest *T1, Forest *T2) {
 			Node *node = T2_a->parent();
 			if (node == NULL)
 				return false;
-			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
+			if (node->parent() == NULL && node->lchild()->is_leaf() &&
+					(!node->rchild() || node->rchild()->is_leaf())) {
 				return false;
 				Node *sibling = node->lchild();
 				if (sibling == T2_a)
@@ -457,13 +478,18 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				T2_labels[stomini(sibling->str())] = sibling;
 			}
 			delete T2_a;
-			node->contract(true);
+			if (node->get_children().size() < 2) {
+				if (node->get_children().size() == 1)
+					node->lchild()->lost_child();
+				node = node->contract(true);
+			}
 		}
 		else if (T2_a == NULL && T1_a != NULL) {
 			Node *node = T1_a->parent();
 			if (node == NULL)
 				return false;
-			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
+			if (node->parent() == NULL && node->lchild()->is_leaf() &&
+					(!node->rchild() || node->rchild()->is_leaf())) {
 				return false;
 				Node *sibling = node->lchild();
 				if (sibling == T1_a)
@@ -471,7 +497,11 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				T1_labels[stomini(sibling->str())] = sibling;
 			}
 			delete T1_a;
-			node->contract(true);
+			if (node->get_children().size() < 2) {
+				if (node->get_children().size() == 1)
+					node->lchild()->lost_child();
+				node = node->contract(true);
+			}
 			
 		}
 		if (T1_a != NULL && T2_a != NULL) {
@@ -494,7 +524,11 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				T1_labels[stomini(sibling->str())] = sibling;
 			}
 			delete T1_a;
-			node->contract(true);
+			if (node->get_children().size() < 2) {
+				if (node->get_children().size() == 1)
+					node->lchild()->lost_child();
+				node = node->contract(true);
+			}
 			
 		}
 	}
@@ -512,9 +546,22 @@ bool sync_twins(Forest *T1, Forest *T2) {
 				T2_labels[stomini(sibling->str())] = sibling;
 			}
 			delete T2_a;
-			node->contract(true);
+			if (node->get_children().size() < 2) {
+				if (node->get_children().size() == 1)
+					node->lchild()->lost_child();
+				node = node->contract(true);
+			}
 		}
 	}
+//	if (T1_loss != NULL)
+//		*T1_loss = T1->get_component(0)->count_lost_children_subtree();
+//		- T1->get_component(0)->num_lost_children();;
+//	cout << "T1_lost = " << T1_lost << endl;
+//	if (T2_loss != NULL)
+//		*T2_loss = T2->get_component(0)->count_lost_children_subtree();
+//		- T2->get_component(0)->num_lost_children();;
+//	cout << "T2_lost = " << T2_lost << endl;
+
 //	cout << "Finished Syncing Twins" << endl;
 	return true;
 }

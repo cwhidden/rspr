@@ -401,10 +401,22 @@ int main(int argc, char *argv[]) {
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
 				if (arg2[0] != '-')
-					SPLIT_APPROX_THRESHOLD = atof(arg2);
+					SPLIT_APPROX_THRESHOLD = atoi(arg2);
 				cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
 						<< endl;
 			}
+		}
+		else if (strcmp(arg, "-support") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					REQUIRED_SUPPORT = atof(arg2);
+				cout << "REQUIRED_SUPPORT=" << REQUIRED_SUPPORT
+						<< endl;
+			}
+		}
+		else if (strcmp(arg, "-count_losses") == 0) {
+			COUNT_LOSSES = true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -424,7 +436,7 @@ int main(int argc, char *argv[]) {
 //		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
-		LEAF_REDUCTION2 = true;
+		//LEAF_REDUCTION2 = true;
 
 		APPROX_CUT_ONE_B = true;
 		APPROX_CUT_TWO_B = true;
@@ -444,7 +456,6 @@ int main(int argc, char *argv[]) {
 
 	// set random seed
 	srand(unsigned(time(0)));
-
 
 	// Normal operation
 	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL) {
@@ -747,8 +758,9 @@ int main(int argc, char *argv[]) {
 
 		int distance;
 		if (APPROX) {
-			if (UNROOTED)
+			if (UNROOTED) {
 				distance = rSPR_total_approx_distance_unrooted(T1,trees);
+			}
 			else
 				distance = rSPR_total_approx_distance(T1,trees);
 			cout << "total approx distance= " << distance << endl;

@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #define RSPR
 
 //#define DEBUG 1
-#define DEBUG_CONTRACTED 1
+//#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -63,8 +63,10 @@ int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		list<Node *> *sibling_pairs);
 int rSPR_3_approx(Forest *T1, Forest *T2);
 int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
-int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync);
 int rSPR_worse_3_approx(Forest *T1, Forest *T2);
+int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync);
+int rSPR_worse_3_approx(Node *subtree, Forest *T1, Forest *T2);
+int rSPR_worse_3_approx(Node *subtree, Forest *T1, Forest *T2, bool sync);
 int rSPR_worse_3_approx_binary_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
 int rSPR_worse_3_approx_binary(Forest *T1, Forest *T2, bool sync);
 int rSPR_worse_3_approx_binary(Forest *T1, Forest *T2);
@@ -76,12 +78,25 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		set<SiblingPair> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
 		list<pair<Forest,Forest> > *AFs);
+int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees);
+int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
+		int threshold);
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees);
+int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
+		vector<int> *original_scores);
+int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose);
 void reduction_leaf(Forest *T1, Forest *T2);
 bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end);
+Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int target_size);
+
+/*Joel's part*/
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2);
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose);
+int rSPR_total_distance(Forest *T1, vector<Node *> &gene_trees);
 
 bool BB = false;
 bool APPROX_CHECK_COMPONENT = false;
@@ -121,6 +136,7 @@ bool SPLIT_APPROX = false;
 bool IN_SPLIT_APPROX = false;
 int SPLIT_APPROX_THRESHOLD = 25;
 float INITIAL_TREE_FRACTION = 0.4;
+bool COUNT_LOSSES = false;
 
 class ProblemSolution {
 		public:
@@ -389,6 +405,40 @@ int rSPR_worse_3_approx(Forest *T1, Forest *T2, bool sync) {
 	return ans;
 }
 
+int rSPR_worse_3_approx(Node *subtree, Forest *T1, Forest *T2) {
+	return rSPR_worse_3_approx(subtree, T1, T2, true);
+}
+
+int rSPR_worse_3_approx(Node *subtree, Forest *T1, Forest *T2, bool sync) {
+	// match up nodes of T1 and T2
+	if (sync) {
+		if (!sync_twins(T1, T2))
+			return 0;
+	}
+//	cout << "T1: "; T1->print_components();
+//	cout << "T2: "; T2->print_components();
+	// find sibling pairs of T1
+	list<Node *> *sibling_pairs = subtree->find_sibling_pairs();
+	// find singletons of T2
+	list<Node *> singletons = T2->find_singletons();
+	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
+
+	Forest *F1;
+	Forest *F2;
+
+	int ans = rSPR_worse_3_approx_hlpr(T1, T2, &singletons, sibling_pairs, &F1, &F2, true);
+
+	F1->swap(T1);
+	F2->swap(T2);
+	sync_twins(T1,T2);
+
+
+	delete sibling_pairs;
+	delete F1;
+	delete F2;
+	return ans;
+}
+
 // rSPR_worse_3_approx recursive helper function
 int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests) {
 	#ifdef DEBUG_APPROX
@@ -523,6 +573,10 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			if (T1_a->parent() == NULL || T1_c->parent() == NULL || T1_a->parent() != T1_c->parent()) {
 				continue;
 			}
+			if (!T1_a->can_be_sibling() || !T1_c->can_be_sibling()
+			|| num_cut >= INT_MAX - 3) {
+				continue;
+			}
 			Node *T1_ac = T1_a->parent();
 			// lookup in T2 and determine the case
 			Node *T2_a = T1_a->get_twin();
@@ -570,7 +624,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				//T2->add_deleted_node(T2_c);
 
 				// check if T2_ac is a singleton
-				if (T2_ac->is_singleton() && !T1_ac->is_singleton() && T2_ac != T2->get_component(0))
+				//if (T2_ac->is_singleton() && !T1_ac->is_singleton() && T2_ac != T2->get_component(0))
+				if (T2_ac->is_singleton() && T1_ac != T1->get_component(0) && T2_ac != T2->get_component(0))
 					singletons->push_back(T2_ac);
 				// check if T1_ac is part of a sibling pair
 				if (T1_ac->parent() != NULL && T1_ac->parent()->is_sibling_pair()) {
@@ -663,9 +718,11 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 						cut_a_only=true;
 					}
 				}
-				else if (APPROX_REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
+				else if (APPROX_REVERSE_CUT_ONE_B_2) {
+					if (T2_c->parent() != NULL
 						&& chain_match(T1_s, T2_c->get_sibling(), T2_a))
 					cut_a_only = true;
+				}
 			}
 
 				Node *node;
@@ -690,8 +747,10 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 						T1_c->cut_parent();
 						cut_c = true;
 
-						ContractEvent(&um, node);
-						node = node->contract();
+						if (node) {
+							ContractEvent(&um, node);
+							node = node->contract();
+						}
 					}
 
 					// contract parents
@@ -745,12 +804,14 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				else if (!multi_node) {
 					T2_b = T2_b->parent();
 				}
+				if (node != NULL) {
 					ContractEvent(&um, node);
 					node = node->contract();
 				// check for T2 parents as singletons
 				if (node != NULL && node->is_singleton()
 						&& node != T2->get_component(0))
 					singletons->push_back(node);
+				}
 
 				// if T2_c is gone then its replacement is in singleton list
 				// contract might delete old T2_c, see where it is
@@ -800,7 +861,6 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 
 				if (cut_a == false && cut_b == false && cut_c == false) {
 					num_cut = INT_MAX;
-					break;
 				}
 
 			}
@@ -1311,106 +1371,12 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 	set<SiblingPair> *sibling_pairs;
 	list<Node *> singletons;
 	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
-//	cout << "foo4" << endl;
-
-	int split_k = 0;
-	if (false && SPLIT_APPROX) {
-		Node *split_node = T1->get_component(0)->find_median();
-//		if (split_node != T1->get_component(0) &&
-//				!split_node->get_sibling()->is_leaf()) {
-		if (split_node != T1->get_component(0)) {
-			//UndoMachine um = UndoMachine();
-//			Node *split_node_p = split_node->parent();
-			//split_node->cut_parent();
-//			int pre_start = split_node->get_preorder_number();
-//			int pre_end = split_node_p->lchild()->get_preorder_number();
-//			if (pre_end < pre_start)
-//				pre_end = INT_MAX;
-			//ContractEvent(&um, split_node_p);
-			//split_node_p->contract();
-			//vector<Node *> v = vector<Node *>();
-			//v.push_back(split_node);
-			//Forest split_forest = Forest(v);
-//			cout << "split_subtree: " << split_node->str_subtree() << endl;
-			sibling_pairs = find_sibling_pairs_set(split_node);
-			singletons = T2->find_singletons();
-			// TODO: check that the approx is working correctly here
-			// Two potential problems: approx for BB is wrong and/or
-			// need to do this split during the clustering algorithm
-			split_k = 
-				//rSPR_branch_and_bound_hlpr(&split_forest, T2, k, sibling_pairs, &singletons, false, &AFs);
-				rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs, &singletons, false, &AFs);
-			if (VERBOSE)
-				cout << "split_k: " << split_k << endl;
-	//		split_forest.print_components();
-//			T1->print_components();
-//			T2->print_components();
-			if (!AFs.empty()) {
-				//cout << "AF1: "; AFs.front().first.print_components();
-				//cout << "AF2: "; AFs.front().second.print_components();
-/*				Forest *F1 = &(AFs.front().first);
-				int comp = 0;
-				if (!F1->contains_rho()) {
-//					T1->print_components();
-					um.undo_all();
-//					T1->print_components();
-					split_node_p->add_child(F1->get_component(0));
-//					T1->print_components();
-					comp++;
-				}
-				for(int i = comp; i < F1->num_components(); i++) {
-					//cout << "comp: " << F1->get_component(i)->str_subtree() << endl;
-					//cout << F1->get_component(i)->get_preorder_number() << endl;
-					//cout << split_node_p->get_preorder_number() << endl;
-					//cout << split_node->get_preorder_number() << endl;
-					//cout << pre_start << endl;
-					//cout << pre_end << endl;
-					int smallest_prenum = F1->get_component(i)->get_preorder_number();//any_leaf_preorder_number();
-					//cout << smallest_prenum << endl;
-					if (F1->get_component(i)->get_name() != "p" &&
-							smallest_prenum < pre_end &&
-								smallest_prenum > pre_start) {
-						T1->add_component(F1->get_component(i));
-					}
-				}
-				F1->erase_components();
-*/
-				AFs.front().first.swap(T1);
-				AFs.front().second.swap(T2);
-/*				if (T2->contains_rho()) {
-					for(int i = 0; i < T2->num_components(); i++) {
-						if (T2->get_component(i)->get_name() == "p") {
-							T2->erase_components(i,i+1);
-							T2->set_rho(false);
-							break;
-						}
-					}
-				}
-*/
-				sync_twins(T1,T2);
-				AFs.clear();
-			}
-	//		split_node->delete_tree();
-		//	split_forest.erase_components();
-			if (split_k < 0) {
-				delete sibling_pairs;
-				return split_k;
-			}
-			else
-				split_k = k - split_k;
-		}
-	}
-	//cout << "I_T1: "; T1->print_components();
-	//cout << "I_T2: "; T2->print_components();
-
 	sibling_pairs = find_sibling_pairs_set(T1);
-	// find singletons of T2
 	singletons = T2->find_singletons();
 
 
-
 	int final_k = 
-		rSPR_branch_and_bound_hlpr(T1, T2, k - split_k, sibling_pairs, &singletons, false, &AFs);
+		rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs, &singletons, false, &AFs);
 
 //		cout << "foo" << endl;
 	// TODO: this is a cheap hack
@@ -1547,7 +1513,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		if(!sibling_pairs->empty()) {
 			Node *T1_a;
 			Node *T1_c;
-			if (LEAF_REDUCTION) {
+			if (LEAF_REDUCTION && !cut_b_only) {
 				set<SiblingPair>::iterator i = sibling_pairs->begin();
 				bool found = false;
 				while (i != sibling_pairs->end()) {
@@ -1594,6 +1560,9 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 //			if (T1_c->parent() != NULL)
 //				cout << "c_p: " << T1_c->parent()->str_subtree() << endl;
 			if (T1_a->parent() == NULL || T1_a->parent() != T1_c->parent()) {
+				continue;
+			}
+			if (!T1_a->can_be_sibling() || !T1_c->can_be_sibling()) {
 				continue;
 			}
 			Node *T1_ac = T1_a->parent();
@@ -1784,34 +1753,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				// make copies for the approx
 				// be careful we do not kill real T1 and T2
 				// ie use the copies
-				if (BB) {
-//				add_sibling_pair(sibling_pairs, T1_c, T1_a,
-//						&um);
-
-				//copy_trees(&T1, &T2, &sibling_pairs, &T1_a, &T1_c, &T2_a, &T2_c,
-				//		&T1_copy, &T2_copy, &sibling_pairs_copy,
-				//		&T1_a_copy, &T1_c_copy, &T2_a_copy, &T2_c_copy);
-				//Forest T1_copy = Forest(T1);
-				//Forest T2_copy = Forest(T2);
-				//list<Node *> *sibling_pairs_copy = T1->find_sibling_pairs();
-				//sync_twins(&T1_copy, &T2_copy);
-				//int approx_spr = rSPR_worse_3_approx(&T1_copy, &T2_copy);
-				/*
-				cout << "FOO" << endl;
-				cout << "T1: ";
-				T1->print_components();
-				cout << "T2: ";
-				T2->print_components();
-					cout << "sibling pairs:";
-					for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
-						cout << "  ";
-						(*i)->print_subtree_hlpr();
-					}
-					cout << endl;
-					*/
+				if (BB && !cut_a_only && !cut_b_only && !cut_c_only) {
 					list<Node *> *spairs;
-				//if (SPLIT_APPROX && IN_SPLIT_APPROX) {
-		//		if (SPLIT_APPROX) {
 					spairs = new list<Node *>();
 					spairs->push_back(T1_c);
 					spairs->push_back(T1_a);
@@ -1819,33 +1762,16 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 						spairs->push_back((*i).a);
 						spairs->push_back((*i).c);
 					}
-			//	}
-			//	else
-			//		spairs = T1->get_component(0)->find_sibling_pairs();
-
-				int approx_spr = rSPR_worse_3_approx_hlpr(T1, T2,
-						singletons, spairs, NULL, NULL, false);
-				delete spairs;
-				/*
-				cout << "T1: ";
-				T1->print_components();
-				cout << "T2: ";
-				T2->print_components();
-					cout << "sibling pairs:";
-					for (list<Node *>::iterator i = sibling_pairs->begin(); i != sibling_pairs->end(); i++) {
-						cout << "  ";
-						(*i)->print_subtree_hlpr();
-					}
-					cout << endl;
-				cout << endl;
-				*/
-				#ifdef DEBUG
-					cout << "\tT1: ";
-					T1->print_components();
-					cout << "\tT2: ";
-					T2->print_components();
-					cout << "approx =" << approx_spr << endl;
-				#endif
+					int approx_spr = rSPR_worse_3_approx_hlpr(T1, T2,
+							singletons, spairs, NULL, NULL, false);
+					delete spairs;
+					#ifdef DEBUG
+						cout << "\tT1: ";
+						T1->print_components();
+						cout << "\tT2: ";
+						T2->print_components();
+						cout << "approx =" << approx_spr << endl;
+					#endif
 					if (approx_spr  >  3*k){
 						#ifdef DEBUG
 							cout << "approx failed" << endl;
@@ -1853,7 +1779,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 						um.undo_all();
 						return -1;
 					}
-				um.undo_to(undo_state);
+					um.undo_to(undo_state);
 				}
 				
 			if (CLUSTER_REDUCTION && (MAX_CLUSTERS < 0 || NUM_CLUSTERS < MAX_CLUSTERS)) {
@@ -2379,6 +2305,11 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		return 0;
 	if (F1.get_component(0)->is_leaf())
 		return 0;
+	int loss = 0;
+	if (COUNT_LOSSES) {
+		loss += F1.get_component(0)->count_lost_children_subtree();
+		loss += F2.get_component(0)->count_lost_children_subtree();
+	}
 	if (LEAF_REDUCTION2)
 		reduction_leaf(&F1, &F2);
 	sync_interior_twins(&F1, &F2);
@@ -2433,6 +2364,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	int num_clusters = F1.num_components();
 	int total_k = 0;
 
+
 	for(int i = 1; i < num_clusters; i++) {
 		int exact_spr = -1;
 		Forest f1 = Forest(F1.get_component(i));
@@ -2464,6 +2396,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		int total_split_k = 0;
 
 		bool done_cluster = false;
+		bool done_split = false;
 
 		double tree_fraction = INITIAL_TREE_FRACTION;
 
@@ -2473,7 +2406,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 			for(k = min_spr - total_split_k; true; k++) {
 				if (k < 0)
 					k = 0;
-				if (SPLIT_APPROX && k >= SPLIT_APPROX_THRESHOLD) {
+				if (SPLIT_APPROX && !done_split && k >= SPLIT_APPROX_THRESHOLD) {
 					done_cluster = false;
 					break;
 				}
@@ -2487,6 +2420,10 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
   				cout.flush();
 				}
 				if (k + total_k <= MAX_SPR && k <= CLUSTER_MAX_SPR) {
+					if (f1t.get_component(0)->get_name() == DEAD_COMPONENT) {
+						f1t.add_rho();
+						f2t.add_rho();
+					}
 					exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
 				}
 				if (exact_spr >= 0 || k + total_k > MAX_SPR ||
@@ -2494,14 +2431,6 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 					if (k > CLUSTER_MAX_SPR) {
 						f1t.swap(&f1a);
 						f2t.swap(&f2a);
-					}
-					if ( i < num_clusters - 1) {
-						F1.join_cluster(i,&f1t);
-						F2.join_cluster(i,&f2t);
-					}
-					else {
-						F1.join_cluster(&f1t);
-						F2.join_cluster(&f2t);
 					}
 					if (exact_spr >= 0) {
 						exact_spr += total_split_k;
@@ -2538,61 +2467,105 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 							}
 						}
 					}
+					if ( i < num_clusters - 1) {
+						F1.join_cluster(i,&f1t);
+						F2.join_cluster(i,&f2t);
+					}
+					else {
+						F1.join_cluster(&f1t);
+						F2.join_cluster(&f2t);
+					}
 					break;
 				}
 			}
-			if (SPLIT_APPROX && !done_cluster) {
+			done_split = done_cluster;
+			bool num_splits = 0;
+			while (SPLIT_APPROX && !done_split) {
 				//IN_SPLIT_APPROX = true;
-				for(k = 0; true; k++) {
-					if (k > SPLIT_APPROX_THRESHOLD) {
+				Node *original_split_node = find_subtree_of_approx_distance(
+						f1.get_component(0), &f1, &f2, SPLIT_APPROX_THRESHOLD*2);
+				if (original_split_node == f1.get_component(0) &&
+						num_splits > 0)
+					done_split = true;
+				else {
+					Forest f1a = Forest(f1);
+					Forest f2a = Forest(f2);
+					Node *a_split_node =
+					f1a.find_by_prenum(original_split_node->get_preorder_number());
+					f1a.get_component(0)->disallow_siblings_subtree();
+						a_split_node->allow_siblings_subtree();
+//					if (a_split_node->lchild() != NULL)
+//						a_split_node->lchild()->allow_siblings_subtree();
+//					if (a_split_node->rchild() != NULL)
+//						a_split_node->rchild()->allow_siblings_subtree();
+					// something odd going on here
+					int start = rSPR_worse_3_approx(a_split_node, &f1a, &f2a);
+					if (start == INT_MAX)
+						start = 0;
+					start /= 3;
+					int end = f1.get_component(0)->size();
+					for(k = start; true; k++) {
+						// TODO: figure out the bug here
+						if (k > end) {
+							k = 0;
+							done_split = true;
+							break;
+						}
+				/*	if (k > SPLIT_APPROX_THRESHOLD) {
 						k = 0;
 						tree_fraction *= 0.75;
 						if (verbose)
 							cout << "tree_fraction: " << tree_fraction << endl;
 						continue;
-					}
-					Forest f1s = Forest(f1);
-					Forest f2s = Forest(f2);
-					if (!sync_twins(&f1s, &f2s)) {
-						k = 0;
-						break;
-					}
-					if (verbose) {
-						cout << k << " ";
-	  				cout.flush();
-					}
-					Node *split_node =
-						f1s.get_component(0)->find_subtree_of_size(tree_fraction);
-	//				cout << "split_node: " << split_node->str_subtree();
-					if (split_node != f1s.get_component(0)) {
-						set<SiblingPair > *sibling_pairs =
-							find_sibling_pairs_set(split_node);
-						list<Node *> singletons = f2s.find_singletons();
-						list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
-						//f1s.print_components();
-						//f2s.print_components();
-						int split_k = rSPR_branch_and_bound_hlpr(&f1s, &f2s, k,
-								sibling_pairs, &singletons, false, &AFs);
-						delete sibling_pairs;
-						if (!AFs.empty()) {
-							AFs.front().first.swap(&f1);
-							AFs.front().second.swap(&f2);
-							AFs.clear();
-							total_split_k += k - split_k;
-							if (k < SPLIT_APPROX_THRESHOLD * 0.75) {
-								tree_fraction *= 2;
-								if (tree_fraction > INITIAL_TREE_FRACTION)
-									tree_fraction = INITIAL_TREE_FRACTION;
-							}
-							if (verbose)
-								cout << "split_k: " << k << endl;
+					}*/
+						Forest f1s = Forest(f1);
+						Forest f2s = Forest(f2);
+						if (!sync_twins(&f1s, &f2s)) {
+							k = 0;
+							done_split = true;
 							break;
 						}
+						if (verbose) {
+							cout << k << " ";
+		  				cout.flush();
+						}
+						Node *split_node = f1s.find_by_prenum(original_split_node->get_preorder_number());
+						f1s.get_component(0)->disallow_siblings_subtree();
+							split_node->allow_siblings_subtree();
+//						if (split_node->lchild() != NULL)
+//							split_node->lchild()->allow_siblings_subtree();
+//						if (split_node->rchild() != NULL)
+//							split_node->rchild()->allow_siblings_subtree();
+							//f1s.get_component(0)->find_subtree_of_size(tree_fraction);
+							set<SiblingPair > *sibling_pairs =
+								find_sibling_pairs_set(split_node);
+							list<Node *> singletons = f2s.find_singletons();
+							list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
+
+
+							int split_k = rSPR_branch_and_bound_hlpr(&f1s, &f2s, k,
+									sibling_pairs, &singletons, false, &AFs);
+							delete sibling_pairs;
+							if (!AFs.empty()) {
+								AFs.front().first.swap(&f1);
+								AFs.front().second.swap(&f2);
+								f2.unprotect_edges();
+								f1.get_component(0)->allow_siblings_subtree();
+								AFs.clear();
+								total_split_k += k - split_k;
+		//						if (k < SPLIT_APPROX_THRESHOLD * 0.75) {
+		//							tree_fraction *= 2;
+		//							if (tree_fraction > INITIAL_TREE_FRACTION)
+		//								tree_fraction = INITIAL_TREE_FRACTION;
+		//						}
+								if (verbose)
+									cout << "split_k: " << k << endl;
+								break;
+							}
 					}
-					else
-						break;
 				}
 				//IN_SPLIT_APPROX = false;
+				num_splits++;
 			}
 	
 			// TODO: approx again? seperate approxes ?
@@ -2628,7 +2601,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 
 	delete cluster_points;
 //	PREFER_RHO = old_rho;
-	return total_k;
+	return total_k + loss;
 }
 
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map) {
@@ -2773,6 +2746,7 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		delete cluster_points;
 	}
 	else {
+		delete cluster_points;
 		full_approx_spr /= 3;
 		total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
 		int i = 1;
@@ -2796,6 +2770,15 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 	 	cout << endl;
 	}
 	return total_k;
+}
+
+/*Joel's part*/
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose){
+	return rSPR_branch_and_bound_simple_clustering(T1, T2, false, NULL, NULL);
+}
+
+int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2){
+	return rSPR_branch_and_bound_simple_clustering(T1, T2, false, NULL, NULL);
 }
 
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
@@ -2853,6 +2836,7 @@ void reduction_leaf(Forest *T1, Forest *T2) {
 			#endif
 		}
 	}
+	delete sibling_pairs;
 }
 
 bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end) {
@@ -2905,14 +2889,23 @@ bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end) {
 }
 
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
+	return rSPR_total_distance(T1, gene_trees, NULL);
+}
+
+int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
+		vector<int> *original_scores) {
 	int total = 0;
 	MAIN_CALL = false;
-	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)// firstprivate(IN_SPLIT_APPROX)
+	int end = gene_trees.size();
+	T1->preorder_number();
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
 //	for(int j = 0; j < 10; j++)
 //	cout << "T1: " << T1->str_subtree() << endl;
-	for(int i = 0; i < gene_trees.size(); i++) {
+	for(int i = 0; i < end; i++) {
 			//		cout << i << endl;
 		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+		if (original_scores != NULL)
+			(*original_scores)[i] = k;
 		total += k;
 //		cout << "T2: " << gene_trees[i]->str_subtree() << endl;
 //		cout << " k: " << k << endl;
@@ -2932,21 +2925,67 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	}
 	return total;
 }
+int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees, int threshold) {
+	int total = 0;
+	MAIN_CALL = false;
+	int end = gene_trees.size();
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
+	for(int i = 0; i < end; i++) {
+		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+		total += k;
+//		if (total > threshold) {
+//			break;
+//		}
+	}
+	return total;
+}
+
+/*Joel's part*/
+int rSPR_total_distance(Forest *T1, vector<Node *> &gene_trees){
+	int total = 0;
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)
+	for(int i = 0; i < gene_trees.size(); i++) {
+		Forest T2 = Forest(gene_trees[i]);
+		total += rSPR_branch_and_bound_simple_clustering(&T2, T1, VERBOSE);
+	}
+	return total;
+}
+
+int rSPR_total_approx_distance(Forest *T1, vector<Node *> &gene_trees) {
+	int total = 0;
+	#pragma omp parallel for reduction(+ : total)
+	for(int i = 0; i < gene_trees.size(); i++) {
+		Forest F1 = Forest(T1);
+		Forest F2 = Forest(gene_trees[i]);
+//		cout << i << endl;
+//		cout << T1->str_subtree() << endl;
+//		cout << gene_trees[i]->str_subtree() << endl;
+		//total += rSPR_worse_3_approx(&F2, &F1)/3;
+		total += rSPR_worse_3_approx(&F2, &F1)/3;
+	}
+	return total;
+}
 
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
+	rSPR_total_distance_unrooted(T1, gene_trees, INT_MAX);
+}
+
+int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold) {
 	//cout << "rSPR_total_distance_unrooted" << endl;
 	int total = 0;
 	MAIN_CALL = false;
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO) firstprivate(MAX_SPR) firstprivate(MIN_SPR) //firstprivate(IN_SPLIT_APPROX)
 	for(int i = 0; i < gene_trees.size(); i++) {
-		//cout << "T1: " << T1->str_subtree() << endl;
-		//cout << "T2: " << gene_trees[i]->str_subtree() << endl;
+//		cout << "T1: " << T1->str_subtree() << endl;
+//		cout << "T2: " << gene_trees[i]->str_subtree() << endl;
 		Forest f1 = Forest(T1);
 		//f1.print_components();
 		Forest f2 = Forest(gene_trees[i]);
 		//f2.print_components();
 		if (!sync_twins(&f1, &f2))
 			continue;
+		if (f2.get_component(0)->get_children().size() > 2)
+			f2.get_component(0)->fixroot();
 		//f1.print_components();
 		//f2.print_components();
 		int size = f2.get_component(0)->size();
@@ -3041,6 +3080,8 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 			f2.get_component(0)->reroot(best_rooting);
 			total += rSPR_branch_and_bound_simple_clustering(T1, f2.get_component(0), VERBOSE);
 		}
+//		if (total > threshold)
+//			break;
 	}
 	return total;
 }
@@ -3054,6 +3095,8 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 		Forest f2 = Forest(gene_trees[i]);
 		if (!sync_twins(&f1, &f2))
 			continue;
+		if (f2.get_component(0)->get_children().size() > 2)
+			f2.get_component(0)->fixroot();
 		int size = f2.get_component(0)->size();
 		int best_distance = INT_MAX;
 		vector<Node *> descendants = 
@@ -3075,6 +3118,11 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 }
 
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees) {
+	return rSPR_total_approx_distance(T1, gene_trees, INT_MAX);
+}
+
+int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
+		int threshold) {
 	int total = 0;
 	MAIN_CALL = false;
 	#pragma omp parallel for reduction(+ : total)
@@ -3085,6 +3133,8 @@ int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees) {
 //		cout << T1->str_subtree() << endl;
 //		cout << gene_trees[i]->str_subtree() << endl;
 		total += rSPR_worse_3_approx(&F1, &F2)/3;
+//		if (total > threshold)
+//			break;
 	}
 	return total;
 }
@@ -3096,4 +3146,51 @@ string itos(int i) {
 	ss << i;
 	a = ss.str();
 	return a;
+}
+
+Node *find_subtree_of_approx_distance_hlpr(Node *n, Forest *F1, Forest *F2, int target_size) {
+	Node *largest_child_subtree = NULL;
+	int lcs_size = 0;
+	list<Node *>::iterator c;
+	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+		Forest f1 = Forest(F1);
+		Forest f2 = Forest(F2);
+		Node *subtree = f1.find_by_prenum((*c)->get_preorder_number());
+		f1.get_component(0)->disallow_siblings_subtree();
+		subtree->allow_siblings_subtree();
+//		if (subtree->lchild() != NULL)
+//			subtree->lchild()->allow_siblings_subtree();
+//		if (subtree->rchild() != NULL)
+//			subtree->rchild()->allow_siblings_subtree();
+
+		int cs_size = rSPR_worse_3_approx(subtree, &f1, &f2);
+		if (cs_size > lcs_size) {
+			largest_child_subtree = *c;
+			lcs_size = cs_size;
+		}
+	}
+	if (lcs_size <= 0)
+		return n;
+	else if (lcs_size < target_size)
+		return largest_child_subtree;
+	else
+		return find_subtree_of_approx_distance_hlpr(largest_child_subtree,
+				F1, F2, target_size);
+}
+
+Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int target_size) {
+		Forest f1 = Forest(F1);
+		Forest f2 = Forest(F2);
+		Node *subtree = f1.find_by_prenum(n->get_preorder_number());
+		f1.get_component(0)->disallow_siblings_subtree();
+		subtree->allow_siblings_subtree();
+//		if (subtree->lchild() != NULL)
+//			subtree->lchild()->allow_siblings_subtree();
+//		if (subtree->rchild() != NULL)
+//			subtree->rchild()->allow_siblings_subtree();
+		int size = rSPR_worse_3_approx(subtree, &f1, &f2);
+		if (size > target_size)
+			return find_subtree_of_approx_distance_hlpr(n, F1, F2, target_size);
+		else 
+			return n;
 }
