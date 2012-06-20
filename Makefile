@@ -1,6 +1,6 @@
 CC=g++
 CC64=CC
-CFLAGS=-O2 -std=c++0x
+CFLAGS=-O2
 OMPFLAGS=-fopenmp
 C64FLAGS=$(CFLAGS)
 BOOST_GRAPH=-lboost_graph-mt

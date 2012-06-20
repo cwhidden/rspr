@@ -1546,7 +1546,7 @@ Node *find_median() {
 
 Node *find_subtree_of_size(double percentage) {
 	vector<int> *dc = find_descendant_counts();
-	return find_median_hlpr(dc, (*dc)[get_preorder_number()] * percentage);
+	return find_median_hlpr(dc, (int)((*dc)[get_preorder_number()] * percentage));
 }
 
 Node *find_median_hlpr(vector<int> *dc, int target_size) {
