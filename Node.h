@@ -456,6 +456,7 @@ class Node {
 		}
 	}
 
+
 	// TODO: make this an int?
 	int num_lost_children() {
 		return lost_children;
@@ -466,6 +467,14 @@ class Node {
 		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			lost_children_count += (*c)->count_lost_children_subtree();
+		}
+		return lost_children_count;
+	}
+	int count_lost_subtree() {
+		int lost_children_count = (lost_children > 0) ? 1 : 0;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			lost_children_count += (*c)->count_lost_subtree();
 		}
 		return lost_children_count;
 	}
@@ -1962,7 +1971,7 @@ string root(string s) {
 template <typename T> vector<T> &random_select(vector <T> &V, int n) {
 	vector<T> *ret = new vector<T>;
 	int end = V.size();
-	for(int i = 0; i < n; i++) {
+	for(int i = 0; i < n && end > 0; i++) {
 		int x = rand() % end;
 		ret->push_back(V[x]);
 		V[x] = V[end-1];

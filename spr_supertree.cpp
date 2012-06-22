@@ -581,6 +581,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-count_losses") == 0) {
 			COUNT_LOSSES = true;
 		}
+		else if (strcmp(arg, "-cut_lost") == 0) {
+			CUT_LOST = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -669,6 +672,7 @@ int main(int argc, char *argv[]) {
 				T = build_tree(T_line);
 //			cout << T->str_subtree() << endl;
 			// TODO: check that this works
+			/*
 			if ((UNROOTED || SIMPLE_UNROOTED) &&
 					T->get_children().size() > 2) {
 //					cout << T->str_subtree() << endl;
@@ -690,6 +694,7 @@ int main(int argc, char *argv[]) {
 //					cout << T->str_subtree() << endl;
 //					cout << endl;
 			}
+			*/
 
 			if (T->is_leaf() && T->str() == "p") {
 				if (MULTI_TREES)
@@ -1085,6 +1090,8 @@ int main(int argc, char *argv[]) {
 	Node *best_supertree = new Node(*super_tree);
 
 			bool APPROX_ROOTING = false;
+			if (UNROOTED_MIN_APPROX)
+				APPROX_ROOTING=true;
 			if (REROOT) {
 				cout << "rerooting super_tree" << endl;
 				// reroot the supertree based on the balanced accuracy of splits
@@ -1096,7 +1103,11 @@ int main(int argc, char *argv[]) {
 				if (APPROX_ROOTING)
 					best_root_avg_acc = -INT_MAX;
 				int num_ties = 2;
-				for(int j = 0; j < descendants.size(); j++) {
+				int end = descendants.size();
+				for(int j = 0; j < end; j++) {
+					if (j > 0)
+						cout << '\r';
+					cout << j << "/" << end << flush;
 					double root_avg_acc = 0;
 					int count = 1;
 					super_tree->reroot(descendants[j]);
@@ -1247,16 +1258,22 @@ int main(int argc, char *argv[]) {
 		else if(R_LIMIT && !S_LIMIT){
 			int r = find_r();
 			vector<int> *original_scores = NULL;
-			if (!UNROOTED && !APPROX) {
+			if ((!UNROOTED || UNROOTED_MIN_APPROX) && !APPROX) {
 				original_scores = new vector<int>(gene_trees.size(), 0);
-				rSPR_total_distance(super_tree, gene_trees, original_scores);
+				if (UNROOTED_MIN_APPROX) {
+					rSPR_total_distance_unrooted(super_tree, gene_trees, INT_MAX, original_scores);
+				}
+				else {
+					rSPR_total_distance(super_tree, gene_trees, original_scores);
+				}
 				NUM_SOURCE = super_tree->size();
 				C_SOURCE = 1;
 			}
 			find_best_spr_r(super_tree, gene_trees, best_subtree_root, best_sibling,r, original_scores);
-			if (!UNROOTED && !APPROX)
+			if ((!UNROOTED || UNROOTED_MIN_APPROX) && !APPROX) {
 				delete original_scores;
 				cout << endl;
+			}
 		}
 /*Limiting Starting point*/
 		else if(S_LIMIT && !R_LIMIT){
