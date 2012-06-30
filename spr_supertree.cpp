@@ -237,6 +237,8 @@ void find_best_root_hlpr(Node *T2, int pre_separator, int group_1_total,
 void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 		int group_2_total, Node **best_root, double *best_root_b_acc,
 		int *p_group_1_descendants, int *p_group_2_descendants, int *num_ties);
+void get_support(Node *super_tree, vector<Node *> *gene_trees);
+void get_support(Node *n, Node *super_tree, vector<Node *> *gene_trees);
 
 /*Prototypes of Joel's functions*/
 void find_best_spr_r(Node *super_tree, vector<Node *> &gene_trees, Node *&best_spr_move, Node *&best_sibling, int r);
@@ -296,6 +298,7 @@ int main(int argc, char *argv[]) {
 	IGNORE_MULTI = true;
 	string INCLUDE_ONLY = "";
 	string INITIAL_SUPER_TREE = "";
+	bool FIND_SUPPORT = false;
 
 	int max_args = argc-1;
 	while (argc > 1) {
@@ -583,6 +586,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-cut_lost") == 0) {
 			CUT_LOST = true;
+		}
+		else if (strcmp(arg, "-find_support") == 0) {
+			FIND_SUPPORT = true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -978,7 +984,7 @@ int main(int argc, char *argv[]) {
 		cout << "current_gene_trees: " << current_gene_trees.size() << endl;
 		bool APPROX_ROOTING = false;
 		if (SIMPLE_UNROOTED) {
-			if (is_pow_2(leaf_num-5)) {
+			if (REROOT && is_pow_2(leaf_num-5)) {
 				cout << "rerooting super_tree" << endl;
 				// reroot the supertree based on the balanced accuracy of splits
 				vector<Node *> descendants =
@@ -991,7 +997,7 @@ int main(int argc, char *argv[]) {
 				int num_ties = 2;
 				for(int j = 0; j < descendants.size(); j++) {
 					double root_avg_acc = 0;
-					int count = 1;
+					int count = 0;
 					super_tree->reroot(descendants[j]);
 					super_tree->set_depth(0);
 					super_tree->fix_depths();
@@ -1109,7 +1115,7 @@ int main(int argc, char *argv[]) {
 						cout << '\r';
 					cout << j << "/" << end << flush;
 					double root_avg_acc = 0;
-					int count = 1;
+					int count = 0;
 					super_tree->reroot(descendants[j]);
 					super_tree->set_depth(0);
 					super_tree->fix_depths();
@@ -1202,6 +1208,14 @@ int main(int argc, char *argv[]) {
 			cout << "\t" << current_time << "\t" << time << endl;
 		}
 	//super_tree->numbers_to_labels(&reverse_label_map);
+		if (FIND_SUPPORT) {
+			get_support(super_tree, &gene_trees);
+			super_tree->numbers_to_labels(&reverse_label_map);
+			cout << super_tree->str_support_subtree() << endl;
+			return 0;
+		}
+
+
 
 /*Joel: added these vectors*/
 	vector< pair<Node*, int> > best_scores;
@@ -1216,6 +1230,24 @@ int main(int argc, char *argv[]) {
 		NUM_ITERATIONS=labels.size(); 
 
 	for(int i = 0; i < NUM_ITERATIONS; i++) {
+
+		if (SIMPLE_UNROOTED) {
+			cout << "rerooting gene trees" << endl;
+			// reroot the gene trees based on the balanced accuracy of splits
+			super_tree->preorder_number();
+			int end = gene_trees.size();
+			#pragma omp parallel for
+			for(int i = 0; i < end; i++) {
+				gene_trees[i]->preorder_number();
+				Node *new_root =
+					find_best_root(super_tree, gene_trees[i]);
+					//find_best_root(super_tree, gene_trees[i]);
+				if (new_root != NULL)
+					gene_trees[i]->reroot(new_root);
+					gene_trees[i]->set_depth(0);
+					gene_trees[i]->fix_depths();
+			}
+		}
 		Node *best_subtree_root;
 		Node *best_sibling;
 /*Joel: Limit starting point*/
@@ -1934,6 +1966,8 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 //	cout << "n: " << n->str_subtree() << endl;
 //	cout << "b_acc: " << b_acc << endl;
 //	cout << "b_acc_opp: " << b_acc_opp << endl;
+//	cout << n->str_subtree() << endl;
+//	cout << b_acc << "\t" << b_acc_opp << endl;
 	if (b_acc_opp > b_acc)
 		b_acc = b_acc_opp;
 	if (b_acc > *best_root_b_acc) {
@@ -1944,13 +1978,52 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 	else if(b_acc == *best_root_b_acc) {
 		int r = rand();
 		if (r < RAND_MAX/ *num_ties) {
-		*best_root = n;
-		*best_root_b_acc = b_acc;
-		*num_ties = 2;
+			*best_root = n;
+			*best_root_b_acc = b_acc;
+			*num_ties = 2;
 		}
 	}
 	*p_group_1_descendants += group_1_descendants;
 	*p_group_2_descendants += group_2_descendants;
+}
+
+void get_support(Node *super_tree, vector<Node *> *gene_trees) {
+	get_support(super_tree, super_tree, gene_trees);
+}
+
+void get_support(Node *n, Node *super_tree, vector<Node *> *gene_trees) {
+	if (!n->is_leaf() ){
+		list<Node *>::iterator c;
+		for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+			get_support(*c, super_tree, gene_trees);
+		}
+
+		if (n != super_tree) {
+	
+			int count = 0;
+			double root_avg_acc = 0;
+			Node *temp_tree = new Node(*super_tree);
+			temp_tree->reroot(temp_tree->find_by_prenum(n->get_preorder_number()));
+			temp_tree->set_depth(0);
+			temp_tree->fix_depths();
+			temp_tree->preorder_number();
+			int end = gene_trees->size();
+			#pragma omp parallel for schedule(static) reduction(+: root_avg_acc) reduction(+: count)
+			for(int i = 0; i < end; i++) {
+				(*gene_trees)[i]->preorder_number();
+				double acc = find_best_root_acc(temp_tree, (*gene_trees)[i]);
+				if (acc > -1) {
+					root_avg_acc += acc;
+					count++;
+				}
+			}
+			if (count > 0)
+				root_avg_acc /= count;
+			root_avg_acc /= 2.0;
+			n->set_support(root_avg_acc);
+			temp_tree->delete_tree();
+		}
+	}
 }
 
 /*Joel: Limiting starting point*/
@@ -2671,3 +2744,4 @@ int find_r(double probability){
 	return count;
 }
 /*end*/
+
