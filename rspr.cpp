@@ -130,6 +130,7 @@ bool DEFAULT_OPTIMIZATIONS=true;
 bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
+bool SIMPLE_UNROOTED = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool TOTAL = false;
@@ -263,6 +264,8 @@ int main(int argc, char *argv[]) {
 			APPROX_CHECK_COMPONENT = true;
 		else if (strcmp(arg, "-unrooted") == 0)
 			UNROOTED = true;
+		else if (strcmp(arg, "-simple_unrooted") == 0)
+			SIMPLE_UNROOTED = true;
 		else if (strcmp(arg, "-unrooted_min_approx") == 0)
 			UNROOTED_MIN_APPROX = true;
 		else if (strcmp(arg, "-noopt") == 0) {
@@ -758,6 +761,22 @@ int main(int argc, char *argv[]) {
 			trees.push_back(T2);
 		}
 		cout << endl;
+
+		if (SIMPLE_UNROOTED) {
+			// reroot the gene trees based on the balanced accuracy of splits
+			T1->preorder_number();
+			int end = trees.size();
+			#pragma omp parallel for
+			for(int i = 0; i < end; i++) {
+				trees[i]->preorder_number();
+				Node *new_root =
+					find_best_root(T1, trees[i]);
+				if (new_root != NULL)
+					trees[i]->reroot(new_root);
+					trees[i]->set_depth(0);
+					trees[i]->fix_depths();
+			}
+		}
 
 		int distance;
 		if (APPROX) {
