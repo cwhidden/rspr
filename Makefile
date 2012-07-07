@@ -1,5 +1,5 @@
 CC=g++
-CC64=CC
+CC64=/usr/bin/x86_64-w64-mingw32-g++
 CFLAGS=-O3
 OMPFLAGS=-fopenmp
 C64FLAGS=$(CFLAGS)

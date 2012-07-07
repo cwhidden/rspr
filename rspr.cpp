@@ -110,6 +110,7 @@ exact BB drSPR=4
 #include <climits>
 #include <vector>
 #include <map>
+#include <time.h>
 #include <list>
 #include "rspr.h"
 
