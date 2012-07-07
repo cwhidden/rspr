@@ -6,7 +6,7 @@ Data structure for a sibling pair of a binary tree
 Copyright 2012 Chris Whidden
 cwhidden@dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-June 1, 2012
+July 6, 2012
 Version 1.04
 
 This file is part of rspr.

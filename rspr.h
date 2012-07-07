@@ -7,10 +7,10 @@ of rooted binary trees.
 Supports arbitrary labels. See the
 README for more information.
 
-Copyright 2009-2011 Chris Whidden
+Copyright 2009-2012 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-october 28, 2011
+July 6, 2012
 
 This file is part of rspr.
 

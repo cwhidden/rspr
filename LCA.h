@@ -4,10 +4,10 @@ LCA.h
 Data structure for LCA computations on a binary tree
 Implementation of the RMQ-based methods of Bender and Farach-Colton
 
-Copyright 2010 Chris Whidden
+Copyright 2010-2012 Chris Whidden
 cwhidden@dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-April 28, 2010
+July 6, 2012
 Version 1.02
 
 This file is part of rspr.
