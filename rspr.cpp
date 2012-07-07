@@ -739,6 +739,7 @@ int main(int argc, char *argv[]) {
 	else if (TOTAL) {
 		string line = "";
 		vector<Node *> trees = vector<Node *>();
+		vector<string> names = vector<string>();
 		if (!getline(cin, line))
 			return 0;
 		Node *T1 = build_tree(line);
@@ -748,17 +749,26 @@ int main(int argc, char *argv[]) {
 		}
 		T1->labels_to_numbers(&label_map, &reverse_label_map);
 		while (getline(cin, line)) {
-			if (UNROOTED)
-				line = root(line);
-			Node *T2 = build_tree(line);
-			if (!QUIET) {
-				cout << "T2: ";
-				T2->print_subtree();
+			size_t loc = T_line.find_first_of("(");
+			if (loc != string::npos) {
+				string name = "";
+				if (loc != 0) {
+					name = T_line.substr(0,loc);
+					T_line.erase(0,loc);
+				}
+				if (UNROOTED || SIMPLE_UNROOTED)
+					line = root(line);
+				Node *T2 = build_tree(line);
+				if (!QUIET) {
+					cout << "T2: ";
+					T2->print_subtree();
+				}
+				T2->labels_to_numbers(&label_map, &reverse_label_map);
+				if (UNROOTED)
+					T2->preorder_number();
+				names.push_back(name);
+				trees.push_back(T2);
 			}
-			T2->labels_to_numbers(&label_map, &reverse_label_map);
-			if (UNROOTED)
-				T2->preorder_number();
-			trees.push_back(T2);
 		}
 		cout << endl;
 
@@ -777,6 +787,9 @@ int main(int argc, char *argv[]) {
 					trees[i]->fix_depths();
 			}
 		}
+	T1->set_depth(0);
+	T1->fix_depths();
+	T1->preorder_number();
 
 		int distance;
 		if (APPROX) {

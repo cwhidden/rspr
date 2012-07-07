@@ -2667,7 +2667,6 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 			F1.get_component(i)->contract(true);
 			F2.get_component(i)->contract(true);
 		}
-		total_k += loss;
 		if (verbose) {
 			F1.numbers_to_labels(reverse_label_map);
 			F2.numbers_to_labels(reverse_label_map);
@@ -2680,7 +2679,8 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 
 	delete cluster_points;
 //	PREFER_RHO = old_rho;
-	return total_k + loss;
+	total_k += loss;
+	return total_k;
 }
 
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map) {
@@ -3386,16 +3386,47 @@ void find_best_root_hlpr(Node *T2, int pre_separator, int group_1_total,
 	}
 }
 
+/*	class child_ba_comp {
+		private:
+			int g_1_total;
+			int g_2_total;
+			bool d;
+		public:
+			child_ba_comp(int group_1_total, int group_2_total, bool direction) {
+				g_1_total = group_1_total;
+				g_2_total = group_2_total;
+				d = direction;
+			}
+			bool operator()(const pair<int,int> x,const pair<int,int> y) {
+				if (d) {
+					return ((x.first / x.second * (x.first + x.second)) - 
+							(y.first / y.second * (y.first + y.second)));
+				}
+				else {
+					return ((x.second / x.first * (x.first + x.second)) - 
+							(y.second / y.first * (y.first + y.second)));
+				}
+			}
+	};
+	*/
+
 void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 		int group_2_total, Node **best_root, double *best_root_b_acc,
 		int *p_group_1_descendants, int *p_group_2_descendants, int *num_ties) {
 	list<Node*>::iterator c;
 	int group_1_descendants = 0;
 	int group_2_descendants = 0;
+//	vector<pair<int,int> > children_splits = vector<pair<int,int>>();
 	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+//		int g_1_desc = 0;
+//		int g_2_desc = 0;
 		find_best_root_hlpr(*c, pre_separator, group_1_total,
 				group_2_total, best_root, best_root_b_acc,
 				&group_1_descendants, &group_2_descendants, num_ties);
+//				&g_1_desc, &g_2_desc, num_ties);
+//		children_splits.push_back(make_pair(g_1_desc,g_2_desc));
+//		group_1_descendants += g_1_desc;
+//		group_2_descendants += g_2_desc;
 	}
 	if (n->is_leaf()) {
 		int pre = n->get_twin()->get_preorder_number();
@@ -3404,6 +3435,11 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 		else
 			group_2_descendants++;
 	}
+//	else if (n->get_children.size() > 2) {
+//		if (group_1_descendants / (double) group_1_total >= group_2_descendants / (double) group_2_total) {
+//			sort(children_splits.begin(),children_splits.end(), g_1_comp(group_1_total, group_2_total, true));
+//		}
+//	}
 	// balanced accuracy
 	// don't bother averaging since we only directly compare them
 	double tpos = group_1_descendants;

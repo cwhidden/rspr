@@ -232,6 +232,8 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		Node *&best_sibling, int &min_distance, int &num_ties);
 void get_support(Node *super_tree, vector<Node *> *gene_trees);
 void get_support(Node *n, Node *super_tree, vector<Node *> *gene_trees);
+void get_transfer_support(Node *super_tree, vector<Node *> *gene_trees);
+void get_transfer_support(Node *n, Node *super_tree, vector<Node *> *gene_trees);
 
 /*Prototypes of Joel's functions*/
 void find_best_spr_r(Node *super_tree, vector<Node *> &gene_trees, Node *&best_spr_move, Node *&best_sibling, int r);
@@ -292,6 +294,7 @@ int main(int argc, char *argv[]) {
 	string INCLUDE_ONLY = "";
 	string INITIAL_SUPER_TREE = "";
 	bool FIND_SUPPORT = false;
+	bool FIND_CLADE_TRANSFERS = false;
 
 	int max_args = argc-1;
 	while (argc > 1) {
@@ -583,6 +586,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-find_support") == 0) {
 			FIND_SUPPORT = true;
 		}
+		else if (strcmp(arg, "-find_clade_transfers") == 0) {
+			FIND_CLADE_TRANSFERS = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -610,6 +616,7 @@ int main(int argc, char *argv[]) {
 	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {
 		BB=true;
+		PREFER_RHO = true;
 	}
 
 
@@ -807,6 +814,7 @@ int main(int argc, char *argv[]) {
 			if(super_tree_file.good()) {
 				getline(super_tree_file, line);
 				super_tree = build_tree(line);
+				super_tree->preorder_number();
 				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 			}
 			super_tree_file.close();
@@ -1203,6 +1211,12 @@ int main(int argc, char *argv[]) {
 	//super_tree->numbers_to_labels(&reverse_label_map);
 		if (FIND_SUPPORT) {
 			get_support(super_tree, &gene_trees);
+			super_tree->numbers_to_labels(&reverse_label_map);
+			cout << super_tree->str_support_subtree() << endl;
+			return 0;
+		}
+		if (FIND_CLADE_TRANSFERS) {
+			get_transfer_support(super_tree, &gene_trees);
 			super_tree->numbers_to_labels(&reverse_label_map);
 			cout << super_tree->str_support_subtree() << endl;
 			return 0;
@@ -1884,6 +1898,28 @@ void get_support(Node *n, Node *super_tree, vector<Node *> *gene_trees) {
 			n->set_support(root_avg_acc);
 			temp_tree->delete_tree();
 		}
+	}
+}
+
+void get_transfer_support(Node *super_tree, vector<Node *> *gene_trees) {
+	vector<Node *> descendants = super_tree->find_descendants();
+	descendants.push_back(super_tree);
+	int end = descendants.size();
+	#pragma omp parallel for
+	for(int i = 0; i < end; i++) {
+		get_transfer_support(descendants[i], super_tree, gene_trees);
+	}
+}
+
+void get_transfer_support(Node *n, Node *super_tree, vector<Node *> *gene_trees) {
+	if (!n->is_leaf() ){
+		Node *temp_tree = new Node(*super_tree);
+		Node *temp_n = temp_tree->find_by_prenum(n->get_preorder_number());
+		temp_tree->disallow_siblings_subtree();
+		temp_n->allow_siblings_subtree();
+		int distance = rSPR_total_distance(temp_tree, *gene_trees);
+		n->set_support(distance);
+		temp_tree->delete_tree();
 	}
 }
 
