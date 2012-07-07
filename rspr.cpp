@@ -749,12 +749,12 @@ int main(int argc, char *argv[]) {
 		}
 		T1->labels_to_numbers(&label_map, &reverse_label_map);
 		while (getline(cin, line)) {
-			size_t loc = T_line.find_first_of("(");
+			size_t loc = line.find_first_of("(");
 			if (loc != string::npos) {
 				string name = "";
 				if (loc != 0) {
-					name = T_line.substr(0,loc);
-					T_line.erase(0,loc);
+					name = line.substr(0,loc);
+					line.erase(0,loc);
 				}
 				if (UNROOTED || SIMPLE_UNROOTED)
 					line = root(line);
