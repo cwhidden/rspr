@@ -131,6 +131,7 @@ bool DEFAULT_OPTIMIZATIONS=true;
 bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
+bool SIMPLE_UNROOTED = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool TOTAL = false;
@@ -264,6 +265,8 @@ int main(int argc, char *argv[]) {
 			APPROX_CHECK_COMPONENT = true;
 		else if (strcmp(arg, "-unrooted") == 0)
 			UNROOTED = true;
+		else if (strcmp(arg, "-simple_unrooted") == 0)
+			SIMPLE_UNROOTED = true;
 		else if (strcmp(arg, "-unrooted_min_approx") == 0)
 			UNROOTED_MIN_APPROX = true;
 		else if (strcmp(arg, "-noopt") == 0) {
@@ -418,6 +421,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-count_losses") == 0) {
 			COUNT_LOSSES = true;
+		}
+		else if (strcmp(arg, "-cut_lost") == 0) {
+			CUT_LOST = true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -734,6 +740,7 @@ int main(int argc, char *argv[]) {
 	else if (TOTAL) {
 		string line = "";
 		vector<Node *> trees = vector<Node *>();
+		vector<string> names = vector<string>();
 		if (!getline(cin, line))
 			return 0;
 		Node *T1 = build_tree(line);
@@ -743,19 +750,47 @@ int main(int argc, char *argv[]) {
 		}
 		T1->labels_to_numbers(&label_map, &reverse_label_map);
 		while (getline(cin, line)) {
-			if (UNROOTED)
-				line = root(line);
-			Node *T2 = build_tree(line);
-			if (!QUIET) {
-				cout << "T2: ";
-				T2->print_subtree();
+			size_t loc = T_line.find_first_of("(");
+			if (loc != string::npos) {
+				string name = "";
+				if (loc != 0) {
+					name = T_line.substr(0,loc);
+					T_line.erase(0,loc);
+				}
+				if (UNROOTED || SIMPLE_UNROOTED)
+					line = root(line);
+				Node *T2 = build_tree(line);
+				if (!QUIET) {
+					cout << "T2: ";
+					T2->print_subtree();
+				}
+				T2->labels_to_numbers(&label_map, &reverse_label_map);
+				if (UNROOTED)
+					T2->preorder_number();
+				names.push_back(name);
+				trees.push_back(T2);
 			}
-			T2->labels_to_numbers(&label_map, &reverse_label_map);
-			if (UNROOTED)
-				T2->preorder_number();
-			trees.push_back(T2);
 		}
 		cout << endl;
+
+		if (SIMPLE_UNROOTED) {
+			// reroot the gene trees based on the balanced accuracy of splits
+			T1->preorder_number();
+			int end = trees.size();
+			#pragma omp parallel for
+			for(int i = 0; i < end; i++) {
+				trees[i]->preorder_number();
+				Node *new_root =
+					find_best_root(T1, trees[i]);
+				if (new_root != NULL)
+					trees[i]->reroot(new_root);
+					trees[i]->set_depth(0);
+					trees[i]->fix_depths();
+			}
+		}
+	T1->set_depth(0);
+	T1->fix_depths();
+	T1->preorder_number();
 
 		int distance;
 		if (APPROX) {

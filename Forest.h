@@ -469,8 +469,9 @@ bool sync_twins(Forest *T1, Forest *T2) {
 			Node *node = T2_a->parent();
 			if (node == NULL)
 				return false;
+			int numc = node->get_children().size();
 			if (node->parent() == NULL && node->lchild()->is_leaf() &&
-					(!node->rchild() || node->rchild()->is_leaf())) {
+					(numc == 1 || (numc == 2 && node->rchild()->is_leaf()))) {
 				return false;
 				Node *sibling = node->lchild();
 				if (sibling == T2_a)
@@ -488,8 +489,9 @@ bool sync_twins(Forest *T1, Forest *T2) {
 			Node *node = T1_a->parent();
 			if (node == NULL)
 				return false;
+			int numc = node->get_children().size();
 			if (node->parent() == NULL && node->lchild()->is_leaf() &&
-					(!node->rchild() || node->rchild()->is_leaf())) {
+					(numc == 1 || (numc == 2 && node->rchild()->is_leaf()))) {
 				return false;
 				Node *sibling = node->lchild();
 				if (sibling == T1_a)
@@ -516,7 +518,9 @@ bool sync_twins(Forest *T1, Forest *T2) {
 			Node *node = T1_a->parent();
 			if (node == NULL)
 				return false;
-			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
+			int numc = node->get_children().size();
+			if (node->parent() == NULL && node->lchild()->is_leaf() &&
+					(numc == 1 || (numc == 2 && node->rchild()->is_leaf()))) {
 				return false;
 				Node *sibling = node->lchild();
 				if (sibling == T1_a)
@@ -538,7 +542,9 @@ bool sync_twins(Forest *T1, Forest *T2) {
 			Node *node = T2_a->parent();
 			if (node == NULL)
 				return false;
-			if (node->parent() == NULL && node->lchild()->is_leaf() && node->rchild()->is_leaf()) {
+			int numc = node->get_children().size();
+			if (node->parent() == NULL && node->lchild()->is_leaf() &&
+					(numc == 1 || (numc == 2 && node->rchild()->is_leaf()))) {
 				return false;
 				Node *sibling = node->lchild();
 				if (sibling == T2_a)

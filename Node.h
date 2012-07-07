@@ -91,6 +91,7 @@ class Node {
 	bool edge_protected;
 	bool allow_sibling;
 	int lost_children;
+	double support;
 
 	public:
 	Node() {
@@ -127,6 +128,7 @@ class Node {
 		this->edge_protected = false;
 		this->allow_sibling = true;
 		this->lost_children = 0;
+		this->support = -1;
 		if (lc != NULL)
 			add_child(lc);
 		if (rc != NULL)
@@ -172,6 +174,7 @@ class Node {
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
 		this->lost_children = n.lost_children;
+		this->support = n.support;
 	}
 
 	Node(const Node &n, Node *parent) {
@@ -215,6 +218,7 @@ class Node {
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
 		this->lost_children = n.lost_children;
+		this->support = n.support;
 	}
 	// TODO: clear_parent function
 	~Node() {
@@ -456,6 +460,7 @@ class Node {
 		}
 	}
 
+
 	// TODO: make this an int?
 	int num_lost_children() {
 		return lost_children;
@@ -466,6 +471,14 @@ class Node {
 		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			lost_children_count += (*c)->count_lost_children_subtree();
+		}
+		return lost_children_count;
+	}
+	int count_lost_subtree() {
+		int lost_children_count = (lost_children > 0) ? 1 : 0;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			lost_children_count += (*c)->count_lost_subtree();
 		}
 		return lost_children_count;
 	}
@@ -485,6 +498,13 @@ class Node {
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->no_lost_children_subtree();
 		}
+	}
+
+	double get_support() {
+		return support;
+	}
+	double set_support(double s) {
+		support = s;
 	}
 
 	int get_component_number() {
@@ -883,6 +903,33 @@ class Node {
 	a = ss.str();
 		*s+= a;
 #endif
+	}
+
+	string str_support_subtree() {
+		string s = "";
+		str_support_subtree_hlpr(&s);
+		return s;
+	}
+
+	void str_support_subtree_hlpr(string *s) {
+		str_hlpr(s);
+		if (!is_leaf()) {
+			*s += "(";
+			list<Node *>::iterator c;
+			for(c = children.begin(); c != children.end(); c++) {
+				if (c != children.begin())
+					*s += ",";
+				(*c)->str_support_subtree_hlpr(s);
+				if ((*c)->parent() != this)
+					cout << "#";
+			}
+			*s += ")";
+			if (get_support() > -1) {
+				stringstream ss;
+				ss << get_support();
+				*s+= ss.str();
+			}
+		}
 	}
 
 	void str_c_subtree_hlpr(string *s) {
@@ -1962,7 +2009,7 @@ string root(string s) {
 template <typename T> vector<T> &random_select(vector <T> &V, int n) {
 	vector<T> *ret = new vector<T>;
 	int end = V.size();
-	for(int i = 0; i < n; i++) {
+	for(int i = 0; i < n && end > 0; i++) {
 		int x = rand() % end;
 		ret->push_back(V[x]);
 		V[x] = V[end-1];
