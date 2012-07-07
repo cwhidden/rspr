@@ -1,10 +1,10 @@
 /*******************************************************************************
 spr_supertree.cpp
 
-Copyright 2011 Chris Whidden
+Copyright 2012 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/SPR_Supertrees
-August 22, 2011
+July 6, 2012
 
 This file is part of spr_supertrees.
 
@@ -38,6 +38,10 @@ from the supertree to the input trees
 -max k	Calculate the exact rSPR distance if it is k or less and
 				otherwise use the 3-approximation
 
+-split_approx
+-split_approx x  Calculate the exact rSPR distance if it is k or less and
+				         otherwise use the exponential-time approximation
+
 *******************************************************************************
 OPTIMIZATIONS
 *******************************************************************************
@@ -46,7 +50,7 @@ These options control the use of optimized branching. All optimizations are
 enabled by default. Specifying any subset of -cob, -cab, and -sc will use
 just that subset of optimizations. See the README for more information.
 
--allopt		Use -cob -cab -sc. This is the default option
+-allopt		Use -cob -cab -sc and a new set of optimizations. This is the default option
 
 -noopt		Use 3-way branching for all FPT algorithms
 
@@ -55,6 +59,14 @@ just that subset of optimizations. See the README for more information.
 -cab		Use "cut all b" improved branching
 
 -sc			Use "separate components" improved branching
+
+*******************************************************************************
+MULTIFURCATING COMPARISON OPTIONS
+*******************************************************************************
+
+-allow_multi   Allow multifurcating gene trees
+
+-support x     Collapse bipartitions with less than x support
 
 *******************************************************************************
 UNROOTED COMPARISON OPTIONS
@@ -68,11 +80,38 @@ UNROOTED COMPARISON OPTIONS
                         Run the exact algorithm on the rooting with the
                         minimum approximate rspr distance
 
+-simple_unrooted				Root the gene trees at each iteration using
+                        a bipartition balanced accuracy measure
+												(fast but potentially less accuracte)
+
+-reroot									Reroot the super tree at each iteration using
+												a bipartition balanced accuracy measure
+
+*******************************************************************************
+SEARCH STRATEGY OPTIONS
+*******************************************************************************
+
+-i x    Run for x iterations of the global rearrangement search
+
+-r x    Only consider transfers of length x in the global rearrangement
+				search. Default is infinite (All SPRs). For NNI search use
+				-r 1
+
+-include_only <file>  Build the supertree only from taxa included in
+											<file>, one per line
+
+-initial_tree <file>  Begin the search with the tree in <file>
+
+-num_leaves x         Build the supertree from the x taxa that are found
+											in the largest number of trees
+
 *******************************************************************************
 OTHER OPTIONS
 *******************************************************************************
--cc         Calculate a potentially better approximation with a quadratic time
-            algorithm
+-time				Print out iteration and total CPU time used at each iteration
+
+-cc         Calculate a potentially better approximation with a quadratic
+						time algorithm
 
 -valid_trees    Output the set of trees that appear valid
 
@@ -148,65 +187,106 @@ bool GREEDY = false;
 bool GREEDY_REFINED = false;
 
 string USAGE =
-"spr_supertrees, version 1.00\n"
+"spr_supertrees, version 1.1.0\n"
 "\n"
 "usage: spr_supertrees [OPTIONS]\n"
 "Calculate binary rooted supertrees that minimize the Subtree Prune and\n"
-"Regraft (SPR) distance to a set of rooted or unrooted binary trees from\n"
-"STDIN in newick format. Supports arbitrary leaf labels. See the\n"
-"README for more information.\n"
+"Regraft (SPR) distance to a set of rooted or unrooted binary or\n"
+"multifurcating trees from STDIN in newick format. Supports arbitrary\n"
+"leaf labels. See the README for more information.\n"
 "\n"
-"Copyright 2011 Chris Whidden\n"
+"Copyright 2012 Chris Whidden\n"
 "whidden@cs.dal.ca\n"
 "http://kiwi.cs.dal.ca/Software/SPR_Supertrees\n"
-"October 28, 2011\n"
-"Version 1.00\n"
+"July 6, 2012\n"
+"Version 1.1.0\n"
 "\n"
 "This program comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it\n"
 "under certain conditions; See the README for details.\n"
 "\n"
-"*******************************************************************************\n"
+"**************************************************************************\n"
 "ALGORITHM\n"
-"*******************************************************************************\n"
+"**************************************************************************\n"
 "\n"
-"These options control what algorithm is used\n"
+"These options control what algorithm is used to determine the SPR distance\n"
+"from the supertree to the input trees\n"
 "\n"
 "-fpt        Calculate the exact rSPR distance with an FPT algorithm\n"
 "\n"
 "-bb         Calculate the exact rSPR distance with a branch-and-bound\n"
 "            FPT algorithm. This is the default option.\n"
 "\n"
-"-approx     Calculate just a linear -time 3-approximation of the\n"
-"            rSPR distance\n"
+"-approx     Calculate just a linear -time 3-approximation of the rSPR\n"
+             "distance\n"
 "\n"
 "-max k      Calculate the exact rSPR distance if it is k or less and\n"
 "            otherwise use the 3-approximation\n"
 "\n"
-"-i x        Apply x iterations of Global SPR rearrangements\n"
+"-split_approx\n"
+"-split_approx x  Calculate the exact rSPR distance if it is x or less and\n"
+"                 otherwise use the exponential-time approximation\n"
+"                 x=25 if not specified\n"
 "\n"
-"*******************************************************************************\n"
+"**************************************************************************\n"
+"MULTIFURCATING COMPARISON OPTIONS\n"
+"**************************************************************************\n"
+"\n"
+"-allow_multi   Allow multifurcating gene trees\n"
+"\n"
+"-support x     Collapse bipartitions with less than x support\n"
+"\n"
+"**************************************************************************\n"
 "UNROOTED COMPARISON OPTIONS\n"
-"*******************************************************************************\n"
+"**************************************************************************\n"
 "\n"
-"-unrooted   Compare the supertree to each rooting of the input trees.\n"
-"            Use the best found distance.\n"
+"-unrooted               Compare the supertree to each rooting of the\n"
+"                        input trees. Use the best found distance.\n"
 "\n"
-"-unrooted_min_approx   Compare the supertree to each rooting of the\n"
-"                       input trees. Run the exact algorithm on the\n"
-"                       rooting with the minimum approximate rspr distance\n"
+"-unrooted_min_approx    Compare the supertree to each rooting of the\n"
+"                        input trees.\n"
+"                        Run the exact algorithm on the rooting with the\n"
+"                        minimum approximate rspr distance\n"
 "\n"
-"*******************************************************************************\n"
+"-simple_unrooted        Root the gene trees at each iteration using\n"
+"                        a bipartition balanced accuracy measure\n"
+"                        (fast but potentially less accuracte)\n"
+"\n"
+"-reroot                 Reroot the super tree at each iteration using\n"
+"                        a bipartition balanced accuracy measure\n"
+"\n"
+"**************************************************************************\n"
+"SEARCH STRATEGY OPTIONS\n"
+"**************************************************************************\n"
+"\n"
+"-i x                  Run for x iterations of the global rearrangement\n"
+"                      search\n"
+"\n"
+"-r x                  Only consider transfers of length x in the global\n"
+"                      rearrangement search. Default is infinite (All SPRs).\n"
+"                      For NNI search use -r 1\n"
+"\n"
+"-include_only <file>  Build the supertree only from taxa included in\n"
+"                      <file>, one per line\n"
+"\n"
+"-initial_tree <file>  Begin the search with the tree in <file>\n"
+"\n"
+"-num_leaves x         Build the supertree from the x taxa that are found\n"
+"                      in the largest number of trees\n"
+"\n"
+"**************************************************************************\n"
 "OTHER OPTIONS\n"
-"*******************************************************************************\n"
-"-cc             Calculate a potentially better approximation with a quadratic time\n"
-"                algorithm\n"
+"**************************************************************************\n"
+"-time           Print out iteration and total CPU time used at each\n"
+"                iteration\n"
+"\n"
+"-cc             Calculate a potentially better approximation with a\n"
+"                quadratic time algorithm\n"
 "\n"
 "-valid_trees    Output the set of trees that appear valid\n"
 "\n"
 "-multi_trees    Output the set of multifurcating or invalid trees\n"
-"\n"
-"*******************************************************************************\n";
+"\n";
 
 Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
 		int label);

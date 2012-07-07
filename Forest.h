@@ -3,10 +3,10 @@ Forest.h
 
 Data structure for a forest of binary trees
 
-Copyright 2009-2010 Chris Whidden
+Copyright 2009-2012 Chris Whidden
 cwhidden@dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-March 22, 2010
+July 6, 2012
 Version 1.01
 
 This file is part of rspr.

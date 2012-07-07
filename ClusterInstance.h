@@ -2,10 +2,10 @@
 ClusterInstance.h
 
 
-Copyright 2011 Chris Whidden
+Copyright 2012 Chris Whidden
 cwhidden@dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-June 8, 2011
+July 6, 2012
 Version 1.02
 
 This file is part of rspr.
