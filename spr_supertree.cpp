@@ -165,6 +165,7 @@ int NUM_ITERATIONS = 25;
 bool SMALL_TREES = false;
 bool CONVERT_LIST = false;
 bool VALID_TREES = false;
+bool FIND_MAX_DEGREE = false;
 bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
 int APPROX_SIBLINGS = 0;
@@ -582,6 +583,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-valid_trees") == 0) {
 			VALID_TREES=true;
 		}
+		else if (strcmp(arg, "-max_degree") == 0) {
+			FIND_MAX_DEGREE=true;
+		}
 		else if (strcmp(arg, "-multi_trees") == 0) {
 			MULTI_TREES=true;
 		}
@@ -849,6 +853,10 @@ int main(int argc, char *argv[]) {
 		if (VALID_TREES) {
 			cout << gene_tree_names[i];
 			cout << gene_trees[i]->str_subtree() << endl;
+		}
+		if (FIND_MAX_DEGREE) {
+			cout << gene_tree_names[i];
+			cout << gene_trees[i]->max_degree() << endl;
 		}
 
 		gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);

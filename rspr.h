@@ -2143,7 +2143,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 							T2_a->find_root() == T2_c->find_root())
 						&& (multi_node || !T2_b->is_protected() || cob)
 						&& (!ABORT_AT_FIRST_SOLUTION || best_k < 0
-							|| (answer_b == best_k && PREFER_RHO && T2->contains_rho() ))
+							|| (answer_a == best_k && PREFER_RHO && T2->contains_rho() ))
 						&& !cut_a_only && !cut_c_only) {
 					if (multi_node) {
 						um.add_event(new CutParent(T2_a));

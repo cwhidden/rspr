@@ -1285,6 +1285,17 @@ class Node {
 		return d+1;
 	}
 
+	int max_degree() {
+		int d = children.size();
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			int c_d = (*c)->max_degree();
+			if (c_d > d)
+				d = c_d;
+		}
+		return d;
+	}
+
 	// TODO: binary only
 	// these will potentially be removed
 
