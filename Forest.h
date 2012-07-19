@@ -1072,7 +1072,7 @@ void swap(Forest **a, Forest **b) {
 // expand all contracted nodes
 void expand_contracted_nodes(Forest *F) {
 	for(int i = 0; i < F->size(); i++) {
-		expand_contracted_nodes(F->get_component(i));
+		F->get_component(i)->expand_contracted_nodes();
 	}
 }
 

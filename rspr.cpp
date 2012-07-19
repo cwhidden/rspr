@@ -128,6 +128,7 @@ bool DEFAULT_OPTIMIZATIONS=true;
 
 
 bool FPT = false;
+bool RF = false;
 bool QUIET = false;
 bool UNROOTED = false;
 bool SIMPLE_UNROOTED = false;
@@ -220,6 +221,9 @@ int main(int argc, char *argv[]) {
 	int max_args = argc-1;
 	while (argc > 1) {
 		char *arg = argv[--argc];
+		if (strcmp(arg, "-rf") == 0) {
+			RF = true;
+		}
 		if (strcmp(arg, "-fpt") == 0) {
 			FPT = true;
 			DEFAULT_ALGORITHM=false;
@@ -520,7 +524,18 @@ int main(int argc, char *argv[]) {
 			Forest F3 = Forest(T1);
 			Forest F4 = Forest(T2);
 
+			if (RF) {
+				int rf_d = rf_distance(T1, T2);
+				cout << "RF Distance=" << rf_d << endl;
+				T1->delete_tree();
+				T2->delete_tree();
+				continue;
+			}
 			if (CLUSTER_TEST) {
+//				T1->preorder_number();
+//				T1->edge_preorder_interval();
+//				T2->preorder_number();
+//				T2->edge_preorder_interval();
 				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true, &label_map, &reverse_label_map);
 				//int exact_k = rSPR_branch_and_bound_simple_clustering(&F3,&F4,true, &label_map, &reverse_label_map);
 
@@ -792,7 +807,11 @@ int main(int argc, char *argv[]) {
 	T1->preorder_number();
 
 		int distance;
-		if (APPROX) {
+		if (RF) {
+			distance = rf_total_distance(T1, trees);
+			cout << "total RF distance=" << distance << endl;
+		}
+		else if (APPROX) {
 			if (UNROOTED) {
 				distance = rSPR_total_approx_distance_unrooted(T1,trees);
 			}

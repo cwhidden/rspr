@@ -84,6 +84,7 @@ int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 		vector<int> *original_scores);
+int rf_total_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold, vector<int> *original_scores);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
@@ -99,6 +100,8 @@ void find_best_root_hlpr(Node *T2, int pre_separator, int group_1_total,
 void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 		int group_2_total, Node **best_root, double *best_root_b_acc,
 		int *p_group_1_descendants, int *p_group_2_descendants, int *num_ties);
+int rf_distance(Node *T1, Node *T2);
+int count_differing_bipartitions(Node *n);
 
 /*Joel's part*/
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
@@ -2146,8 +2149,13 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 							|| (answer_a == best_k && PREFER_RHO && T2->contains_rho() ))
 						&& !cut_a_only && !cut_c_only) {
 					if (multi_node) {
+						um.add_event(new ChangeEdgePreInterval(T2_a));
+						T2_a->copy_edge_pre_interval(T2_ab);
 						um.add_event(new CutParent(T2_a));
 						T2_a->cut_parent();
+						um.add_event(new ChangeEdgePreInterval(T2_ab));
+						T2_ab->set_edge_pre_start(-1);
+						T2_ab->set_edge_pre_end(-1);
 						Node *T2_ab_parent = T2_ab->parent();
 						if (T2_ab_parent != NULL) {
 							um.add_event(new CutParent(T2_ab));
@@ -2680,6 +2688,22 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	delete cluster_points;
 //	PREFER_RHO = old_rho;
 	total_k += loss;
+//	cout << "F1: ";
+//	for (int i = 0; i < F1.num_components(); i++) {
+//		if (i > 0)
+//			cout << " ";
+//		F1.get_component(i)->expand_contracted_nodes();
+//		cout << F1.get_component(i)->str_edge_pre_interval_subtree();
+//	}
+//	cout << endl;
+//	cout << "F2: ";
+//	for (int i = 0; i < F2.num_components(); i++) {
+//		if (i > 0)
+//			cout << " ";
+//		F2.get_component(i)->expand_contracted_nodes();
+//		cout << F2.get_component(i)->str_edge_pre_interval_subtree();
+//	}
+//	cout << endl;
 	return total_k;
 }
 
@@ -3004,6 +3028,18 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 	}
 	return total;
 }
+int rf_total_distance(Node *T1, vector<Node *> &gene_trees) {
+	int total = 0;
+	int end = gene_trees.size();
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
+	for(int i = 0; i < end; i++) {
+			//		cout << i << endl;
+		int k = rf_distance(T1, gene_trees[i]);
+		total += k;
+	}
+	return total;
+}
+
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees, int threshold) {
 	int total = 0;
 	MAIN_CALL = false;
@@ -3475,4 +3511,31 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 	}
 	*p_group_1_descendants += group_1_descendants;
 	*p_group_2_descendants += group_2_descendants;
+}
+
+int rf_distance(Node *T1, Node *T2) {
+	Forest F1 = Forest(T1);
+	Forest F2 = Forest(T2);
+	if (!sync_twins(&F1, &F2))
+		return 0;
+	if (F1.get_component(0)->is_leaf())
+		return 0;
+	sync_interior_twins(&F1, &F2);
+	int rf_d = 0;
+	rf_d += count_differing_bipartitions(F1.get_component(0));
+	rf_d += count_differing_bipartitions(F2.get_component(0));
+	return rf_d;
+}
+
+int count_differing_bipartitions(Node *n) {
+	//cout << "Start: " << n->str_subtree() << endl;
+	int count = 0;
+	list<Node *>::iterator c;
+	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+		count += count_differing_bipartitions(*c);
+	}
+	if (n->get_twin() == NULL ||
+			n->get_depth() > n->get_twin()->get_twin()->get_depth())
+		count++;
+	return count;
 }
