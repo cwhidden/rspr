@@ -3535,7 +3535,9 @@ int count_differing_bipartitions(Node *n) {
 		count += count_differing_bipartitions(*c);
 	}
 	if (n->get_twin() == NULL ||
-			n->get_depth() > n->get_twin()->get_twin()->get_depth())
+//			n->get_depth() > n->get_twin()->get_twin()->get_depth())
+			n != n->get_twin()->get_twin()) {
 		count++;
+			}
 	return count;
 }

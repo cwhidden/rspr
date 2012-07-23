@@ -171,6 +171,7 @@ int NUM_LEAVES=-1;
 int APPROX_SIBLINGS = 0;
 int C_SOURCE = -1;
 int NUM_SOURCE = -1;
+bool RF_TIES = false;
 
 /*variables Joel aadded*/
 int R_DISTANCE;
@@ -294,15 +295,15 @@ Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
 Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
 		vector<Node *> *best_siblings, int label);
 void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		Node **best_sibling);
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, Node **best_sibling);
 vector<Node *> *find_best_siblings(Node *super_tree, vector<Node *> &gene_trees, int label, int num_siblings);
 void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		multimap<int, Node*> *best_siblings, int num_siblings);
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, multimap<int, Node*> *best_siblings, int num_siblings);
 void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		Node **best_sibling);
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, Node **best_sibling);
 void find_best_spr(Node *super_tree, vector<Node *> &gene_trees,
 		Node *&best_spr_move, Node *&best_sibling);
 void find_best_spr_helper(Node *n, Node *super_tree,
@@ -588,6 +589,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-multi_trees") == 0) {
 			MULTI_TREES=true;
+		}
+		else if (strcmp(arg, "-rf_ties") == 0) {
+			RF_TIES=true;
 		}
 		else if (strcmp(arg, "-allow_multi") == 0) {
 			IGNORE_MULTI = false;
@@ -1603,27 +1607,29 @@ Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees, int label)
 	Node *best_sibling;
 	Node *new_leaf = new Node(itos(label));
 	int min_distance = INT_MAX;
+	int min_tie_distance = INT_MAX;
 	int num_ties = 0;
 	find_best_sibling_helper(super_tree, new_leaf, super_tree, gene_trees,
-			min_distance, num_ties, &best_sibling);
+			min_distance, min_tie_distance, num_ties, &best_sibling);
 	delete new_leaf;
 	return best_sibling;
 }
 
 void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties,
 		Node **best_sibling) {
 
 	if (n->lchild() != NULL) {
 		find_best_sibling_helper(n->lchild(), new_leaf, super_tree,
-				gene_trees, min_distance, num_ties, best_sibling);
+				gene_trees, min_distance, min_tie_distance, num_ties, best_sibling);
 	}
 	if (n->rchild() != NULL) {
 		find_best_sibling_helper(n->rchild(), new_leaf, super_tree,
-				gene_trees, min_distance, num_ties, best_sibling);
+				gene_trees, min_distance, min_tie_distance, num_ties, best_sibling);
 	}
 	test_sibling_helper(n, new_leaf, super_tree,
-			gene_trees, min_distance, num_ties, best_sibling);
+			gene_trees, min_distance, min_tie_distance, num_ties, best_sibling);
 }
 
 Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
@@ -1631,18 +1637,19 @@ Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
 	Node *best_sibling;
 	Node *new_leaf = new Node(itos(label));
 	int min_distance = INT_MAX;
+	int min_tie_distance = INT_MAX;
 	int num_ties = 0;
 	for(int i = 0; i < best_siblings->size(); i++) {
 		test_sibling_helper((*best_siblings)[i], new_leaf, super_tree, gene_trees,
-				min_distance, num_ties, &best_sibling);
+				min_distance, min_tie_distance, num_ties, &best_sibling);
 	}
 	delete new_leaf;
 	return best_sibling;
 }
 
 void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		Node **best_sibling) {
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, Node **best_sibling) {
 
 	// TODO: modify this to keep a single intermediate node rather
 	//than recreating and destroying it
@@ -1679,16 +1686,34 @@ void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 	}
 	if (distance < min_distance) {
 		min_distance = distance;
+		if (RF_TIES)
+			min_tie_distance = rf_total_distance(super_tree, gene_trees);
 		*best_sibling = n;
 		num_ties = 2;
 	}
 	else if (distance == min_distance) {
-		int r = rand();
-		if (r < RAND_MAX/num_ties) {
-			min_distance = distance;
-			*best_sibling = n;
+		bool check_tie = true;
+		bool tie = false;
+		if (RF_TIES) {
+			int rf_distance = rf_total_distance(super_tree, gene_trees);
+			if (rf_distance < min_tie_distance) {
+				min_tie_distance = rf_distance;
+				*best_sibling = n;
+				num_ties = 2;
+				check_tie = false;
+			}
+			else if (rf_distance == min_tie_distance)
+				tie = true;
+			else
+				check_tie = false;
 		}
-		num_ties++;
+		if (check_tie) {
+			int r = rand();
+			if (r < RAND_MAX/num_ties) {
+				*best_sibling = n;
+			}
+			num_ties++;
+		}
 	}
 //	cout << "distance: " << distance;
 //	cout << endl;
@@ -1715,10 +1740,11 @@ void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 vector<Node *> *find_best_siblings(Node *super_tree, vector<Node *> &gene_trees, int label, int num_siblings) {
 	Node *new_leaf = new Node(itos(label));
 	int min_distance = INT_MAX;
+	int min_tie_distance = INT_MAX;
 	int num_ties = 0;
 	multimap<int, Node*> best_siblings = multimap<int, Node*>();
 	find_best_siblings_helper(super_tree, new_leaf, super_tree, gene_trees,
-			min_distance, num_ties, &best_siblings, num_siblings);
+			min_distance, min_tie_distance, num_ties, &best_siblings, num_siblings);
 	vector<Node *> *bs = new vector<Node *>();
 	int end = best_siblings.size();
 	for(int i = 0; i < end; i++) {
@@ -1733,8 +1759,8 @@ vector<Node *> *find_best_siblings(Node *super_tree, vector<Node *> &gene_trees,
 }
 
 void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		multimap<int, Node*> *best_siblings, int num_siblings) {
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, multimap<int, Node*> *best_siblings, int num_siblings) {
 
 /*	vector<Node *> descendants = N->find_descendants();
 	descendants.push_back(N);
@@ -1744,11 +1770,13 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 		*/
 	if (n->lchild() != NULL) {
 		find_best_siblings_helper(n->lchild(), new_leaf, super_tree,
-				gene_trees, min_distance, num_ties, best_siblings, num_siblings);
+				gene_trees, min_distance, min_tie_distance, num_ties,
+				best_siblings, num_siblings);
 	}
 	if (n->rchild() != NULL) {
 		find_best_siblings_helper(n->rchild(), new_leaf, super_tree,
-				gene_trees, min_distance, num_ties, best_siblings, num_siblings);
+				gene_trees, min_distance, min_tie_distance, num_ties,
+				best_siblings, num_siblings);
 	}
 
 	// TODO: modify this to keep a single intermediate node rather
