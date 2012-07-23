@@ -2385,6 +2385,10 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		//cout << "approx drSPR=" << full_approx_spr << endl;
 		cout << "\n";
 	}
+	if (F1.get_component(0)->get_preorder_number() == -1)
+		F1.get_component(0)->preorder_number();
+	if (F2.get_component(0)->get_preorder_number() == -1)
+		F2.get_component(0)->preorder_number();
 
 	if (!sync_twins(&F1, &F2))
 		return 0;

@@ -67,6 +67,9 @@ class LCA {
 	public:
 	LCA(Node *tree) {
 		this->tree = tree;
+		T = vector<int>();
+		if (tree->get_edge_pre_start() == -1)
+			tree->preorder_number();
 		euler_tour(tree, 0);
 		precompute_rmq();
 	}
@@ -79,12 +82,8 @@ class LCA {
 		int preorder_number = N.size();
 		int euler_number = E.size();
 		N.push_back(node);
-		if (node->get_preorder_number() == -1) {
-			// hacky
-			node->set_preorder_number(preorder_number);
-		}
 		if (T.size() <= node->get_preorder_number())
-			T.resize(node->get_preorder_number()+1);
+			T.resize(node->get_preorder_number()+1,-1);
 		T[node->get_preorder_number()] = preorder_number;
 
 		//cout << preorder_number << "\t";
