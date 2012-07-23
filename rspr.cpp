@@ -532,10 +532,10 @@ int main(int argc, char *argv[]) {
 				continue;
 			}
 			if (CLUSTER_TEST) {
-//				T1->preorder_number();
-//				T1->edge_preorder_interval();
-//				T2->preorder_number();
-//				T2->edge_preorder_interval();
+				T1->preorder_number();
+				T1->edge_preorder_interval();
+				T2->preorder_number();
+				T2->edge_preorder_interval();
 				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true, &label_map, &reverse_label_map);
 				//int exact_k = rSPR_branch_and_bound_simple_clustering(&F3,&F4,true, &label_map, &reverse_label_map);
 

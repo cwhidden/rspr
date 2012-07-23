@@ -699,6 +699,7 @@ class Node {
 						new_child->cut_parent();
 						add_child(new_child);
 					}
+					pre_num = child->get_preorder_number();
 					if (remove)
 						delete child;
 					ret = this;

@@ -430,6 +430,21 @@ class ChangeEdgePreInterval : public Undoable {
 		}
 };
 
+class ChangePreNum : public Undoable {
+	public:
+		Node *node;
+		int prenum;
+
+		ChangePreNum(Node *n) {
+			prenum = n->get_preorder_number();
+			node = n;
+		}
+
+		void undo() {
+			node->set_preorder_number(prenum);
+		}
+};
+
 class ChangeRightChild : public Undoable {
 	public:
 		Node *node;
@@ -597,6 +612,7 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 						}
 						um->add_event(new ChangeName(n));
 					}
+					um->add_event(new ChangePreNum(n));
 					//um->add_event(new CutParent(n));
 					list<Node *>::iterator c;
 					for(c = child->get_children().begin();

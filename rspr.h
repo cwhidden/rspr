@@ -1414,7 +1414,6 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 //	cout << "foo1" << endl;
 	if (!sync_twins(T1, T2))
 		return 0;
-//	cout << "foo2" << endl;
 	if (PREORDER_SIBLING_PAIRS &&
 			T1->get_component(0)->get_preorder_number() == -1)
 		T1->get_component(0)->preorder_number();
@@ -2688,22 +2687,23 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	delete cluster_points;
 //	PREFER_RHO = old_rho;
 	total_k += loss;
-//	cout << "F1: ";
-//	for (int i = 0; i < F1.num_components(); i++) {
-//		if (i > 0)
-//			cout << " ";
-//		F1.get_component(i)->expand_contracted_nodes();
-//		cout << F1.get_component(i)->str_edge_pre_interval_subtree();
-//	}
-//	cout << endl;
-//	cout << "F2: ";
-//	for (int i = 0; i < F2.num_components(); i++) {
-//		if (i > 0)
-//			cout << " ";
-//		F2.get_component(i)->expand_contracted_nodes();
-//		cout << F2.get_component(i)->str_edge_pre_interval_subtree();
-//	}
-//	cout << endl;
+/*	cout << "F1: ";
+	for (int i = 0; i < F1.num_components(); i++) {
+		if (i > 0)
+			cout << " ";
+		F1.get_component(i)->expand_contracted_nodes();
+		cout << F1.get_component(i)->str_edge_pre_interval_subtree();
+	}
+	cout << endl;
+	cout << "F2: ";
+	for (int i = 0; i < F2.num_components(); i++) {
+		if (i > 0)
+			cout << " ";
+		F2.get_component(i)->expand_contracted_nodes();
+		cout << F2.get_component(i)->str_edge_pre_interval_subtree();
+	}
+	cout << endl << endl;
+*/
 	return total_k;
 }
 
