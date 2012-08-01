@@ -709,13 +709,15 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				bool cut_a_only = false;
 				bool cut_b_only = false;
 				bool cut_c_only = false;
-				if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()) {
+				if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()
+						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
 					cut_b_only = true;
 					um.add_event(new AddToSiblingPairs(sibling_pairs));
 					sibling_pairs->push_back(T1_c);
 					sibling_pairs->push_back(T1_a);
 				}
-			if (APPROX_CUT_TWO_B && !cut_b_only && T1_ac->parent() != NULL) {
+			if (APPROX_CUT_TWO_B && !cut_b_only && T1_ac->parent() != NULL
+						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
 				Node *T1_s = T1_ac->get_sibling();
 				if (T1_s->is_leaf()) {
 					Node *T2_l = T2_a->parent()->parent();
@@ -736,19 +738,23 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			if (APPROX_REVERSE_CUT_ONE_B && !cut_b_only && T1_ac->parent() != NULL) {
 				Node *T1_s = T1_ac->get_sibling();
 				if (T1_s->is_leaf()) {
-					if (T1_s->get_twin()->parent() == T2_a->parent()) {
+					if (T1_s->get_twin()->parent() == T2_a->parent()
+						&& (!APPROX_EDGE_PROTECTION || !T2_c->is_protected())) {
 						cut_c_only=true;
 					}
-					else if (T1_s->get_twin()->parent() == T2_c->parent()) {
+					else if (T1_s->get_twin()->parent() == T2_c->parent()
+						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())) {
 						cut_a_only=true;
 					}
 				}
 				else if (APPROX_REVERSE_CUT_ONE_B_2) {
 					if (T2_c->parent() != NULL
-						&& chain_match(T1_s, T2_c->get_sibling(), T2_a))
+						&& chain_match(T1_s, T2_c->get_sibling(), T2_a)
+						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected()))
 					cut_a_only = true;
 				}
 			}
+			/*
 			if (CUT_LOST) {
 				if (T1_a->num_lost_children() > 0
 						|| T2_a->num_lost_children() > 0) {
@@ -774,6 +780,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 					}
 				}
 			}
+			*/
 
 
 				Node *node;
@@ -1385,13 +1392,14 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 			cout << " " << k;
 			cout.flush();
 		}
-		Forest F1 = Forest(T1);
-		Forest F2 = Forest(T2);
-		exact_spr = rSPR_branch_and_bound(&F1, &F2, k);
+		//Forest F1 = Forest(T1);
+		//Forest F2 = Forest(T2);
+		//exact_spr = rSPR_branch_and_bound(&F1, &F2, k);
+		exact_spr = rSPR_branch_and_bound(T1,T2, k);
 		//if (exact_spr >= 0 || k == end_k) {
 		if (exact_spr >= 0) {
-			F1.swap(T1);
-			F2.swap(T2);
+//			F1.swap(T1);
+//			F2.swap(T2);
 			break;
 		}
 	}
@@ -1448,7 +1456,6 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 		AFs.front().first.swap(T1);
 		AFs.front().second.swap(T2);
 		sync_twins(T1,T2);
-
 	}
 	if (final_k >= 0)
 		final_k = k - final_k;
@@ -2385,10 +2392,10 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		//cout << "approx drSPR=" << full_approx_spr << endl;
 		cout << "\n";
 	}
-	if (F1.get_component(0)->get_preorder_number() == -1)
-		F1.get_component(0)->preorder_number();
-	if (F2.get_component(0)->get_preorder_number() == -1)
-		F2.get_component(0)->preorder_number();
+//	if (F1.get_component(0)->get_preorder_number() == -1)
+//		F1.get_component(0)->preorder_number();
+//	if (F2.get_component(0)->get_preorder_number() == -1)
+//		F2.get_component(0)->preorder_number();
 
 	if (!sync_twins(&F1, &F2))
 		return 0;
@@ -2456,9 +2463,16 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 
 	for(int i = 1; i < num_clusters; i++) {
 		int exact_spr = -1;
+		//vector<Node *> comps = vector<Node *>();
+		//comps.push_back(F1.get_component(i));
 		Forest f1 = Forest(F1.get_component(i));
+		//Forest f1 = Forest(comps);
+		//comps.clear();
 
+		//comps.push_back(F1.get_component(i));
 		Forest f2 = Forest(F2.get_component(i));
+		//Forest f2 = Forest(comps);
+		//comps.clear();
 		Forest f1a = Forest(f1);
 		Forest f2a = Forest(f2);
 		Forest *f1_cluster;
@@ -2500,7 +2514,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 					break;
 				}
 				Forest f1t = Forest(f1);
+//				Forest f1t = f1;
 				Forest f2t = Forest(f2);
+//				Forest f2t = f2;
 				f1t.unsync();
 				f2t.unsync();
 				exact_spr = -1;
