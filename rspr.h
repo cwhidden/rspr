@@ -709,15 +709,15 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				bool cut_a_only = false;
 				bool cut_b_only = false;
 				bool cut_c_only = false;
-				if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()
-						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
+				if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()) {
+//						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
 					cut_b_only = true;
 					um.add_event(new AddToSiblingPairs(sibling_pairs));
 					sibling_pairs->push_back(T1_c);
 					sibling_pairs->push_back(T1_a);
 				}
-			if (APPROX_CUT_TWO_B && !cut_b_only && T1_ac->parent() != NULL
-						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
+			if (APPROX_CUT_TWO_B && !cut_b_only && T1_ac->parent() != NULL) {
+//						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
 				Node *T1_s = T1_ac->get_sibling();
 				if (T1_s->is_leaf()) {
 					Node *T2_l = T2_a->parent()->parent();
@@ -738,19 +738,19 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 			if (APPROX_REVERSE_CUT_ONE_B && !cut_b_only && T1_ac->parent() != NULL) {
 				Node *T1_s = T1_ac->get_sibling();
 				if (T1_s->is_leaf()) {
-					if (T1_s->get_twin()->parent() == T2_a->parent()
-						&& (!APPROX_EDGE_PROTECTION || !T2_c->is_protected())) {
+					if (T1_s->get_twin()->parent() == T2_a->parent()) {
+//						&& (!APPROX_EDGE_PROTECTION || !T2_c->is_protected())) {
 						cut_c_only=true;
 					}
-					else if (T1_s->get_twin()->parent() == T2_c->parent()
-						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())) {
+					else if (T1_s->get_twin()->parent() == T2_c->parent()) {
+//						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())) {
 						cut_a_only=true;
 					}
 				}
 				else if (APPROX_REVERSE_CUT_ONE_B_2) {
 					if (T2_c->parent() != NULL
-						&& chain_match(T1_s, T2_c->get_sibling(), T2_a)
-						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected()))
+						&& chain_match(T1_s, T2_c->get_sibling(), T2_a) )
+//						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected()))
 					cut_a_only = true;
 				}
 			}
@@ -789,7 +789,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				bool cut_c = false;
 				if (!cut_b_only) {
 					if (!cut_c_only &&
-							(!APPROX_EDGE_PROTECTION || !T2_a->is_protected())) {
+							(!APPROX_EDGE_PROTECTION || !T2_a->is_protected()
+							|| cut_a_only)) {
 						um.add_event(new CutParent(T1_a));
 						T1_a->cut_parent();
 						cut_a = true;
@@ -800,7 +801,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 					else
 						node = T1_ac;
 					if (!cut_a_only &&
-							(!APPROX_EDGE_PROTECTION || !T2_c->is_protected())) {
+							(!APPROX_EDGE_PROTECTION || !T2_c->is_protected()
+							|| cut_c_only)) {
 						um.add_event(new CutParent(T1_c));
 						T1_c->cut_parent();
 						cut_c = true;
@@ -836,7 +838,8 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				bool cut_b = false;
 				if (same_component && T2_ab_parent != NULL
 						&& !cut_a_only && !cut_c_only
-						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
+						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected()
+							|| cut_b_only)) {
 					if (multi_node) {
 						T2_b = T2_ab;
 						um.add_event(new CutParent(T2_ab));
