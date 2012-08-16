@@ -459,6 +459,15 @@ class Node {
 		}
 	}
 
+	void protect_supported_edges() {
+		if (support > 0)
+			edge_protected = true;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->protect_supported_edges();
+		}
+	}
+
 	bool can_be_sibling() {
 		return allow_sibling;
 	}
@@ -532,6 +541,14 @@ class Node {
 	}
 	double set_support(double s) {
 		support = s;
+	}
+	double a_inc_support() {
+#pragma omp atomic
+		support += 1;
+	}
+	double a_dec_support() {
+#pragma omp atomic
+		support -= 1;
 	}
 
 	int get_component_number() {
@@ -941,13 +958,17 @@ class Node {
 #endif
 	}
 
-	string str_support_subtree() {
+	string str_support_subtree(bool allow_negative) {
 		string s = "";
-		str_support_subtree_hlpr(&s);
+		str_support_subtree_hlpr(&s, allow_negative);
 		return s;
 	}
 
-	void str_support_subtree_hlpr(string *s) {
+	string str_support_subtree() {
+		return str_support_subtree(false);
+	}
+
+	void str_support_subtree_hlpr(string *s, bool allow_negative) {
 		str_hlpr(s);
 		if (!is_leaf()) {
 			*s += "(";
@@ -955,12 +976,12 @@ class Node {
 			for(c = children.begin(); c != children.end(); c++) {
 				if (c != children.begin())
 					*s += ",";
-				(*c)->str_support_subtree_hlpr(s);
+				(*c)->str_support_subtree_hlpr(s, allow_negative);
 				if ((*c)->parent() != this)
 					cout << "#";
 			}
 			*s += ")";
-			if (get_support() > -1) {
+			if (get_support() > -1 || allow_negative) {
 				stringstream ss;
 				ss << get_support();
 				*s+= ss.str();
@@ -1808,6 +1829,26 @@ vector<int> *find_descendant_counts() {
 	vector<int> *dc = new vector<int>();
 	find_descendant_counts_hlpr(dc);
 	return dc;
+}
+
+void find_leaf_counts_hlpr(vector<int> *lc) {
+	int num_leaves = 0;
+	list<Node *>::iterator c;
+	for(c = children.begin(); c != children.end(); c++) {
+		(*c)->find_leaf_counts_hlpr(lc);
+		num_leaves += (*lc)[(*c)->get_preorder_number()];
+	}
+	if (is_leaf())
+		num_leaves++;
+	if (lc->size() <= get_preorder_number())
+		lc->resize(get_preorder_number() + 1, -1);
+	(*lc)[get_preorder_number()] = num_leaves;
+}
+
+vector<int> *find_leaf_counts() {
+	vector<int> *lc = new vector<int>();
+	find_leaf_counts_hlpr(lc);
+	return lc;
 }
 
 Node *find_median() {

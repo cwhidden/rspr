@@ -58,6 +58,8 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
+enum RELAXATION {STRICT, NEGATIVE_RELAXED, ALL_RELAXED};
+
 // note: not using undo
 int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		list<Node *> *sibling_pairs);
@@ -102,6 +104,13 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 		int *p_group_1_descendants, int *p_group_2_descendants, int *num_ties);
 int rf_distance(Node *T1, Node *T2);
 int count_differing_bipartitions(Node *n);
+bool contains_bipartition(Node *n, int pre_start, int pre_end,
+		int group_1_total, int group_2_total, int *p_group_1_descendants,
+		int *p_group_2_descendants);
+void modify_bipartition_support(Node *T1, Node *T2, enum RELAXATION relaxed);
+void modify_bipartition_support(Node *n, Forest *F1, Forest *F2,
+		Node *T1, Node *T2, vector<int> *F1_descendant_counts, enum RELAXATION);
+void modify_bipartition_support(Forest *F1, Forest *F2, Node *n1);
 
 /*Joel's part*/
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
@@ -3411,6 +3420,7 @@ Node *find_best_root(Node *T1, Node *T2, double *best_root_b_acc) {
 //	cout << "T2: " << T2->str_subtree() << endl;
 	return best_root;
 }
+
 Node *find_best_root(Node *T1, Node *T2) {
 	double best_root_b_acc = 0;
 	Forest f1 = Forest(T1);
@@ -3534,6 +3544,107 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 	}
 	*p_group_1_descendants += group_1_descendants;
 	*p_group_2_descendants += group_2_descendants;
+}
+
+// assume already sync_twins and preorder numbered
+bool contains_bipartition(Node *n, int pre_start, int pre_end,
+		int group_1_total, int group_2_total, int *p_group_1_descendants,
+		int *p_group_2_descendants) {
+	list<Node*>::iterator c;
+	int group_1_descendants = 0;
+	int group_2_descendants = 0;
+	bool found = false;
+	bool proper_split = true;
+	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+		int c_group_1_descendants = 0;
+		int c_group_2_descendants = 0;
+		found = contains_bipartition(*c, pre_start, pre_end, group_1_total,
+				group_2_total, &c_group_1_descendants, &c_group_2_descendants);
+		if (found)
+			return true;
+		group_1_descendants += c_group_1_descendants;
+		group_2_descendants += c_group_2_descendants;
+		if (c_group_1_descendants > 0 && c_group_2_descendants > 0)
+			proper_split = false;
+	}
+
+	if (n->is_leaf()) {
+		int pre = n->get_twin()->get_preorder_number();
+		if (pre >= pre_start && pre <= pre_end)
+			group_1_descendants++;
+		else
+			group_2_descendants++;
+	}
+	else if (proper_split) {
+		if (group_1_descendants == group_1_total
+				|| group_2_descendants == group_2_total)
+			return true;
+	}
+	if (p_group_1_descendants != NULL)
+		*p_group_1_descendants += group_1_descendants;
+	if (p_group_2_descendants != NULL)
+		*p_group_2_descendants += group_2_descendants;
+	return false;
+}
+
+void modify_bipartition_support(Node *T1, Node *T2, enum RELAXATION relaxed) {
+	Forest F1 = Forest(T1);
+	Forest F2 = Forest(T2);
+	if (!sync_twins(&F1, &F2)) {
+		return;
+	}
+	Node *n = F1.get_component(0);
+	vector<int> *F1_descendant_counts = n->find_leaf_counts();
+	modify_bipartition_support(n, &F1, &F2, T1, T2, F1_descendant_counts,
+			relaxed);
+	delete F1_descendant_counts;
+}
+
+void modify_bipartition_support(Node *n, Forest *F1, Forest *F2,
+		Node *T1, Node *T2, vector<int> *F1_descendant_counts, enum RELAXATION relaxed) {
+	if (n->is_leaf())
+		return;
+	list<Node *>::iterator c;
+	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+		modify_bipartition_support(*c, F1, F2, T1, T2, F1_descendant_counts,
+				relaxed);
+	}
+	Node *t = T1->find_by_prenum(n->get_preorder_number());
+	if (t->parent() == NULL)
+		return;
+	int pre_start = n->get_edge_pre_start();
+	int pre_end = n->get_edge_pre_end();
+	int group_1_total = (*F1_descendant_counts)[n->get_preorder_number()];
+	int group_2_total = (*F1_descendant_counts)[F1->get_component(0)->get_preorder_number()] - group_1_total;
+	if (group_2_total >= 2) {
+		if (contains_bipartition(F2->get_component(0), pre_start, pre_end,
+				group_1_total, group_2_total, NULL, NULL)) {
+			t->a_inc_support();
+			// relaxed
+			if (false && relaxed == ALL_RELAXED) {
+				int stop_pre = 0;
+				if (n->parent() != NULL) {
+					stop_pre = n->parent()->get_preorder_number();
+				while ((t = t->parent()) != NULL
+						&& t->get_preorder_number() != stop_pre)
+					t->a_inc_support();
+				}
+			}
+		}
+		else {
+			t->a_dec_support();
+			// relaxed
+			if (relaxed == ALL_RELAXED || relaxed == NEGATIVE_RELAXED) {
+				int stop_pre = 0;
+				if (n->parent() != NULL) {
+					stop_pre = n->parent()->get_preorder_number();
+				while ((t = t->parent()) != NULL
+						&& t->get_preorder_number() != stop_pre)
+					t->a_dec_support();
+				}
+			}
+		}
+	}
 }
 
 int rf_distance(Node *T1, Node *T2) {
