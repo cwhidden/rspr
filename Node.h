@@ -35,6 +35,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <cstdio>
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <map>
 #include <set>
@@ -94,6 +95,7 @@ class Node {
 	bool allow_sibling;
 	int lost_children;
 	double support;
+	double support_normalization;
 
 	public:
 	Node() {
@@ -133,6 +135,7 @@ class Node {
 		this->allow_sibling = true;
 		this->lost_children = 0;
 		this->support = -1;
+		this->support_normalization = -1;
 		if (lc != NULL)
 			add_child(lc);
 		if (rc != NULL)
@@ -181,6 +184,7 @@ class Node {
 		this->allow_sibling = n.allow_sibling;
 		this->lost_children = n.lost_children;
 		this->support = n.support;
+		this->support_normalization = n.support_normalization;
 	}
 
 	Node(const Node &n, Node *parent) {
@@ -227,6 +231,7 @@ class Node {
 		this->allow_sibling = n.allow_sibling;
 		this->lost_children = n.lost_children;
 		this->support = n.support;
+		this->support_normalization = n.support_normalization;
 	}
 	// TODO: clear_parent function
 	~Node() {
@@ -549,6 +554,29 @@ class Node {
 	double a_dec_support() {
 #pragma omp atomic
 		support -= 1;
+	}
+	double get_support_normalization() {
+		return support_normalization;
+	}
+	double set_support_normalization(double s) {
+		support_normalization = s;
+	}
+	double a_inc_support_normalization() {
+#pragma omp atomic
+		support_normalization += 1;
+	}
+	double a_dec_support_normalization() {
+#pragma omp atomic
+		support_normalization -= 1;
+	}
+
+	void normalize_support() {
+		if (support_normalization != 0)
+			support /= support_normalization;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->normalize_support();
+		}
 	}
 
 	int get_component_number() {
@@ -983,8 +1011,14 @@ class Node {
 			*s += ")";
 			if (get_support() > -1 || allow_negative) {
 				stringstream ss;
-				ss << get_support();
+				ss << setprecision (2) << get_support();
 				*s+= ss.str();
+				if (get_support_normalization() > -1 || allow_negative) {
+					stringstream ss;
+					ss << "#";
+					ss << get_support_normalization();
+					*s+= ss.str();
+				}
 			}
 		}
 	}

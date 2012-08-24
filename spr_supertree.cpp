@@ -172,6 +172,7 @@ int APPROX_SIBLINGS = 0;
 int C_SOURCE = -1;
 int NUM_SOURCE = -1;
 bool RF_TIES = false;
+double SUPPORT_THRESHOLD = 0.5;
 
 /*variables Joel aadded*/
 int R_DISTANCE;
@@ -691,6 +692,14 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-bipartition_cluster") == 0) {
 			BIPARTITION_CLUSTER = true;
+			cout << "BIPARTITION_CLUSTER=true" << endl;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SUPPORT_THRESHOLD = atof(arg2);
+			}
+			cout << "CLUSTER THRESHOLD=" << SUPPORT_THRESHOLD
+					<< endl;
 		}
 		else if (strcmp(arg, "-find_clade_transfers") == 0) {
 			FIND_CLADE_TRANSFERS = true;
@@ -1336,6 +1345,7 @@ int main(int argc, char *argv[]) {
 			}
 			get_bipartition_support(super_tree, &gene_trees,
 					RELAXED_BIPARTITION_SUPPORT);
+			super_tree->normalize_support();
 			super_tree->numbers_to_labels(&reverse_label_map);
 			cout << super_tree->str_support_subtree(true) << endl;
 			return 0;
@@ -1390,6 +1400,7 @@ int main(int argc, char *argv[]) {
 			}
 			get_bipartition_support(super_tree, &gene_trees,
 					RELAXED_BIPARTITION_SUPPORT);
+			super_tree->normalize_support();
 //			super_tree->unprotect_subtree();
 //			super_tree->protect_supported_edges();
 		}
@@ -2091,6 +2102,7 @@ void get_bipartition_support(Node *super_tree, vector<Node *> *gene_trees,
 	descendants.push_back(super_tree);
 	for(int i = 0; i < descendants.size(); i++) {
 		descendants[i]->set_support(0);
+		descendants[i]->set_support_normalization(0);
 	}
 	int end = gene_trees->size();
 	#pragma omp parallel for
@@ -2518,6 +2530,7 @@ void find_best_spr_r_helper(Node *n, Node *super_tree,
 // TODO: I think this works for the sibling subtree but goes one
 //	to far in the grandparent
 
+////	cout << endl;
 	if(n->parent() != NULL) {
 		if(!R_CONTROL  && R_RAND)
 			r = find_r(R_PROB);
@@ -2551,10 +2564,16 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 
 	// recurse
+//		n->numbers_to_labels(&reverse_label_map);
+//		new_sibling->numbers_to_labels(&reverse_label_map);
+//	cout << n->str_subtree() << "  " << new_sibling->str_subtree() << " origin " << origin << endl;
+//		n->labels_to_numbers(&label_map, &reverse_label_map);	
+//		new_sibling->labels_to_numbers(&label_map, &reverse_label_map);	
 	if(origin == 1 && r > 0 ){
 		//cout << "n1: " << n->str_subtree() << "\t\tnew_sibling: " << new_sibling->str_subtree() << endl;
 		if(new_sibling->parent() != NULL
-				&& (!BIPARTITION_CLUSTER || new_sibling->get_support() > 0)) {//!new_sibling->is_protected())){
+				&& (!BIPARTITION_CLUSTER || new_sibling->get_support() < SUPPORT_THRESHOLD
+					|| new_sibling->parent()->parent() == NULL)) {//!new_sibling->is_protected())){
 			if(new_sibling->parent()->lchild() == new_sibling){
 				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 1, offset);	
 				//cout << "Origin1, Target: " << new_sibling->parent()->str_subtree() << endl;
@@ -2578,7 +2597,8 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 	if(origin == 2 && r > 0){
 		//cout << "n2: " << n->str_subtree() << "\t\tnew_sibling: " << new_sibling->str_subtree() << endl;
 		if(new_sibling->parent() != NULL
-				&& (!BIPARTITION_CLUSTER || new_sibling->get_support() > 0)) {//!new_sibling->is_protected())){
+				&& (!BIPARTITION_CLUSTER || new_sibling->get_support() < SUPPORT_THRESHOLD
+					|| new_sibling->parent()->parent() == NULL)) {//!new_sibling->is_protected())){
 			if(new_sibling->parent()->lchild() == new_sibling){
 				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 1, offset);
 				//cout << "Origin2, Target: " << new_sibling->parent()->str_subtree() << endl;	
@@ -2605,14 +2625,14 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		if(new_sibling->lchild() != NULL
 				&& (!BIPARTITION_CLUSTER
 //						|| !new_sibling->is_protected())){
-				|| new_sibling->get_support() > 0)) {//!new_sibling->is_protected())){
+				|| new_sibling->get_support() < SUPPORT_THRESHOLD)) {//!new_sibling->is_protected())){
 			find_best_spr_r_helper(n, new_sibling->lchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 3, offset);
 			//cout << "Origin3, Target: " << new_sibling->lchild()->str_subtree() << endl;
 		}
 		if(new_sibling->rchild() != NULL
 				&& (!BIPARTITION_CLUSTER
 //						|| !new_sibling->is_protected())){
-				|| new_sibling->get_support() > 0)) {//!new_sibling->is_protected())){
+				|| new_sibling->get_support() < SUPPORT_THRESHOLD)) {//!new_sibling->is_protected())){
 			find_best_spr_r_helper(n, new_sibling->rchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 3, offset);
 			//cout << "Origin3, Target: " << new_sibling->rchild()->str_subtree() << endl;
 		}
@@ -2642,23 +2662,26 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 	if (n != super_tree && new_sibling != n) {
 		Node *old_sibling = n->get_sibling();
 		//if (new_sibling != old_sibling)
-/*
+
+/*		cout << endl;
 		cout << "SPR Move:" << endl;
-		super_tree->numbers_to_labels(&reverse_label_map);
+//		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Previous Super Tree: "
 		<< super_tree->str_subtree() << endl;
 		cout << "Subtree: " << n->str_subtree() << endl;
 		cout << "New Sibling: " << new_sibling->str_subtree() << endl;
-		super_tree->labels_to_numbers(&label_map, &reverse_label_map);	
+//		super_tree->labels_to_numbers(&label_map, &reverse_label_map);	
 */
-		cout << "Previous Super Tree: "
-		<< super_tree->str_edge_pre_interval_subtree() << endl;
+
+//		cout << endl;
+//		cout << "Previous Super Tree: "
+//		<< super_tree->str_support_subtree(true) << endl;
 		int which_sibling = 0;
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
-		cout << "Proposed Super Tree: "
-		<< super_tree->str_edge_pre_interval_subtree() << endl;
+//		cout << "Proposed Super Tree: "
+//		<< super_tree->str_support_subtree(true) << endl;
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
@@ -2679,8 +2702,8 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		}
 /*		cout << "\t" << distance << endl;
 */
-		cout << "After SPR Distance Super Tree: "
-		<< super_tree->str_edge_pre_interval_subtree() << endl;
+//		cout << "After SPR Distance Super Tree: "
+//		<< super_tree->str_support_subtree(true) << endl;
 		distance += offset;
 		if (distance < min_distance) {
 			min_distance = distance;
@@ -2700,9 +2723,8 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		// restore the previous tree
 		n->spr(undo, which_sibling);
 
-		cout << "Reverted Super Tree: "
-		<< super_tree->str_edge_pre_interval_subtree() << endl;
-		cout << endl;
+//		cout << "Reverted Super Tree: "
+//		<< super_tree->str_support_subtree(true) << endl;
 
 		super_tree->set_depth(0);
 		super_tree->fix_depths();

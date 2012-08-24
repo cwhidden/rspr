@@ -3076,6 +3076,7 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees, int threshold) {
 	int total = 0;
 	MAIN_CALL = false;
 	int end = gene_trees.size();
+	T1->preorder_number();
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
 	for(int i = 0; i < end; i++) {
 		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
@@ -3387,9 +3388,9 @@ Node *find_best_root(Node *T1, Node *T2, double *best_root_b_acc) {
 	if (!sync_twins(&F1, &F2)) {
 		return NULL;
 	}
-	if (t1->lchild()->get_preorder_number() != lchild_pre ||
-			t1->rchild()->get_preorder_number() != rchild_pre)
-		return NULL;
+//	if (t1->lchild()->get_preorder_number() != lchild_pre ||
+//			t1->rchild()->get_preorder_number() != rchild_pre)
+//		return NULL;
 	if (F2.get_component(0)->get_children().size() > 2)
 		F2.get_component(0)->fixroot();
 	// TODO: maybe stop if F2 is too small?
@@ -3539,7 +3540,6 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 		if (r < RAND_MAX/ *num_ties) {
 			*best_root = n;
 			*best_root_b_acc = b_acc;
-			*num_ties = 2;
 		}
 	}
 	*p_group_1_descendants += group_1_descendants;
@@ -3620,6 +3620,7 @@ void modify_bipartition_support(Node *n, Forest *F1, Forest *F2,
 		if (contains_bipartition(F2->get_component(0), pre_start, pre_end,
 				group_1_total, group_2_total, NULL, NULL)) {
 			t->a_inc_support();
+			t->a_inc_support_normalization();
 			// relaxed
 			if (false && relaxed == ALL_RELAXED) {
 				int stop_pre = 0;
@@ -3628,11 +3629,13 @@ void modify_bipartition_support(Node *n, Forest *F1, Forest *F2,
 				while ((t = t->parent()) != NULL
 						&& t->get_preorder_number() != stop_pre)
 					t->a_inc_support();
+					t->a_inc_support_normalization();
 				}
 			}
 		}
 		else {
-			t->a_dec_support();
+//			t->a_dec_support();
+			t->a_inc_support_normalization();
 			// relaxed
 			if (relaxed == ALL_RELAXED || relaxed == NEGATIVE_RELAXED) {
 				int stop_pre = 0;
@@ -3640,7 +3643,8 @@ void modify_bipartition_support(Node *n, Forest *F1, Forest *F2,
 					stop_pre = n->parent()->get_preorder_number();
 				while ((t = t->parent()) != NULL
 						&& t->get_preorder_number() != stop_pre)
-					t->a_dec_support();
+//					t->a_dec_support();
+					t->a_inc_support_normalization();
 				}
 			}
 		}
