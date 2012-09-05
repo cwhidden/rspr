@@ -714,11 +714,12 @@ int main(int argc, char *argv[]) {
 		CUT_ALL_B=true;
 		CUT_ONE_B = true;
 		CUT_TWO_B = true;
+		CUT_TWO_B_ROOT = true;
 		REVERSE_CUT_ONE_B = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
-//		if (ALL_MAFS == false)
-//			ABORT_AT_FIRST_SOLUTION = true;
+		CHECK_MERGE_DEPTH = true;
+//		ABORT_AT_FIRST_SOLUTION = true;
 //		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;

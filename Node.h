@@ -92,6 +92,7 @@ class Node {
 	Node *contracted_rc;
 	bool is_contracted;
 	bool edge_protected;
+	int max_merge_depth;
 	bool allow_sibling;
 	int lost_children;
 	double support;
@@ -134,6 +135,7 @@ class Node {
 		this->edge_protected = false;
 		this->allow_sibling = true;
 		this->lost_children = 0;
+		this->max_merge_depth = -1;
 		this->support = -1;
 		this->support_normalization = -1;
 		if (lc != NULL)
@@ -183,6 +185,7 @@ class Node {
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
 		this->lost_children = n.lost_children;
+		this->max_merge_depth = n.max_merge_depth;
 		this->support = n.support;
 		this->support_normalization = n.support_normalization;
 	}
@@ -230,6 +233,7 @@ class Node {
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
 		this->lost_children = n.lost_children;
+		this->max_merge_depth = n.max_merge_depth;
 		this->support = n.support;
 		this->support_normalization = n.support_normalization;
 	}
@@ -502,10 +506,17 @@ class Node {
 	}
 
 
-	// TODO: make this an int?
 	int num_lost_children() {
 		return lost_children;
 	}
+
+	int get_max_merge_depth() {
+		return max_merge_depth;
+	}
+	void set_max_merge_depth(int d) {
+		max_merge_depth = d;
+	}
+
 
 	int count_lost_children_subtree() {
 		int lost_children_count = lost_children;
@@ -1286,6 +1297,21 @@ class Node {
 		while (root->parent() != NULL)
 			root = root->parent();
 		return root;
+	}
+
+	bool same_component(Node *n, int &lca_depth) {
+		Node *a = this;
+		Node *b = n;
+		while(a != b) {
+			if ((b == NULL) || (a != NULL && a->get_depth() > b->get_depth()))
+				a = a->parent();
+			else
+				b = b->parent();
+		}
+		if (a == NULL)
+			return false;
+		lca_depth = a->get_depth();
+		return true;
 	}
 
 	void labels_to_numbers(map<string, int> *label_map, map<int, string> *reverse_label_map) {

@@ -244,6 +244,7 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-fast_approx") == 0) {
 			APPROX_CUT_ONE_B = true;
 			APPROX_CUT_TWO_B = true;
+			APPROX_CUT_TWO_B_ROOT = true;
 			APPROX_REVERSE_CUT_ONE_B = true;
 			APPROX_EDGE_PROTECTION = true;
 		}
@@ -252,6 +253,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-a_c2b") == 0) {
 			APPROX_CUT_TWO_B = true;
+		}
+		else if (strcmp(arg, "-a_c2br") == 0) {
+			APPROX_CUT_TWO_B_ROOT = true;
 		}
 		else if (strcmp(arg, "-a_rcob") == 0) {
 			APPROX_REVERSE_CUT_ONE_B = true;
@@ -292,6 +296,11 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-cut_two_b") == 0 ||
 				strcmp(arg, "-c2b") == 0) {
 			CUT_TWO_B = true;
+			DEFAULT_OPTIMIZATIONS=false;
+		}
+		else if (strcmp(arg, "-cut_two_b_root") == 0 ||
+				strcmp(arg, "-c2br") == 0) {
+			CUT_TWO_B_ROOT = true;
 			DEFAULT_OPTIMIZATIONS=false;
 		}
 		else if (strcmp(arg, "-cut_all_b") == 0 ||
@@ -384,9 +393,14 @@ int main(int argc, char *argv[]) {
 			cout << "EDGE_PROTECTION=" << EDGE_PROTECTION << endl;
 			DEFAULT_OPTIMIZATIONS=false;
 		}
+		else if (strcmp(arg, "-check_merge_depth") == 0) {
+			CHECK_MERGE_DEPTH = true;
+			cout << "CHECK_MERGE_DEPTH=" << CHECK_MERGE_DEPTH << endl;
+			DEFAULT_OPTIMIZATIONS=false;
+		}
 		else if (strcmp(arg, "-allow_abort") == 0) {
 			ABORT_AT_FIRST_SOLUTION = true;
-			DEFAULT_OPTIMIZATIONS=false;
+//			DEFAULT_OPTIMIZATIONS=false;
 		}
 		else if (strcmp(arg, "-preorder_sib_pairs") == 0) {
 			PREORDER_SIBLING_PAIRS = true;
@@ -439,17 +453,20 @@ int main(int argc, char *argv[]) {
 		CUT_ONE_B = true;
 		REVERSE_CUT_ONE_B = true;
 		CUT_TWO_B = true;
+		CUT_TWO_B_ROOT = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
+		CHECK_MERGE_DEPTH = true;
 //		if (ALL_MAFS == false)
 //			ABORT_AT_FIRST_SOLUTION = true;
 //		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
-		//LEAF_REDUCTION2 = true;
+		LEAF_REDUCTION2 = true;
 
 		APPROX_CUT_ONE_B = true;
 		APPROX_CUT_TWO_B = true;
+		APPROX_CUT_TWO_B_ROOT = true;
 		APPROX_REVERSE_CUT_ONE_B = true;
 		APPROX_EDGE_PROTECTION = true;
 	}

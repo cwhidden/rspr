@@ -124,11 +124,13 @@ bool APPROX_REVERSE_CUT_ONE_B = false;
 bool APPROX_REVERSE_CUT_ONE_B_2 = false;
 bool APPROX_CUT_ONE_B = false;
 bool APPROX_CUT_TWO_B = false;
+bool APPROX_CUT_TWO_B_ROOT = false;
 bool APPROX_EDGE_PROTECTION = false;
 bool CUT_ONE_B = false;
 bool REVERSE_CUT_ONE_B = false;
 bool REVERSE_CUT_ONE_B_2 = false;
 bool CUT_TWO_B = false;
+bool CUT_TWO_B_ROOT = false;
 bool CUT_ALL_B = false;
 bool CUT_AC_SEPARATE_COMPONENTS = false;
 bool CUT_ONE_AB = false;
@@ -158,6 +160,7 @@ int SPLIT_APPROX_THRESHOLD = 25;
 float INITIAL_TREE_FRACTION = 0.4;
 bool COUNT_LOSSES = false;
 bool CUT_LOST = false;
+bool CHECK_MERGE_DEPTH = false;
 
 class ProblemSolution {
 		public:
@@ -718,6 +721,7 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				bool cut_a_only = false;
 				bool cut_b_only = false;
 				bool cut_c_only = false;
+				bool cut_b_only_if_not_a_or_c = false;
 				if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()) {
 //						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
 					cut_b_only = true;
@@ -731,15 +735,26 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 				if (T1_s->is_leaf()) {
 					Node *T2_l = T2_a->parent()->parent();
 					if (T2_l != NULL) {
-						if (T2_c->parent() != NULL &&
-								T2_c->parent()->parent() == T2_l
-								&& T2_l->get_sibling() == T1_s->get_twin()) {
-							cut_b_only=true;
+						if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l) {
+							if (T2_l->get_sibling() == T1_s->get_twin()) {
+								cut_b_only=true;
+							}
+							else if (T2_l->parent() == NULL &&
+									(T2->contains_rho() ||
+									 T2->get_component(0) != T2_l)) {
+								cut_b_only_if_not_a_or_c=true;
+							}
 						}
 						else if ((T2_l = T2_l->parent()) != NULL
-								&& T2_c->parent() == T2_l
-								&& T2_l->get_sibling() == T1_s->get_twin()) {
-							cut_b_only=true;
+								&& T2_c->parent() == T2_l) {
+							if (T2_l->get_sibling() == T1_s->get_twin()) {
+								cut_b_only=true;
+							}
+							else if (T2_l->parent() == NULL &&
+									(T2->contains_rho() ||
+									 T2->get_component(0) != T2_l)) {
+								cut_b_only_if_not_a_or_c=true;
+							}
 						}
 					}
 				}
@@ -762,6 +777,10 @@ int rSPR_worse_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 //						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected()))
 					cut_a_only = true;
 				}
+			}
+			if (APPROX_CUT_TWO_B_ROOT && cut_a_only == false && cut_c_only == false
+					&& cut_b_only_if_not_a_or_c == true) {
+				cut_b_only = true;
 			}
 			/*
 			if (CUT_LOST) {
@@ -1646,6 +1665,13 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				#endif
 				Node *T2_ac = T2_a->parent();
 
+				if (CHECK_MERGE_DEPTH &&
+						(T2_a->get_max_merge_depth() > T2_ac->get_depth()
+							|| T2_c->get_max_merge_depth() > T2_ac->get_depth())) {
+					um.undo_all();
+					return -1;
+				}
+
 				um.add_event(new ContractSiblingPair(T1_ac));
 				T1_ac->contract_sibling_pair_undoable();
 				um.add_event(new ContractSiblingPair(T2_ac, T2_a, T2_c, &um));
@@ -1718,6 +1744,7 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				bool cut_ab_only = false;
 				bool cut_a_only = false;
 				bool cut_c_only = false;
+				bool cut_b_only_if_not_a_or_c = false;
 				bool cob = false;
 				int undo_state = um.num_events();
 				//  ensure T2_a is below T2_c
@@ -1758,15 +1785,26 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				if (T1_s->is_leaf()) {
 					Node *T2_l = T2_a->parent()->parent();
 					if (T2_l != NULL) {
-						if (T2_c->parent() != NULL &&
-								T2_c->parent()->parent() == T2_l
-								&& T2_l->get_sibling() == T1_s->get_twin()) {
-							cut_b_only=true;
+						if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l) {
+							if (T2_l->get_sibling() == T1_s->get_twin()) {
+								cut_b_only=true;
+							}
+							else if (T2_l->parent() == NULL &&
+									(T2->contains_rho() ||
+									 T2->get_component(0) != T2_l)) {
+								cut_b_only_if_not_a_or_c=true;
+							}
 						}
 						else if ((T2_l = T2_l->parent()) != NULL
-								&& T2_c->parent() == T2_l
-								&& T2_l->get_sibling() == T1_s->get_twin()) {
-							cut_b_only=true;
+								&& T2_c->parent() == T2_l) {
+							if (T2_l->get_sibling() == T1_s->get_twin()) {
+								cut_b_only=true;
+							}
+							else if (T2_l->parent() == NULL &&
+									(T2->contains_rho() ||
+									 T2->get_component(0) != T2_l)) {
+								cut_b_only_if_not_a_or_c=true;
+							}
 						}
 					}
 				}
@@ -1784,6 +1822,10 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 				else if (REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
 						&& chain_match(T1_s, T2_c->get_sibling(), T2_a))
 					cut_a_only = true;
+			}
+			if (CUT_TWO_B_ROOT && cut_a_only == false && cut_c_only == false
+					&& cut_b_only_if_not_a_or_c == true) {
+				cut_b_only = true;
 			}
 			if (CUT_LOST) {
 				if (T1_a->num_lost_children() > 0
@@ -2159,12 +2201,13 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 //						&& (!multi_node && T2_b->is_protected()))
 //					cout << "protected k=" << k << endl;
 
+				int lca_depth = -1;
 				// cut T2_b
 				if ((!CUT_AC_SEPARATE_COMPONENTS ||
-							T2_a->find_root() == T2_c->find_root())
+							T2_a->same_component(T2_c, lca_depth))
 						&& (multi_node || !T2_b->is_protected() || cob)
 						&& (!ABORT_AT_FIRST_SOLUTION || best_k < 0
-							|| (answer_a == best_k && PREFER_RHO && T2->contains_rho() ))
+							|| !PREFER_RHO || !AFs->front().first.contains_rho() )
 						&& !cut_a_only && !cut_c_only) {
 					if (multi_node) {
 						um.add_event(new ChangeEdgePreInterval(T2_a));
@@ -2258,7 +2301,9 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 //					cout << "protected k=" << k << endl;
 				if ((!T2_c->is_protected()) &&
 						(!ABORT_AT_FIRST_SOLUTION || best_k < 0
-							|| (answer_b == best_k && PREFER_RHO && T2->contains_rho() ))) {
+							|| !PREFER_RHO || !AFs->front().first.contains_rho() )
+						&& cut_b_only == false && cut_ab_only == false
+						&& cut_a_only == false) {
 
 					if (T2_c->parent() != NULL) {
 						Node *T2_c_parent = T2_c->parent();
@@ -2279,9 +2324,8 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 					if (EDGE_PROTECTION) {
 						um.add_event(new ProtectEdge(T2_a));
 						T2_a->protect_edge();
+						T2_a->set_max_merge_depth(lca_depth);
 					}
-					if (cut_b_only == false && cut_ab_only == false &&
-							cut_a_only == false) {
 						singletons->push_back(T2_c);
 						answer_c =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
@@ -2294,7 +2338,6 @@ int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 							//swap(&best_T1, &T1);
 							//swap(&best_T2, &T2);
 						}
-					}
 				}
 //				}
 				/*
