@@ -55,6 +55,7 @@ struct StringCompare {
 
 // representation of a component with no leaves
 #define DEAD_COMPONENT "*"
+//#define DEBUG_PROTECTED "@"
 /*void find_sibling_pairs_hlpr(Node *node, list<Node *> &sibling_pairs);
 void find_leaves_hlpr(Node *node, vector<Node *> &leaves);
 void str_subtree_hlpr(string *s);
@@ -692,6 +693,8 @@ class Node {
 						parent->insert_child(sibling, child);
 					}
 					child->copy_edge_pre_interval(this);
+					if (edge_protected && !child->is_protected())
+						child->protect_edge();
 					cut_parent();
 					if (remove)
 						delete this;
@@ -810,6 +813,7 @@ class Node {
 			lchild()->cut_parent();
 			contracted_lc->is_contracted = true;
 			contracted_rc->is_contracted = true;
+			edge_protected = false;
 			return true;
 		}
 		return false;
@@ -835,6 +839,7 @@ class Node {
 			add_child(new_child);
 			new_child->add_child(child1);
 			new_child->add_child(child2);
+			edge_protected = false;
 			//new_child->contract_sibling_pair_undoable();
 			return new_child;
 		}
@@ -994,6 +999,10 @@ class Node {
 	ss << depth;
 	a = ss.str();
 		*s+= a;
+#endif
+#ifdef DEBUG_PROTECTED
+		if (edge_protected)
+			*s += DEBUG_PROTECTED;
 #endif
 	}
 
@@ -1299,20 +1308,35 @@ class Node {
 		return root;
 	}
 
-	bool same_component(Node *n, int &lca_depth) {
+	bool same_component(Node *n, int &lca_depth, int &path_length) {
 		Node *a = this;
 		Node *b = n;
+		path_length = 0;
 		while(a != b) {
 			if ((b == NULL) || (a != NULL && a->get_depth() > b->get_depth()))
 				a = a->parent();
 			else
 				b = b->parent();
+			path_length++;
 		}
-		if (a == NULL)
+		if (a == NULL) {
+			path_length = -1;
 			return false;
+		}
 		lca_depth = a->get_depth();
 		return true;
 	}
+
+	bool same_component(Node *n) {
+		int a,b;
+		return same_component(n, a, b);
+	}
+
+	bool same_component(Node *n, int &lca_depth) {
+		int a;
+		return same_component(n, lca_depth, a);
+	}
+
 
 	void labels_to_numbers(map<string, int> *label_map, map<int, string> *reverse_label_map) {
 		if (name != "") {

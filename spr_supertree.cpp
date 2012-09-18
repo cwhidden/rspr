@@ -158,6 +158,7 @@ bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
 bool SIMPLE_UNROOTED = false;
+int SIMPLE_UNROOTED_NUM = INT_MAX;
 bool REROOT = false;
 bool APPROX = false;
 bool TIMING = false;
@@ -405,8 +406,15 @@ int main(int argc, char *argv[]) {
 			APPROX_CHECK_COMPONENT = true;
 		else if (strcmp(arg, "-unrooted") == 0)
 			UNROOTED = true;
-		else if (strcmp(arg, "-simple_unrooted") == 0)
+		else if (strcmp(arg, "-simple_unrooted") == 0) {
 			SIMPLE_UNROOTED = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SIMPLE_UNROOTED_NUM = atoi(arg2);
+				cout << "SIMPLE_UNROOTED_NUM=" << SIMPLE_UNROOTED_NUM << endl;
+			}
+		}
 		else if (strcmp(arg, "-reroot") == 0)
 			REROOT = true;
 		else if (strcmp(arg, "-unrooted_min_approx") == 0) {
@@ -714,11 +722,11 @@ int main(int argc, char *argv[]) {
 		CUT_ALL_B=true;
 		CUT_ONE_B = true;
 		CUT_TWO_B = true;
-		CUT_TWO_B_ROOT = true;
+//		CUT_TWO_B_ROOT = true;
 		REVERSE_CUT_ONE_B = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
-		CHECK_MERGE_DEPTH = true;
+//		CHECK_MERGE_DEPTH = true;
 //		ABORT_AT_FIRST_SOLUTION = true;
 //		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
@@ -1374,7 +1382,8 @@ int main(int argc, char *argv[]) {
 
 	for(int i = 0; i < NUM_ITERATIONS; i++) {
 
-		if (SIMPLE_UNROOTED) {
+		if (SIMPLE_UNROOTED && SIMPLE_UNROOTED_NUM > 0) {
+			SIMPLE_UNROOTED_NUM--;
 			cout << "rerooting gene trees" << endl;
 			// reroot the gene trees based on the balanced accuracy of splits
 			super_tree->preorder_number();

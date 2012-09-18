@@ -393,11 +393,20 @@ int main(int argc, char *argv[]) {
 			cout << "EDGE_PROTECTION=" << EDGE_PROTECTION << endl;
 			DEFAULT_OPTIMIZATIONS=false;
 		}
+		else if (strcmp(arg, "-protect_edges_two_b") == 0) {
+			EDGE_PROTECTION_TWO_B = true;
+//			cout << "EDGE_PROTECTION=" << EDGE_PROTECTION << endl;
+//			DEFAULT_OPTIMIZATIONS=false;
+		}
 		else if (strcmp(arg, "-check_merge_depth") == 0) {
 			CHECK_MERGE_DEPTH = true;
 			cout << "CHECK_MERGE_DEPTH=" << CHECK_MERGE_DEPTH << endl;
-			DEFAULT_OPTIMIZATIONS=false;
+//			DEFAULT_OPTIMIZATIONS=false;
 		}
+//		else if (strcmp(arg, "-check_fewer_pairs") == 0) {
+//			check_all_pairs = false;
+//			DEFAULT_OPTIMIZATIONS=false;
+//		}
 		else if (strcmp(arg, "-allow_abort") == 0) {
 			ABORT_AT_FIRST_SOLUTION = true;
 //			DEFAULT_OPTIMIZATIONS=false;
@@ -436,6 +445,9 @@ int main(int argc, char *argv[]) {
 						<< endl;
 			}
 		}
+		else if (strcmp(arg, "-prefer_nonbranching") == 0) {
+			PREFER_NONBRANCHING = true;
+		}
 		else if (strcmp(arg, "-count_losses") == 0) {
 			COUNT_LOSSES = true;
 		}
@@ -453,10 +465,10 @@ int main(int argc, char *argv[]) {
 		CUT_ONE_B = true;
 		REVERSE_CUT_ONE_B = true;
 		CUT_TWO_B = true;
-		CUT_TWO_B_ROOT = true;
+//		CUT_TWO_B_ROOT = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
-		CHECK_MERGE_DEPTH = true;
+//		CHECK_MERGE_DEPTH = true;
 //		if (ALL_MAFS == false)
 //			ABORT_AT_FIRST_SOLUTION = true;
 //		PREORDER_SIBLING_PAIRS = true;
