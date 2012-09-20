@@ -80,6 +80,9 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		set<SiblingPair> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
 		list<pair<Forest,Forest> > *AFs);
+int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
+		set<SiblingPair> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
+		list<pair<Forest,Forest> > *AFs, Node *prev_T1_a, Node *prev_T1_c);
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
 		int threshold);
@@ -1518,13 +1521,17 @@ SiblingPair pop_sibling_pair(set<SiblingPair> *sibling_pairs, UndoMachine *um) {
 	return spair;
 }
 
-
+inline int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
+set<SiblingPair> *sibling_pairs, list<Node *> *singletons,
+bool cut_b_only, list<pair<Forest,Forest> > *AFs) {
+	return rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs,
+			singletons, cut_b_only, AFs, NULL, NULL);
+}
 
 // rSPR_branch_and_bound recursive helper function
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
-//		list<Node *> *sibling_pairs, list<Node *> *singletons,
 set<SiblingPair> *sibling_pairs, list<Node *> *singletons,
-bool cut_b_only, list<pair<Forest,Forest> > *AFs) {
+bool cut_b_only, list<pair<Forest,Forest> > *AFs, Node *prev_T1_a, Node *prev_T1_c) {
 	#ifdef DEBUG
 	cout << "rSPR_branch_and_bound_hlpr()" << endl;
 	cout << "\tT1: ";
@@ -1656,9 +1663,15 @@ if(!sibling_pairs->empty()) {
 				}
 			}
 			else {
-				SiblingPair spair = pop_sibling_pair(sibling_pairs, &um);
-				T1_a = spair.a;
-				T1_c = spair.c;
+				if (prev_T1_a != NULL && prev_T1_c != NULL) {
+					T1_a = prev_T1_a;
+					T1_c = prev_T1_c;
+				}
+				else {
+					SiblingPair spair = pop_sibling_pair(sibling_pairs, &um);
+					T1_a = spair.a;
+					T1_c = spair.c;
+				}
 			}
 //			if (T1_a->parent() != NULL)
 //				cout << "a_p: " << T1_a->parent()->str_subtree() << endl;
@@ -1792,7 +1805,7 @@ if(!sibling_pairs->empty()) {
 				if (T2_a->parent()->parent() == T2_c->parent()
 					&& T2_c->parent() != NULL)
 					cut_b_only=true;
-//					cob = true;
+			//		cob = true;
 			}
 			else if (CUT_ONE_AB) {
 				if (T2_a->parent()->parent() == T2_c->parent()
@@ -2320,12 +2333,12 @@ if(!sibling_pairs->empty()) {
 					if (CUT_ALL_B && !cob) {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
-									sibling_pairs, singletons, true, AFs);
+									sibling_pairs, singletons, true, AFs, T1_a, T1_c);
 					}
 					else {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
-									sibling_pairs, singletons, false, AFs);
+									sibling_pairs, singletons, false, AFs, T1_a, T1_c);
 					}
 				}
 				if (answer_b > best_k
@@ -3809,7 +3822,6 @@ int count_differing_bipartitions(Node *n) {
 }
 
 bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a, Node *T2_c) {
-	return false;
 	if ((T2_a->get_depth() < T2_c->get_depth()
 			&& T2_c->parent() != NULL)
 			|| T2_a->parent() == NULL) {
@@ -3832,7 +3844,6 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 			&& T2_c->parent() != NULL)
 			return true;
 	}
-	/*
 	if (CUT_TWO_B && T1_a->parent()->parent() != NULL) {
 		Node *T1_s = T1_a->parent()->get_sibling();
 		if (T1_s->is_leaf()) {
@@ -3842,28 +3853,26 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;
 					}
-//					else if (T2_l->parent() == NULL &&
-//							(T2->contains_rho() ||
-//							 T2->get_component(0) != T2_l)) {
-//						return true;
-//					}
+					else if (T2_l->parent() == NULL &&
+							(T2->contains_rho() ||
+							 T2->get_component(0) != T2_l)) {
+						return true;
+					}
 				}
-//				else if ((T2_l = T2_l->parent()) != NULL
-//						&& T2_c->parent() == T2_l) {
-//					if (T2_l->get_sibling() == T1_s->get_twin()) {
-//						return true;
-//					}
-//					else if (T2_l->parent() == NULL &&
-//							(T2->contains_rho() ||
-//							 T2->get_component(0) != T2_l)) {
-//						return true;
-//					}
-//				}
+				else if ((T2_l = T2_l->parent()) != NULL
+						&& T2_c->parent() == T2_l) {
+					if (T2_l->get_sibling() == T1_s->get_twin()) {
+						return true;
+					}
+					else if (T2_l->parent() == NULL &&
+							(T2->contains_rho() ||
+							 T2->get_component(0) != T2_l)) {
+						return true;
+					}
+				}
 			}
 		}
 	}
-	*/
-	/*
 	if (REVERSE_CUT_ONE_B && T1_a->parent()->parent() != NULL) {
 		Node *T1_s = T1_a->parent()->get_sibling();
 		if (T1_s->is_leaf()) {
@@ -3878,6 +3887,5 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 				&& chain_match(T1_s, T2_c->get_sibling(), T2_a))
 			return true;
 	}
-	*/
 	return false;
 }

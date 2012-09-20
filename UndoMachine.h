@@ -277,6 +277,7 @@ class ContractSiblingPair : public Undoable {
 				um->add_event(new CutParent(child1));
 				um->add_event(new CutParent(child2));
 				binary_node = false;
+				node = n;
 			}
 			if (n->is_protected())
 				node_protected = true;
