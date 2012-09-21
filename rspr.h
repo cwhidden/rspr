@@ -1666,6 +1666,8 @@ if(!sibling_pairs->empty()) {
 				if (prev_T1_a != NULL && prev_T1_c != NULL) {
 					T1_a = prev_T1_a;
 					T1_c = prev_T1_c;
+					prev_T1_a = NULL;
+					prev_T1_c = NULL;
 				}
 				else {
 					SiblingPair spair = pop_sibling_pair(sibling_pairs, &um);

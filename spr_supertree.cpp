@@ -733,7 +733,7 @@ int main(int argc, char *argv[]) {
 
 //		CHECK_MERGE_DEPTH = true;
 //		ABORT_AT_FIRST_SOLUTION = true;
-//		PREORDER_SIBLING_PAIRS = true;
+		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
 //		LEAF_REDUCTION2 = true;
