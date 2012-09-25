@@ -3351,6 +3351,8 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 			if (best_distance == INT_MAX)
 				best_distance = 0;
 			total += best_distance;
+			if (original_scores != NULL)
+				(*original_scores)[i] = best_distance;
 	//		cout << "total: " << total << endl;
 		}
 		else {

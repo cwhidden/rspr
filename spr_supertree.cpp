@@ -590,11 +590,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-clamp") == 0) {
 			CLAMP= true;
 		}
-/*
 		else if (strcmp(arg, "-small_trees") == 0) {
 			SMALL_TREES=true;
 		}
-*/
 		else if (strcmp(arg, "-convert_list") == 0) {
 			CONVERT_LIST=true;
 		}
@@ -1393,6 +1391,78 @@ int main(int argc, char *argv[]) {
 
 	for(int i = 0; i < NUM_ITERATIONS; i++) {
 
+			if (REROOT) {
+				cout << "rerooting super_tree" << endl;
+				// reroot the supertree based on the balanced accuracy of splits
+				vector<Node *> descendants =
+					super_tree->find_interior();
+					//super_tree->find_descendants();
+				Node *best_root = super_tree->lchild();
+				double best_root_avg_acc = 0;
+				if (APPROX_ROOTING)
+					best_root_avg_acc = -INT_MAX;
+				int num_ties = 2;
+				int end = descendants.size();
+				for(int j = 0; j < end; j++) {
+					if (j > 0)
+						cout << '\r';
+					cout << j << "/" << end - 1 << flush;
+					double root_avg_acc = 0;
+					int count = 0;
+					super_tree->reroot(descendants[j]);
+					super_tree->set_depth(0);
+					super_tree->fix_depths();
+					super_tree->preorder_number();
+					if (APPROX_ROOTING) {
+						root_avg_acc = -rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+						//root_avg_acc = -rSPR_total_distance_unrooted(super_tree, current_gene_trees);
+					}
+					else {
+						int end = gene_trees.size();
+						#pragma omp parallel for schedule(static) reduction(+: root_avg_acc) reduction(+: count)
+						for(int i = 0; i < end; i++) {
+							gene_trees[i]->preorder_number();
+							double acc;
+							acc = 
+								find_best_root_acc(super_tree, gene_trees[i]);
+		//					cout <<  j << "\t" << i << "\t" << acc << endl;
+							if (acc > -1) {
+								root_avg_acc += acc;
+								//root_avg_acc += (acc - root_avg_acc) / count;
+								count++;
+							}
+						}
+						if (count > 0)
+							root_avg_acc /= count;
+						int lsize = super_tree->lchild()->size_using_prenum();
+						int rsize = super_tree->rchild()->size_using_prenum();
+						int size = (lsize < rsize) ? lsize : rsize;
+						root_avg_acc *= mylog2(size);
+					}
+					#pragma omp critical
+					{
+						if (root_avg_acc > best_root_avg_acc) {
+							best_root = descendants[j];
+							best_root_avg_acc = root_avg_acc;
+						}
+						else if (root_avg_acc == best_root_avg_acc) {
+							int r = rand();
+							if (r < RAND_MAX/ num_ties) {
+								best_root = descendants[j];
+								best_root_avg_acc = root_avg_acc;
+								num_ties = 2;
+							}
+						}
+					}
+				}
+				cout << "\r";
+				super_tree->reroot(best_root);
+				super_tree->set_depth(0);
+				super_tree->fix_depths();
+				super_tree->numbers_to_labels(&reverse_label_map);
+				cout << "Rerooted Supertree: " <<  super_tree->str_subtree() << endl;
+				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+			}
 		if (SIMPLE_UNROOTED && SIMPLE_UNROOTED_NUM > 0) {
 			SIMPLE_UNROOTED_NUM--;
 			cout << "rerooting gene trees" << endl;
@@ -1467,7 +1537,7 @@ int main(int argc, char *argv[]) {
 		else if(R_LIMIT && !S_LIMIT){
 			int r = find_r();
 			vector<int> *original_scores = NULL;
-			if ((!UNROOTED || UNROOTED_MIN_APPROX) && !APPROX) {
+			if (!APPROX) {
 				original_scores = new vector<int>(gene_trees.size(), 0);
 				if (UNROOTED_MIN_APPROX) {
 					rSPR_total_distance_unrooted(super_tree, gene_trees, INT_MAX, original_scores);
@@ -1475,9 +1545,9 @@ int main(int argc, char *argv[]) {
 				else {
 					rSPR_total_distance(super_tree, gene_trees, original_scores);
 				}
-				NUM_SOURCE = super_tree->size();
-				C_SOURCE = 1;
 			}
+			NUM_SOURCE = super_tree->size();
+			C_SOURCE = 1;
 			find_best_spr_r(super_tree, gene_trees, best_subtree_root, best_sibling,r, original_scores);
 			if ((!UNROOTED || UNROOTED_MIN_APPROX) && !APPROX) {
 				delete original_scores;
