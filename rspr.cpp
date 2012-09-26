@@ -132,6 +132,7 @@ bool RF = false;
 bool QUIET = false;
 bool UNROOTED = false;
 bool SIMPLE_UNROOTED = false;
+bool SIMPLE_UNROOTED_RSPR = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool TOTAL = false;
@@ -274,6 +275,10 @@ int main(int argc, char *argv[]) {
 			UNROOTED = true;
 		else if (strcmp(arg, "-simple_unrooted") == 0)
 			SIMPLE_UNROOTED = true;
+		else if (strcmp(arg, "-simple_unrooted_rspr") == 0) {
+			SIMPLE_UNROOTED = true;
+			SIMPLE_UNROOTED_RSPR = true;
+		}
 		else if (strcmp(arg, "-unrooted_min_approx") == 0)
 			UNROOTED_MIN_APPROX = true;
 		else if (strcmp(arg, "-noopt") == 0) {
@@ -823,8 +828,11 @@ int main(int argc, char *argv[]) {
 			#pragma omp parallel for
 			for(int i = 0; i < end; i++) {
 				trees[i]->preorder_number();
-				Node *new_root =
-					find_best_root(T1, trees[i]);
+				Node *new_root;
+				if (SIMPLE_UNROOTED_RSPR)
+					new_root = find_best_root_rspr(T1, trees[i]);
+				else
+					new_root = find_best_root(T1, trees[i]);
 				if (new_root != NULL)
 					trees[i]->reroot(new_root);
 					trees[i]->set_depth(0);
