@@ -3293,12 +3293,14 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 //		cout << "boo" << endl;
 		if (!UNROOTED_MIN_APPROX) {
 			for(int k = 0; k <= NO_CLUSTER_ROUNDS; k++) {
-//				cout << k << endl;
+////				cout << k << endl;
 				MIN_SPR=k;
 				MAX_SPR=k;
 				vector<Node *> descendants = 
 					f2.get_component(0)->find_descendants();
 //				Node *original_lc = f2.get_component(0)->lchild();
+////					f2.print_components();
+////					cout << endl;
 				for(int j = 0; j < descendants.size(); j++) {
 //					cout << "J=" << j << endl;
 //					cout << i << "," << k << "," << j << endl;
@@ -3307,8 +3309,8 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 					f2.get_component(0)->reroot(descendants[j]);
 					f2.get_component(0)->set_depth(0);
 					f2.get_component(0)->fix_depths();
-//					f2.print_components();
-//					cout << endl;
+////					f2.print_components();
+////					cout << endl;
 	//			cout << T1->str_subtree() << endl;
 	//			cout << gene_trees[i]->str_subtree() << endl;
 					int distance;
@@ -3326,6 +3328,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 						break;
 					}
 				}
+////				cout << endl;
 				//f2.get_component(0)->reroot(original_lc);
 //				cout << endl;
 			}
@@ -3689,6 +3692,52 @@ void find_best_root_hlpr(Node *n, int pre_separator, int group_1_total,
 	}
 	*p_group_1_descendants += group_1_descendants;
 	*p_group_2_descendants += group_2_descendants;
+}
+
+Node *find_random_root(Node *T1, Node *T2) {
+	vector<Node *> rroots = T2->find_descendants();
+	int r = rand() % rroots.size();
+	return rroots[r];
+}
+Node *find_best_root_rspr(Node *T1, Node *T2) {
+	Node *t1 = new Node(*T1);
+	t1->preorder_number();
+	Node *t2  = new Node(*T2);
+	int new_prenum = T2->lchild()->get_preorder_number();
+	vector<Node *> roots = t2->find_descendants();
+	int best_distance = INT_MAX;
+	int num_ties = 2;
+//	cout << endl;
+//	cout << "find_best_root_rspr" << endl;
+//	cout << "T1: " << T1->str_subtree() << endl;
+//	cout << "T2: " << T2->str_subtree() << endl;
+//	cout << roots.size() << " Rootings" << endl;
+	for(int i = 0; i < roots.size(); i++) {
+		Node *root = roots[i];
+		t2->reroot(root);
+//		cout << "\t" << t2->str_subtree() << endl;
+		t2->set_depth(0);
+		t2->fix_depths();
+//		t2->preorder_number();
+		int distance = rSPR_branch_and_bound_simple_clustering(t1, t2);
+		if (distance < best_distance) {
+			best_distance = distance;
+			new_prenum = root->get_preorder_number();
+			num_ties = 2;
+		}
+		else if (distance == best_distance) {
+			int r = rand();
+			if (r < RAND_MAX / num_ties) {
+				best_distance = distance;
+				new_prenum = root->get_preorder_number();
+			}
+			num_ties++;
+		}
+	}
+	Node *new_root = T2->find_by_prenum(new_prenum);
+	t1->delete_tree();
+	t2->delete_tree();
+	return new_root;
 }
 
 // assume already sync_twins and preorder numbered
