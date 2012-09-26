@@ -131,6 +131,7 @@ bool FPT = false;
 bool RF = false;
 bool QUIET = false;
 bool UNROOTED = false;
+bool ALL_UNROOTED = false;
 bool SIMPLE_UNROOTED = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
@@ -272,6 +273,10 @@ int main(int argc, char *argv[]) {
 			APPROX_CHECK_COMPONENT = true;
 		else if (strcmp(arg, "-unrooted") == 0)
 			UNROOTED = true;
+		else if (strcmp(arg, "-all_unrooted") == 0) {
+			ALL_UNROOTED = true;
+			UNROOTED = true;
+		}
 		else if (strcmp(arg, "-simple_unrooted") == 0)
 			SIMPLE_UNROOTED = true;
 		else if (strcmp(arg, "-unrooted_min_approx") == 0)
@@ -831,30 +836,49 @@ int main(int argc, char *argv[]) {
 					trees[i]->fix_depths();
 			}
 		}
-	T1->set_depth(0);
-	T1->fix_depths();
-	T1->preorder_number();
-
-		int distance;
-		if (RF) {
-			distance = rf_total_distance(T1, trees);
-			cout << "total RF distance=" << distance << endl;
-		}
-		else if (APPROX) {
-			if (UNROOTED) {
-				distance = rSPR_total_approx_distance_unrooted(T1,trees);
-			}
-			else
-				distance = rSPR_total_approx_distance(T1,trees);
-			cout << "total approx distance= " << distance << endl;
+		vector<Node *> rootings;
+		if (ALL_UNROOTED) {
+			rootings = T1->find_descendants();
 		}
 		else {
-			if (UNROOTED)
-				distance = rSPR_total_distance_unrooted(T1,trees);
-			else
-				distance = rSPR_total_distance(T1,trees);
-			cout << "total distance= " << distance << endl;
+			rootings = vector<Node *>();
+			rootings.push_back(T1->lchild());
 		}
+		int best_distance;
+		for(int i = 0; i < rootings.size(); i++) {
+			if (rootings[i] != T1)
+				T1->reroot(rootings[i]);
+			T1->set_depth(0);
+			T1->fix_depths();
+			T1->preorder_number();
+
+			int distance;
+
+			if (RF) {
+				distance = rf_total_distance(T1, trees);
+				cout << "total RF distance=" << distance << endl;
+			}
+			else if (APPROX) {
+				if (UNROOTED) {
+					distance = rSPR_total_approx_distance_unrooted(T1,trees);
+				}
+				else
+					distance = rSPR_total_approx_distance(T1,trees);
+				cout << "total approx distance= " << distance << endl;
+			}
+			else {
+				if (UNROOTED)
+					distance = rSPR_total_distance_unrooted(T1,trees);
+				else
+					distance = rSPR_total_distance(T1,trees);
+				cout << "total distance= " << distance << endl;
+			}
+			if (ALL_UNROOTED && distance < best_distance)
+				best_distance = distance;
+
+		}
+		if (ALL_UNROOTED)
+			cout << "best distance=" << best_distance << endl;
 		T1->delete_tree();
 		for(vector<Node *>::iterator T2 = trees.begin(); T2 != trees.end(); T2++)
 			(*T2)->delete_tree();
