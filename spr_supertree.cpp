@@ -1381,7 +1381,7 @@ int main(int argc, char *argv[]) {
 		else
 			best_distance = rSPR_total_approx_distance(super_tree, gene_trees);
 	else
-		if (UNROOTED || RANDOM_ROOTING)
+		if (UNROOTED || RANDOM_ROOTING || SIMPLE_UNROOTED)
 			best_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
 		else
 			best_distance = rSPR_total_distance(super_tree, gene_trees);
@@ -1781,7 +1781,7 @@ int main(int argc, char *argv[]) {
 				else
 					current_distance = rSPR_total_approx_distance(super_tree, gene_trees);
 			else
-				if (UNROOTED || RANDOM_ROOTING)
+				if (UNROOTED || RANDOM_ROOTING || SIMPLE_UNROOTED)
 					current_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
 				else
 					current_distance = rSPR_total_distance(super_tree, gene_trees);
