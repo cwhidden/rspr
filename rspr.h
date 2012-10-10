@@ -2592,6 +2592,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		Node *twin = n->get_twin();
 		Node *twin_parent = twin->parent();
 
+		if (twin_parent == NULL)
+			continue;
+
 		F1.add_cluster(n,cluster_name);
 
 		F2.add_cluster(twin,cluster_name);
@@ -3701,10 +3704,14 @@ Node *find_random_root(Node *T1, Node *T2) {
 }
 Node *find_best_root_rspr(Node *T1, Node *T2) {
 	Node *t1 = new Node(*T1);
-	t1->preorder_number();
+//	t1->preorder_number();
 	Node *t2  = new Node(*T2);
 	int new_prenum = T2->lchild()->get_preorder_number();
 	vector<Node *> roots = t2->find_descendants();
+	vector<int> root_prenums = vector<int>(roots.size());
+	for(int i = 0; i < roots.size(); i++) {
+		root_prenums[i] = roots[i]->get_preorder_number();
+	}
 	int best_distance = INT_MAX;
 	int num_ties = 2;
 //	cout << endl;
@@ -3718,18 +3725,19 @@ Node *find_best_root_rspr(Node *T1, Node *T2) {
 //		cout << "\t" << t2->str_subtree() << endl;
 		t2->set_depth(0);
 		t2->fix_depths();
-//		t2->preorder_number();
+		t2->preorder_number();
 		int distance = rSPR_branch_and_bound_simple_clustering(t1, t2);
+//		int distance = rf_distance(t1, t2);
 		if (distance < best_distance) {
 			best_distance = distance;
-			new_prenum = root->get_preorder_number();
+			new_prenum = root_prenums[i];
 			num_ties = 2;
 		}
 		else if (distance == best_distance) {
 			int r = rand();
 			if (r < RAND_MAX / num_ties) {
 				best_distance = distance;
-				new_prenum = root->get_preorder_number();
+				new_prenum = root_prenums[i];
 			}
 			num_ties++;
 		}

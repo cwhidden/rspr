@@ -2851,6 +2851,7 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 			//cout << "Origin3, Target: " << new_sibling->rchild()->str_subtree() << endl;
 		}
 	}
+//	cout << n->str_subtree() << "  " << new_sibling->str_subtree() << " origin " << origin << endl;
 //	cout << "n: " << n->str_subtree() << endl;
 //	cout << "s: " << new_sibling->str_subtree() << endl;
 
@@ -2914,8 +2915,8 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 			else
 				distance = rSPR_total_distance(super_tree, gene_trees);
 		}
-/*		cout << "\t" << distance << endl;
-*/
+//		cout << "\t" << distance << endl;
+
 //		cout << "After SPR Distance Super Tree: "
 //		<< super_tree->str_support_subtree(true) << endl;
 		distance += offset;
