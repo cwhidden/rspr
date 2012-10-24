@@ -48,6 +48,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <climits>
 #include <vector>
 #include <map>
+#include <set>
 #include <list>
 #include "Forest.h"
 #include "ClusterForest.h"
@@ -115,6 +116,11 @@ void modify_bipartition_support(Node *n, Forest *F1, Forest *F2,
 		Node *T1, Node *T2, vector<int> *F1_descendant_counts, enum RELAXATION);
 void modify_bipartition_support(Forest *F1, Forest *F2, Node *n1);
 bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a, Node *T2_c);
+bool outgroup_root(Node *T, set<string, StringCompare> outgroup);
+bool outgroup_root(Node *n, vector<int> &num_in, vector<int> &num_out);
+bool outgroup_reroot(Node *n, vector<int> &num_in, vector<int> &num_out);
+void count_in_out(Node *n, vector<int> &num_in, vector<int> &num_out,
+		set<string, StringCompare> &outgroup);
 
 /*Joel's part*/
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
@@ -3787,6 +3793,109 @@ bool contains_bipartition(Node *n, int pre_start, int pre_end,
 	if (p_group_2_descendants != NULL)
 		*p_group_2_descendants += group_2_descendants;
 	return false;
+}
+
+// root the tree based on an outgroup
+// returns false if the outgroup is not found or not a clade
+bool outgroup_root(Node *T, set<string, StringCompare> outgroup) {
+	vector<int> num_in = vector<int>();
+	vector<int> num_out = vector<int>();
+	count_in_out(T, num_in, num_out, outgroup);
+	list<Node *>::iterator c;
+	int pre = T->get_preorder_number();
+	bool clean_split = true;
+	if (num_out[pre] == 0)
+		return false;
+	for(c = T->get_children().begin(); c != T->get_children().end(); c++) {
+		int c_pre = (*c)->get_preorder_number();
+		if (num_out[pre] == num_out[c_pre]) {
+			// split the out_group
+			return outgroup_root(*c, num_in, num_out);
+		}
+		else if (num_in[pre] == num_in[c_pre]) {
+			// split the in_group
+			return outgroup_root(*c, num_out, num_in);
+		}
+		else if (num_out[c_pre] > 0 && num_in[c_pre] > 0)
+			clean_split = false;
+	}
+	if (clean_split)
+		return outgroup_reroot(T, num_in, num_out);
+	else
+		return false;
+}
+
+bool outgroup_root(Node *n, vector<int> &num_in, vector<int> &num_out) {
+	list<Node *>::iterator c;
+	int pre = n->get_preorder_number();
+	bool clean_split = true;
+	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+		int c_pre = (*c)->get_preorder_number();
+		if (num_out[pre] == num_out[c_pre]) {
+			// split the out_group
+			return outgroup_root(*c, num_in, num_out);
+		}
+		else if (num_out[c_pre] > 0 && num_in[c_pre] > 0)
+			clean_split = false;
+	}
+	if (clean_split)
+		return outgroup_reroot(n, num_in, num_out);
+	else
+		return false;
+}
+
+bool outgroup_reroot(Node *n, vector<int> &num_in, vector<int> &num_out) {
+	Node *T = n->find_root();
+	if (num_in[n->get_preorder_number()] == 0) {
+		if (!n->is_leaf())
+		T->reroot(n);
+		T->set_depth(0);
+		T->fix_depths();
+		return true;
+	}
+	Node *new_split = new Node("");
+	n->add_child(new_split);
+	list<Node *>::iterator c = n->get_children().begin();
+	while(c != n->get_children().end()) {
+		Node *child = *c;
+		c++;
+		int c_pre = child->get_preorder_number();
+		if (c_pre >= 0 && num_in[c_pre] == 0) {
+			//child->cut_parent();
+			new_split->add_child(child);
+		}
+	}
+	T->reroot(new_split);
+	T->set_depth(0);
+	T->fix_depths();
+	return true;
+}
+
+void count_in_out(Node *n, vector<int> &num_in, vector<int> &num_out,
+		set<string, StringCompare> &outgroup) {
+	list<Node *>::iterator c;
+	int pre = n->get_preorder_number();
+	if (num_in.size() <= pre)
+		num_in.resize(pre + 1, 0);
+	if (num_out.size() <= pre)
+		num_out.resize(pre + 1, 0);
+	if (n->is_leaf()) {
+		if (outgroup.find(n->get_name()) != outgroup.end()) {
+				num_out[pre] = 1;
+				num_in[pre] = 0;
+		}
+		else {
+				num_out[pre] = 0;
+				num_in[pre] = 1;
+		}
+	}
+	else {
+		for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
+			count_in_out(*c, num_in, num_out, outgroup);
+			num_in[pre] += num_in[(*c)->get_preorder_number()];
+			num_out[pre] += num_out[(*c)->get_preorder_number()];
+		}
+	}
 }
 
 void modify_bipartition_support(Node *T1, Node *T2, enum RELAXATION relaxed) {

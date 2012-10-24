@@ -389,6 +389,8 @@ int main(int argc, char *argv[]) {
 	// ignore multifurcating trees by default
 	IGNORE_MULTI = true;
 	string INCLUDE_ONLY = "";
+	bool OUTGROUP_ROOT = false;
+	string OUTGROUP = "";
 	string INITIAL_SUPER_TREE = "";
 	bool FIND_SUPPORT = false;
 	bool FIND_BIPARTITION_SUPPORT = false;
@@ -698,6 +700,16 @@ int main(int argc, char *argv[]) {
 						<< endl;
 			}
 		}
+		else if (strcmp(arg, "-outgroup") == 0) {
+			OUTGROUP_ROOT = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					OUTGROUP = string(arg2);
+				cout << "OUTGROUP=" << OUTGROUP
+						<< endl;
+			}
+		}
 		else if (strcmp(arg, "-initial_tree") == 0) {
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
@@ -793,6 +805,7 @@ int main(int argc, char *argv[]) {
 //		= multimap<int, pair<Node*, string> >();
 	vector<string> gene_tree_names = vector<string>();
 	set<string, StringCompare> include_only;
+	set<string, StringCompare> outgroup;
 	if (INCLUDE_ONLY != "") {
 		include_only.insert("");
 		ifstream include_only_file;
@@ -814,10 +827,32 @@ int main(int argc, char *argv[]) {
 		else
 			INCLUDE_ONLY = "";
 	}
+	if (OUTGROUP != "") {
+		outgroup.insert("");
+		ifstream outgroup_file;
+		outgroup_file.open(OUTGROUP.c_str());
+		if (outgroup_file.is_open()) {
+			string line;
+			while(outgroup_file.good()) {
+				getline(outgroup_file, line);
+//				cout << "\"" << line << "\"" << endl;
+				outgroup.insert(line);
+			}
+//			cout << endl;
+			outgroup_file.close();
+			for(set<string, StringCompare>::iterator i = outgroup.begin();
+					i != outgroup.end(); i++) {
+//				cout << "\"" << *i << "\"" << endl;
+			}
+		}
+		else
+			OUTGROUP = "";
+	}
 	int skipped_multifurcating = 0;
 	int skipped_small = 0;
 	int skipped_no_bracket = 0;
 	int skipped_star = 0;
+	int skipped_no_outgroup = 0;
 	while (getline(cin, T_line)) {
 		string name = "";
 		size_t loc = T_line.find_first_of("(");
@@ -826,7 +861,8 @@ int main(int argc, char *argv[]) {
 				name = T_line.substr(0,loc);
 				T_line.erase(0,loc);
 			}
-			if (UNROOTED || SIMPLE_UNROOTED) {
+			// TODO: should we be doing this with OUTGROUP?
+			if (UNROOTED || SIMPLE_UNROOTED || OUTGROUP_ROOT) {
 				T_line = root(T_line);
 			}
 			Node *T;
@@ -883,8 +919,25 @@ int main(int argc, char *argv[]) {
 				//cout << T_depth << endl;
 				}
 			}
-			if (UNROOTED || SIMPLE_UNROOTED)
+			if (UNROOTED || SIMPLE_UNROOTED || OUTGROUP_ROOT)
 				T->preorder_number();
+
+			if (OUTGROUP != "") {
+				// TODO: write a function that will root the tree based on the
+				// outgroup
+				// TODO: do we simply skip the tree if the outgroup is seperate?
+				set<string>::iterator i;
+				if (!outgroup_root(T, outgroup)) {
+					skipped_no_outgroup++;
+					continue;
+				}
+				else {
+					T->preorder_number();
+				}
+
+				
+			}
+
 			gene_tree_names.push_back(name);
 			gene_trees.push_back(T);
 			//gene_tree_map.insert(make_pair(T->size(), make_pair(T, name)));
@@ -906,6 +959,8 @@ int main(int argc, char *argv[]) {
 		if (!IGNORE_MULTI)
 		cout << "skipped " << skipped_star << " star trees" << endl;
 	}
+	if (OUTGROUP_ROOT)
+		cout << "skipped " << skipped_no_outgroup << " trees with no outgroup or an unresolved outgroup" << endl;
 
 /*	int end = gene_tree_map.size();
 	for(int i = 0; i < end; i++) {
