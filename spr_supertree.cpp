@@ -1271,6 +1271,7 @@ int main(int argc, char *argv[]) {
 				super_tree->reroot(best_root);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
+				super_tree->preorder_number();
 			}
 
 			cout << "rerooting gene trees" << endl;
@@ -1291,6 +1292,7 @@ int main(int argc, char *argv[]) {
 					current_gene_trees[i]->reroot(new_root);
 					current_gene_trees[i]->set_depth(0);
 					current_gene_trees[i]->fix_depths();
+					current_gene_trees[i]->preorder_number();
 				}
 			}
 		}
@@ -1400,6 +1402,7 @@ int main(int argc, char *argv[]) {
 				super_tree->reroot(best_root);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
+				super_tree->preorder_number();
 				super_tree->numbers_to_labels(&reverse_label_map);
 				cout << "Rerooted Supertree: " <<  super_tree->str_subtree() << endl;
 				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
@@ -1420,10 +1423,12 @@ int main(int argc, char *argv[]) {
 			else
 				new_root = find_best_root(super_tree, gene_trees[i]);
 				//find_best_root(super_tree, gene_trees[i]);
-			if (new_root != NULL)
+			if (new_root != NULL) {
 				gene_trees[i]->reroot(new_root);
 				gene_trees[i]->set_depth(0);
 				gene_trees[i]->fix_depths();
+				gene_trees[i]->preorder_number();
+			}
 		}
 	}
 	super_tree->set_depth(0);
@@ -1437,6 +1442,7 @@ int main(int argc, char *argv[]) {
 			best_distance = rSPR_total_approx_distance(super_tree, gene_trees);
 	else
 		if (UNROOTED || RANDOM_ROOTING || SIMPLE_UNROOTED)
+		//if (UNROOTED || RANDOM_ROOTING)
 			best_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
 		else
 			best_distance = rSPR_total_distance(super_tree, gene_trees);
@@ -1580,6 +1586,7 @@ int main(int argc, char *argv[]) {
 				super_tree->reroot(best_root);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
+				super_tree->preorder_number();
 				super_tree->numbers_to_labels(&reverse_label_map);
 				cout << "Rerooted Supertree: " <<  super_tree->str_subtree() << endl;
 				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
@@ -1602,10 +1609,12 @@ int main(int argc, char *argv[]) {
 					new_root = find_random_root(super_tree, gene_trees[i]);
 				else
 					new_root = find_best_root(super_tree, gene_trees[i]);
-				if (new_root != NULL)
+				if (new_root != NULL) {
 					gene_trees[i]->reroot(new_root);
 					gene_trees[i]->set_depth(0);
 					gene_trees[i]->fix_depths();
+					gene_trees[i]->preorder_number();
+				}
 			}
 		}
 		if (BIPARTITION_CLUSTER) {
@@ -1712,6 +1721,7 @@ int main(int argc, char *argv[]) {
 				Node *undo = approx_moves[i].first.first->spr(approx_moves[i].first.second, which_sibling);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
+				super_tree->preorder_number();
 	
 
 				if (APPROX)
@@ -1731,6 +1741,7 @@ int main(int argc, char *argv[]) {
 					approx_moves[i].first.first->spr(undo, which_sibling);
 					super_tree->set_depth(0);
 					super_tree->fix_depths();
+					super_tree->preorder_number();
 				}
 			}
 			super_tree->numbers_to_labels(&reverse_label_map);
@@ -1778,6 +1789,7 @@ int main(int argc, char *argv[]) {
 				Node *undo = approx_moves[i].first.first->spr(approx_moves[i].first.second, which_sibling);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
+				super_tree->preorder_number();
 	
 
 				if (APPROX)
@@ -1797,6 +1809,7 @@ int main(int argc, char *argv[]) {
 					approx_moves[i].first.first->spr(undo, which_sibling);
 					super_tree->set_depth(0);
 					super_tree->fix_depths();
+					super_tree->preorder_number();
 				}
 			}
 			super_tree->numbers_to_labels(&reverse_label_map);
@@ -1823,6 +1836,7 @@ int main(int argc, char *argv[]) {
 			best_subtree_root->spr(best_sibling);
 			super_tree->set_depth(0);
 			super_tree->fix_depths();
+			super_tree->preorder_number();
 			if (TABOO_SEARCH && !is_taboo(taboo_trees, super_tree))
 				taboo_trees.push_back(Node(*super_tree));
 			super_tree->numbers_to_labels(&reverse_label_map);
@@ -1964,6 +1978,7 @@ void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
+	super_tree->preorder_number();
 	int distance;
 	if (RANDOM_TREE)
 		distance = 0;
@@ -2031,6 +2046,7 @@ void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 		}
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
+	super_tree->preorder_number();
 //	cout << "Reverted: " << super_tree->str_subtree() << endl;
 
 }
@@ -2092,6 +2108,7 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
+	super_tree->preorder_number();
 	int distance;
 	distance = rSPR_total_approx_distance(super_tree, gene_trees,
 			min_distance);
@@ -2133,6 +2150,7 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 		}
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
+	super_tree->preorder_number();
 //	cout << "Reverted: " << super_tree->str_subtree() << endl;
 //	}
 
@@ -2225,6 +2243,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
@@ -2271,6 +2290,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 	}
 
 }
@@ -2498,6 +2518,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
@@ -2542,6 +2563,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		n->spr(undo, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 //		cout << "Reverted Super Tree: "
 //	<< super_tree->str_subtree() << endl;
 	}
@@ -2667,6 +2689,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
@@ -2699,6 +2722,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		n->spr(undo, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 //		cout << "Reverted Super Tree: "
 //	<< super_tree->str_subtree() << endl;
 	}
@@ -2950,6 +2974,7 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 //		cout << "Proposed Super Tree: "
 //		<< super_tree->str_support_subtree(true) << endl;
 /*
@@ -3024,6 +3049,7 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 //		cout << "Reverted Super Tree: "
 //		<< super_tree->str_subtree() << endl;
 
@@ -3123,6 +3149,7 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
@@ -3136,6 +3163,7 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		n->spr(undo, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 //		cout << "Reverted Super Tree: "
 //		<< super_tree->str_subtree() << endl;
 

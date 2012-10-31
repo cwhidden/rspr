@@ -842,6 +842,7 @@ int main(int argc, char *argv[]) {
 					trees[i]->reroot(new_root);
 					trees[i]->set_depth(0);
 					trees[i]->fix_depths();
+					trees[i]->preorder_number();
 			}
 		}
 		vector<Node *> rootings;

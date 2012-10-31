@@ -3318,6 +3318,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 					f2.get_component(0)->reroot(descendants[j]);
 					f2.get_component(0)->set_depth(0);
 					f2.get_component(0)->fix_depths();
+					f2.get_component(0)->preorder_number();
 ////					f2.print_components();
 ////					cout << endl;
 	//			cout << T1->str_subtree() << endl;
@@ -3350,6 +3351,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 					f2.get_component(0)->reroot(descendants[j]);
 					f2.get_component(0)->set_depth(0);
 					f2.get_component(0)->fix_depths();
+					f2.get_component(0)->preorder_number();
 	//				cout << i << "," << j << endl;
 	//				cout << T1->str_subtree() << endl;
 	//				cout << gene_trees[i]->str_subtree() << endl;
@@ -3388,6 +3390,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 				f2.get_component(0)->reroot(descendants[j]);
 					f2.get_component(0)->set_depth(0);
 					f2.get_component(0)->fix_depths();
+					f2.get_component(0)->preorder_number();
 				//Forest F1 = Forest(f1);
 				//Forest F2 = Forest(f2);
 				int distance = rSPR_worse_3_approx_distance_only(&f1, &f2)/3;
@@ -3408,8 +3411,9 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 			f2.get_component(0)->reroot(best_rooting);
 					f2.get_component(0)->set_depth(0);
 					f2.get_component(0)->fix_depths();
+					f2.get_component(0)->preorder_number();
 			int k;
-			if (best_approx < 20)
+			if (best_approx > 20)
 				k = rSPR_branch_and_bound_simple_clustering(f1.get_component(0), f2.get_component(0), VERBOSE);
 			else
 					k = rSPR_branch_and_bound_range(&f1, &f2, best_approx/3, best_approx);
@@ -3442,6 +3446,7 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 			f2.get_component(0)->reroot(descendants[j]);
 					f2.get_component(0)->set_depth(0);
 					f2.get_component(0)->fix_depths();
+					f2.get_component(0)->preorder_number();
 			Forest F1 = Forest(f1);
 			Forest F2 = Forest(f2);
 
@@ -3847,10 +3852,12 @@ bool outgroup_root(Node *n, vector<int> &num_in, vector<int> &num_out) {
 bool outgroup_reroot(Node *n, vector<int> &num_in, vector<int> &num_out) {
 	Node *T = n->find_root();
 	if (num_in[n->get_preorder_number()] == 0) {
-		if (!n->is_leaf())
-		T->reroot(n);
-		T->set_depth(0);
-		T->fix_depths();
+		if (!n->is_leaf()) {
+			T->reroot(n);
+			T->set_depth(0);
+			T->fix_depths();
+			T->preorder_number();
+		}
 		return true;
 	}
 	Node *new_split = new Node("");
@@ -3868,6 +3875,7 @@ bool outgroup_reroot(Node *n, vector<int> &num_in, vector<int> &num_out) {
 	T->reroot(new_split);
 	T->set_depth(0);
 	T->fix_depths();
+	T->preorder_number();
 	return true;
 }
 

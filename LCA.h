@@ -68,7 +68,7 @@ class LCA {
 	LCA(Node *tree) {
 		this->tree = tree;
 		T = vector<int>();
-		if (tree->get_edge_pre_start() == -1)
+		if (tree->get_preorder_number() == -1)
 			tree->preorder_number();
 		euler_tour(tree, 0);
 		precompute_rmq();
