@@ -181,6 +181,7 @@ bool TABOO_SEARCH = false;
 
 /*variables Joel aadded*/
 int R_DISTANCE;
+bool R_VARIABLE = false;
 bool R_LIMIT = false;
 bool R_RAND = false;
 bool R_CONTROL = false;
@@ -530,6 +531,9 @@ int main(int argc, char *argv[]) {
 				}
 
 			}
+		}
+		else if (strcmp(arg, "-r_variable") == 0) {
+			R_VARIABLE = true;
 		}
 
 		else if (strcmp(arg, "-p") == 0) {
@@ -1014,6 +1018,7 @@ int main(int argc, char *argv[]) {
 	}
 
 	int best_distance;
+	int best_rooted_distance = INT_MAX;
 	int best_tie_distance = 0;
 	Node *super_tree;
 	multimap<int, int>::reverse_iterator label = labels.rbegin();
@@ -1684,11 +1689,11 @@ int main(int argc, char *argv[]) {
 				}
 				if (SIMPLE_UNROOTED) {
 					cout << "Rerooted Distance: " << distance << endl;
-					if (distance < best_distance) {
-						best_distance = distance;
-						best_supertree->delete_tree();
-						best_supertree = new Node(*super_tree);
-					}
+						best_rooted_distance = distance;
+//					if (distance < best_rooted_distance) {
+						//best_supertree->delete_tree();
+						//best_supertree = new Node(*super_tree);
+//					}
 				}
 			}
 			NUM_SOURCE = super_tree->size();
@@ -1866,6 +1871,26 @@ int main(int argc, char *argv[]) {
 				best_supertree = new Node(*super_tree);
 				best_distance = current_distance;
 				best_tie_distance = current_tie_distance;
+				if (R_VARIABLE && R_LIMIT && R_DISTANCE > 1) {
+					R_DISTANCE--;
+					cout << "R_DISTANCE=" << R_DISTANCE << endl;
+				}
+			}
+			else if (R_VARIABLE && R_LIMIT) {
+				if (SIMPLE_UNROOTED) {
+					int current_rooted_distance =
+						rSPR_total_distance(super_tree, gene_trees);
+					if (current_rooted_distance < best_rooted_distance) {
+						R_DISTANCE--;
+						cout << "R_DISTANCE=" << R_DISTANCE << endl;
+					}
+					else {
+						super_tree->delete_tree();
+						super_tree = new Node(*best_supertree);
+						R_DISTANCE++;
+						cout << "R_DISTANCE=" << R_DISTANCE << endl;
+					}
+				}
 			}
 			cout << "Total Distance: " << current_distance << endl;
 			if (RF_TIES)
