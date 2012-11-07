@@ -458,6 +458,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-prefer_nonbranching") == 0) {
 			PREFER_NONBRANCHING = true;
 		}
+		else if (strcmp(arg, "-deepest") == 0) {
+			DEEPEST_ORDER = true;
+		}
 		else if (strcmp(arg, "-count_losses") == 0) {
 			COUNT_LOSSES = true;
 		}
@@ -478,6 +481,7 @@ int main(int argc, char *argv[]) {
 //		CUT_TWO_B_ROOT = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
+		EDGE_PROTECTION_TWO_B = true;
 //		CHECK_MERGE_DEPTH = true;
 //		if (ALL_MAFS == false)
 //			ABORT_AT_FIRST_SOLUTION = true;
@@ -485,6 +489,7 @@ int main(int argc, char *argv[]) {
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
 		LEAF_REDUCTION2 = true;
+		PREFER_NONBRANCHING = true;
 
 		APPROX_CUT_ONE_B = true;
 		APPROX_CUT_TWO_B = true;

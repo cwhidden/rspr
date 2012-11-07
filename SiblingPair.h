@@ -43,11 +43,13 @@ class SiblingPair {
 	Node *a;
 	Node *c;
 	int key;
+	int key2;
 
 	SiblingPair() {
 		a = NULL;
 		c = NULL;
 		key = -1;
+		key2 = -1;
 	}
 	SiblingPair(Node *A, Node *C) {
 		a = A;
@@ -55,9 +57,12 @@ class SiblingPair {
 		key = a->get_preorder_number();
 		if (c->get_preorder_number() < key)
 			key = c->get_preorder_number();
+	//	a->get_preorder_number();
+	//	if (c->get_preorder_number() < key)
+	//		key = c->get_preorder_number();
 	}
-	bool operator< (const SiblingPair &a) const {
-		return key < a.key;
+	bool operator< (const SiblingPair &sp) const {
+		return key < sp.key;
 	}
 };
 

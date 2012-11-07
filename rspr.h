@@ -162,6 +162,7 @@ bool EDGE_PROTECTION = false;
 bool EDGE_PROTECTION_TWO_B = false;
 bool ABORT_AT_FIRST_SOLUTION = false;
 bool PREORDER_SIBLING_PAIRS = false;
+bool DEEPEST_ORDER = false;
 bool NEAR_PREORDER_SIBLING_PAIRS = false;
 bool LEAF_REDUCTION = false;
 bool LEAF_REDUCTION2 = false;
@@ -1527,6 +1528,13 @@ SiblingPair pop_sibling_pair(set<SiblingPair> *sibling_pairs, UndoMachine *um) {
 	return spair;
 }
 
+SiblingPair pop_sibling_pair(set<SiblingPair>::iterator s, set<SiblingPair> *sibling_pairs, UndoMachine *um) {
+	SiblingPair spair = SiblingPair(*s); 
+	um->add_event(new RemoveSetSiblingPairs(sibling_pairs, spair));
+	sibling_pairs->erase(s);
+	return spair;
+}
+
 inline int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 set<SiblingPair> *sibling_pairs, list<Node *> *singletons,
 bool cut_b_only, list<pair<Forest,Forest> > *AFs) {
@@ -1559,110 +1567,138 @@ cout << ",";
 
 
 	while(!singletons->empty() || !sibling_pairs->empty()) {
-// Case 1 - Remove singletons
-while(!singletons->empty()) {
-	Node *T2_a = singletons->back();
-	#ifdef DEBUG
-		cout << "Case 1" << endl;
-		cout << "a " << T2_a->str_subtree() << endl;
-	#endif
-
-	singletons->pop_back();
-	// find twin in T1
-	Node *T1_a = T2_a->get_twin();
-
-	//if (T1_a->get_sibling_pair_status() > 0)
-	//	cout << T1_a->get_sibling(sibling_pairs) << endl;
-	// if this is in the first component of T_2 then
-	// it is not really a singleton.
-	Node *T1_a_parent = T1_a->parent();
-	if (T1_a_parent == NULL)
-		continue;
-	bool potential_new_sibling_pair = T1_a_parent->is_sibling_pair();
-	if (T2_a == T2->get_component(0)) {
-		// TODO: should we do this when it happens?
-		if (!T1->contains_rho()) {
-			um.add_event(new AddRho(T1));
-			um.add_event(new AddRho(T2));
-			T1->add_rho();
-			T2->add_rho();
-			k--;
+		// Case 1 - Remove singletons
+		while(!singletons->empty()) {
+			Node *T2_a = singletons->back();
 			#ifdef DEBUG
-			cout << "adding p element, k=" << k << endl;
+				cout << "Case 1" << endl;
+				cout << "a " << T2_a->str_subtree() << endl;
 			#endif
-		}
-	}
-
-	// cut the edge above T1_a
-	um.add_event(new CutParent(T1_a));
-	T1_a->cut_parent();
-
-	um.add_event(new AddComponent(T1));
-	T1->add_component(T1_a);
-	ContractEvent(&um, T1_a_parent);
-
-
-	Node *node = T1_a_parent->contract();
-
-	if (node != NULL && potential_new_sibling_pair && node->is_sibling_pair()){
-		add_sibling_pair(sibling_pairs, node->lchild(), node->rchild(),
-				&um);
-	}
-	#ifdef DEBUG
-		cout << "\tT1: ";
-		T1->print_components();
-		cout << "\tT2: ";
-		T2->print_components();
-	#endif
-//			sp_i = sibling_pairs->begin();
-}
-if(!sibling_pairs->empty()) {
-	Node *T1_a;
-	Node *T1_c;
-	if (LEAF_REDUCTION && !cut_b_only) {
-		bool found = false;
-		set<SiblingPair>::iterator sp_i = sibling_pairs->begin();
-		// correct in case sibling pair involves previous
-/*				if (sp_i != sibling_pairs->begin()) {
-			if (check_all_pairs)
-				sp_i = sibling_pairs->begin();
-			else
-				sp_i--;
-		}
-		*/
-		while (sp_i != sibling_pairs->end()) {
-			T1_a = (*sp_i).a;
-			T1_c = (*sp_i).c;
-			if (T1_a->parent() == NULL || T1_a->parent() != T1_c->parent()) {
-				um.add_event(new RemoveSetSiblingPairs(sibling_pairs,
-							SiblingPair(T1_a, T1_c)));
-				set<SiblingPair>::iterator rem = sp_i;
-				sp_i++;
-				sibling_pairs->erase(rem);
+		
+			singletons->pop_back();
+			// find twin in T1
+			Node *T1_a = T2_a->get_twin();
+		
+			//if (T1_a->get_sibling_pair_status() > 0)
+			//	cout << T1_a->get_sibling(sibling_pairs) << endl;
+			// if this is in the first component of T_2 then
+			// it is not really a singleton.
+			Node *T1_a_parent = T1_a->parent();
+			if (T1_a_parent == NULL)
 				continue;
+			bool potential_new_sibling_pair = T1_a_parent->is_sibling_pair();
+			if (T2_a == T2->get_component(0)) {
+				// TODO: should we do this when it happens?
+				if (!T1->contains_rho()) {
+					um.add_event(new AddRho(T1));
+					um.add_event(new AddRho(T2));
+					T1->add_rho();
+					T2->add_rho();
+					k--;
+					#ifdef DEBUG
+					cout << "adding p element, k=" << k << endl;
+					#endif
+				}
 			}
-			Node *T2_a = T1_a->get_twin();
-			Node *T2_c = T1_c->get_twin();
-			// select if this is a Case 2 or, optionally, nonbranching
-			if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent()
-					|| (!cut_b_only && PREFER_NONBRANCHING
-							&& is_nonbranching(T1, T2, T1_a, T1_c, T2_a, T2_c))) {
-				um.add_event(new RemoveSetSiblingPairs(sibling_pairs,
-							SiblingPair(T1_a, T1_c)));
-				set<SiblingPair>::iterator rem = sp_i;
-				sp_i++;
-				sibling_pairs->erase(rem);
-				found = true;
-				break;
+		
+			// cut the edge above T1_a
+			um.add_event(new CutParent(T1_a));
+			T1_a->cut_parent();
+		
+			um.add_event(new AddComponent(T1));
+			T1->add_component(T1_a);
+			ContractEvent(&um, T1_a_parent);
+		
+		
+			Node *node = T1_a_parent->contract();
+		
+			if (node != NULL && potential_new_sibling_pair && node->is_sibling_pair()){
+				add_sibling_pair(sibling_pairs, node->lchild(), node->rchild(),
+						&um);
 			}
-
+			#ifdef DEBUG
+				cout << "\tT1: ";
+				T1->print_components();
+				cout << "\tT2: ";
+				T2->print_components();
+			#endif
+		//			sp_i = sibling_pairs->begin();
+		}
+		if(!sibling_pairs->empty()) {
+			Node *T1_a;
+			Node *T1_c;
+			set<SiblingPair>::iterator deepest_valid = sibling_pairs->end();
+			int deepest_depth = INT_MAX;
+			int deepest_depth_2 = INT_MAX;
+			Node *best_a = NULL;
+			Node *best_c = NULL;
+			if (LEAF_REDUCTION && !cut_b_only) {
+				bool found = false;
+				set<SiblingPair>::iterator sp_i = sibling_pairs->begin();
+				// correct in case sibling pair involves previous
+		/*				if (sp_i != sibling_pairs->begin()) {
+					if (check_all_pairs)
+						sp_i = sibling_pairs->begin();
+					else
+						sp_i--;
+				}
+				*/
+				while (sp_i != sibling_pairs->end()) {
+					T1_a = (*sp_i).a;
+					T1_c = (*sp_i).c;
+					if (T1_a->parent() == NULL || T1_a->parent() != T1_c->parent()) {
+						um.add_event(new RemoveSetSiblingPairs(sibling_pairs,
+									SiblingPair(T1_a, T1_c)));
+						set<SiblingPair>::iterator rem = sp_i;
+						sp_i++;
+						sibling_pairs->erase(rem);
+						continue;
+					}
+					Node *T2_a = T1_a->get_twin();
+					Node *T2_c = T1_c->get_twin();
+					// select if this is a Case 2 or, optionally, nonbranching
+					if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent()
+							|| (!cut_b_only && PREFER_NONBRANCHING
+									&& is_nonbranching(T1, T2, T1_a, T1_c, T2_a, T2_c))) {
+						um.add_event(new RemoveSetSiblingPairs(sibling_pairs,
+									SiblingPair(T1_a, T1_c)));
+						set<SiblingPair>::iterator rem = sp_i;
+						sp_i++;
+						sibling_pairs->erase(rem);
+						found = true;
+						break;
+					}
+					if (DEEPEST_ORDER) {
+						int depth;
+						int depth2;
+						if (T1_a->get_depth() < T1_c->get_depth())
+							depth = T1_c->get_depth();
+						else
+							depth = T1_a->get_depth();
+						if (T2_a->get_depth() < T2_c->get_depth())
+							depth2 = T2_c->get_depth();
+						else
+							depth2 = T2_a->get_depth();
+						if (deepest_valid == sibling_pairs->end()
+								|| deepest_depth < depth
+								|| deepest_depth == depth && deepest_depth_2 < depth2) {
+							deepest_valid = sp_i;
+							deepest_depth = depth;
+							deepest_depth_2 = depth2;
+						}
+					}
 					sp_i++;
 				}
 				if (!found) {
 					if (sibling_pairs->empty())
 						continue;
 					else {
-						SiblingPair spair = pop_sibling_pair(sibling_pairs, &um);
+						SiblingPair spair;
+//						cout << "depth: " << deepest_depth << endl;
+						if (DEEPEST_ORDER && deepest_valid != sibling_pairs->end())
+							spair = pop_sibling_pair(deepest_valid, sibling_pairs, &um);
+						else
+							spair = pop_sibling_pair(sibling_pairs, &um);
 						T1_a = spair.a;
 						T1_c = spair.c;
 					}
@@ -3191,6 +3227,8 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 	for(int i = 0; i < end; i++) {
 			//		cout << i << endl;
 		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+//		k *= mylog2(gene_trees[i]->size());
+
 		if (original_scores != NULL)
 			(*original_scores)[i] = k;
 		total += k;
@@ -3232,6 +3270,7 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees, int threshold) {
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
 	for(int i = 0; i < end; i++) {
 		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+//		k *= mylog2(gene_trees[i]->size());
 		total += k;
 //		if (total > threshold) {
 //			break;

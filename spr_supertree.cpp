@@ -160,6 +160,7 @@ bool UNROOTED = false;
 bool SIMPLE_UNROOTED = false;
 int SIMPLE_UNROOTED_NUM = INT_MAX;
 bool REROOT = false;
+bool REROOT_INITIAL = false;
 bool APPROX_ROOTING = false;
 bool EXACT_ROOTING = false;
 bool RANDOM_ROOTING = false;
@@ -393,6 +394,7 @@ int main(int argc, char *argv[]) {
 	bool OUTGROUP_ROOT = false;
 	string OUTGROUP = "";
 	string INITIAL_SUPER_TREE = "";
+	bool INITIAL_SUPER_TREE_UNROOTED = false;
 	bool FIND_SUPPORT = false;
 	bool FIND_BIPARTITION_SUPPORT = false;
 	enum RELAXATION RELAXED_BIPARTITION_SUPPORT = NEGATIVE_RELAXED;
@@ -447,8 +449,19 @@ int main(int argc, char *argv[]) {
 				cout << "SIMPLE_UNROOTED_NUM=" << SIMPLE_UNROOTED_NUM << endl;
 			}
 		}
-		else if (strcmp(arg, "-reroot") == 0)
+		else if (strcmp(arg, "-reroot") == 0) {
 			REROOT = true;
+			REROOT_INITIAL = true;
+		}
+		else if (strcmp(arg, "-reroot_initial") == 0) {
+			REROOT_INITIAL = true;
+		}
+		else if (strcmp(arg, "-rspr_root") == 0) {
+			EXACT_ROOTING = true;
+		}
+		else if (strcmp(arg, "-random_root") == 0) {
+			RANDOM_ROOTING = true;
+		}
 		else if (strcmp(arg, "-unrooted_min_approx") == 0) {
 			UNROOTED = true;
 			UNROOTED_MIN_APPROX = true;
@@ -721,6 +734,17 @@ int main(int argc, char *argv[]) {
 					INITIAL_SUPER_TREE = string(arg2);
 				cout << "INITIAL_TREE=" << INITIAL_SUPER_TREE
 						<< endl;
+			}
+		}
+		else if (strcmp(arg, "-initial_tree_unrooted") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					INITIAL_SUPER_TREE = string(arg2);
+				cout << "INITIAL_TREE=" << INITIAL_SUPER_TREE
+						<< endl;
+				INITIAL_SUPER_TREE_UNROOTED=true;
+				REROOT_INITIAL=true;
 			}
 		}
 		else if (strcmp(arg, "-count_losses") == 0) {
@@ -1036,7 +1060,12 @@ int main(int argc, char *argv[]) {
 			string line;
 			if(super_tree_file.good()) {
 				getline(super_tree_file, line);
-				super_tree = build_tree(line);
+				if (INITIAL_SUPER_TREE_UNROOTED)
+					root(line);
+				if (INCLUDE_ONLY != "")
+					super_tree = build_tree(line, &include_only);
+				else
+					super_tree = build_tree(line);
 				super_tree->preorder_number();
 				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 			}
@@ -1334,7 +1363,7 @@ int main(int argc, char *argv[]) {
 
 			if (UNROOTED_MIN_APPROX)
 				APPROX_ROOTING=true;
-			if (REROOT) {
+			if (REROOT_INITIAL) {
 				cout << "rerooting super_tree" << endl;
 				// reroot the supertree based on the balanced accuracy of splits
 				vector<Node *> descendants =
