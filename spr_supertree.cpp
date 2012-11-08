@@ -164,6 +164,7 @@ bool REROOT_INITIAL = false;
 bool APPROX_ROOTING = false;
 bool EXACT_ROOTING = false;
 bool RANDOM_ROOTING = false;
+bool RANDOM_INSERT_ORDER = false;
 bool APPROX = false;
 bool TIMING = false;
 int NUM_ITERATIONS = 25;
@@ -448,6 +449,9 @@ int main(int argc, char *argv[]) {
 					SIMPLE_UNROOTED_NUM = atoi(arg2);
 				cout << "SIMPLE_UNROOTED_NUM=" << SIMPLE_UNROOTED_NUM << endl;
 			}
+		}
+		else if (strcmp(arg, "-random_insert_order") == 0) {
+			RANDOM_INSERT_ORDER = true;
 		}
 		else if (strcmp(arg, "-reroot") == 0) {
 			REROOT = true;
@@ -1028,7 +1032,10 @@ int main(int argc, char *argv[]) {
 	// iterate over the taxa by number of occurences
 	multimap<int, int> labels = multimap<int, int>();
 	for(int i = 0; i < label_counts.size(); i++) {
-		labels.insert(make_pair(label_counts[i],i));
+		int key = label_counts[i];
+		if (RANDOM_INSERT_ORDER)
+			key = rand();
+		labels.insert(make_pair(key,i));
 	}
 
 	if (CONVERT_LIST) {
@@ -1061,7 +1068,7 @@ int main(int argc, char *argv[]) {
 			if(super_tree_file.good()) {
 				getline(super_tree_file, line);
 				if (INITIAL_SUPER_TREE_UNROOTED)
-					root(line);
+					line = root(line);
 				if (INCLUDE_ONLY != "")
 					super_tree = build_tree(line, &include_only);
 				else
