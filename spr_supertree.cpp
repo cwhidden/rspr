@@ -171,6 +171,7 @@ int NUM_ITERATIONS = 25;
 bool SMALL_TREES = false;
 bool CONVERT_LIST = false;
 bool VALID_TREES = false;
+bool VALID_TREES_ROOTED = false;
 bool FIND_MAX_DEGREE = false;
 bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
@@ -649,6 +650,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-valid_trees") == 0) {
 			VALID_TREES=true;
 		}
+		else if (strcmp(arg, "-valid_trees_rooted") == 0) {
+			VALID_TREES_ROOTED=true;
+		}
 		else if (strcmp(arg, "-max_degree") == 0) {
 			FIND_MAX_DEGREE=true;
 		}
@@ -902,6 +906,9 @@ int main(int argc, char *argv[]) {
 				T = build_tree(T_line, &include_only);
 			else
 				T = build_tree(T_line);
+			if (UNROOTED || SIMPLE_UNROOTED || OUTGROUP_ROOT) {
+				T->fixroot();
+			}
 //			cout << T->str_subtree() << endl;
 			// TODO: check that this works
 			/*
@@ -1528,6 +1535,16 @@ int main(int argc, char *argv[]) {
 			return 0;
 		}
 
+		if (VALID_TREES_ROOTED) {
+			cout << "Rerooted Gene Trees: " <<  endl;
+			for(int i = 0; i < gene_trees.size(); i++) {
+				cout << gene_tree_names[i];
+				gene_trees[i]->numbers_to_labels(&reverse_label_map);
+				cout << gene_trees[i]->str_subtree() << endl;
+				gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
+			}
+			return 0;
+		}
 
 
 /*Joel: added these vectors*/

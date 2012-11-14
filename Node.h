@@ -1693,11 +1693,13 @@ void reroot(Node *new_lc) {
 
 // make the root binay again
 void fixroot() {
-	Node *new_lc = new Node();
-	while(get_children().size() > 1) {
-		new_lc->add_child(get_children().back());
+	if (get_children().size() > 2) {
+		Node *new_lc = new Node();
+		while(get_children().size() > 1) {
+			new_lc->add_child(get_children().back());
+		}
+		add_child(new_lc);
 	}
-	add_child(new_lc);
 }
 
 
