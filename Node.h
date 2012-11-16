@@ -1674,8 +1674,8 @@ void reroot(Node *new_lc) {
 	}
 	Node *prev = new_rc;
 	Node *next = new_rc->parent();
-	Node *old_lc = lchild();
-	Node *old_rc_rc = rchild();
+//	Node *old_lc = lchild();
+//	Node *old_rc_rc = rchild();
 	new_lc->cut_parent();
 	new_rc->cut_parent();
 	while(next != NULL) {
@@ -1685,7 +1685,9 @@ void reroot(Node *new_lc) {
 		prev = current;
 	}
 	Node *root = prev;
-	root->parent()->add_child(root->lchild());
+	while(root->get_children().size() > 0)
+		root->parent()->add_child(root->lchild());
+//	root->parent()->add_child(root->lchild());
 	root->cut_parent();
 	root->add_child(new_lc);
 	root->add_child(new_rc);

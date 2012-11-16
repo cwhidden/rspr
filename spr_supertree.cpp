@@ -898,7 +898,8 @@ int main(int argc, char *argv[]) {
 				T_line.erase(0,loc);
 			}
 			// TODO: should we be doing this with OUTGROUP?
-			if (UNROOTED || SIMPLE_UNROOTED || OUTGROUP_ROOT) {
+			if ((UNROOTED || SIMPLE_UNROOTED || OUTGROUP_ROOT)
+					&& IGNORE_MULTI) {
 				T_line = root(T_line);
 			}
 			Node *T;
