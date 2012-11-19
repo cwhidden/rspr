@@ -3329,8 +3329,12 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 		//f2.print_components();
 		if (!sync_twins(&f1, &f2))
 			continue;
-		if (f2.get_component(0)->get_children().size() > 2)
+		if (f2.get_component(0)->get_children().size() > 2) {
 			f2.get_component(0)->fixroot();
+			f2.get_component(0)->set_depth(0);
+			f2.get_component(0)->fix_depths();
+			f2.get_component(0)->preorder_number();
+		}
 		//f1.print_components();
 		//f2.print_components();
 		int size = f2.get_component(0)->size();
@@ -3475,8 +3479,12 @@ int rSPR_total_approx_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 		Forest f2 = Forest(gene_trees[i]);
 		if (!sync_twins(&f1, &f2))
 			continue;
-		if (f2.get_component(0)->get_children().size() > 2)
+		if (f2.get_component(0)->get_children().size() > 2) {
 			f2.get_component(0)->fixroot();
+			f2.get_component(0)->set_depth(0);
+			f2.get_component(0)->fix_depths();
+			f2.get_component(0)->preorder_number();
+		}
 		int size = f2.get_component(0)->size();
 		int best_distance = INT_MAX;
 		vector<Node *> descendants = 
