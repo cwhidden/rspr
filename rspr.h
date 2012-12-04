@@ -94,8 +94,10 @@ int rf_total_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold, vector<int> *original_scores);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose);
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, int min_k, int max_k);
 void reduction_leaf(Forest *T1, Forest *T2);
 bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end);
 Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int target_size);
@@ -2559,6 +2561,14 @@ cout << ",";
 }
 
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map) {
+	return rSPR_branch_and_bound_simple_clustering(T1,T2, verbose, label_map, reverse_label_map, -1, -1);
+}
+
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k) {
+	if (max_k > MAX_SPR)
+		max_k = MAX_SPR;
+	else if (max_k == -1)
+		max_k = INT_MAX;
 	ClusterForest F1 = ClusterForest(T1);
 	ClusterForest F2 = ClusterForest(T2);
 	Forest F3 = Forest(F1);
@@ -2703,6 +2713,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 
 		double tree_fraction = INITIAL_TREE_FRACTION;
 
+		if (min_spr < min_k)
+			min_spr = min_k;
+
 		while(!done_cluster) {
 			done_cluster = true;
 
@@ -2724,14 +2737,14 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 					cout << k << " ";
   				cout.flush();
 				}
-				if (k + total_k <= MAX_SPR && k <= CLUSTER_MAX_SPR) {
+				if (k + total_k <= max_k && k <= CLUSTER_MAX_SPR) {
 					if (f1t.get_component(0)->get_name() == DEAD_COMPONENT) {
 						f1t.add_rho();
 						f2t.add_rho();
 					}
 					exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
 				}
-				if (exact_spr >= 0 || k + total_k > MAX_SPR ||
+				if (exact_spr >= 0 || k + total_k > max_k ||
 						k > CLUSTER_MAX_SPR) {
 					if (k > CLUSTER_MAX_SPR) {
 						f1t.swap(&f1a);
@@ -2764,7 +2777,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 						}
 						else if (i == num_clusters - 1) {
 							if (CLAMP) {
-								total_k = MAX_SPR;
+								total_k = max_k;
 							}
 							else {
 									//total_k += min_spr;
@@ -3105,7 +3118,11 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2){
 }
 
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose) {
-	return rSPR_branch_and_bound_simple_clustering(T1, T2, false, NULL, NULL);
+	return rSPR_branch_and_bound_simple_clustering(T1, T2, false, NULL, NULL, -1, -1);
+}
+
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, int min_k, int max_k) {
+	return rSPR_branch_and_bound_simple_clustering(T1, T2, false, NULL, NULL, min_k, max_k);
 }
 
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2) {
@@ -3344,6 +3361,7 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 		int NO_CLUSTER_ROUNDS=15;
 //		cout << "boo" << endl;
 		if (!UNROOTED_MIN_APPROX) {
+//			for(int k = 0; !done; k++) {
 			for(int k = 0; k <= NO_CLUSTER_ROUNDS; k++) {
 ////				cout << k << endl;
 				MIN_SPR=k;
@@ -3369,14 +3387,18 @@ int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int thres
 					int distance;
 					Forest *F1 = new Forest(f1);
 					Forest *F2 = new Forest(f2);
-					distance = rSPR_branch_and_bound_range(F1, F2, MIN_SPR, MAX_SPR);
+//					if (k <= NO_CLUSTER_ROUNDS)
+						distance = rSPR_branch_and_bound_range(F1, F2, MIN_SPR, MAX_SPR);
+//					else
+//						break;
+//						distance = rSPR_branch_and_bound_simple_clustering(F1->get_component(0), F2->get_component(0), VERBOSE, k, k);
 					if (distance < 0)
 						distance = k+1;
 					delete F1;
 					delete F2;
 					if (distance <= k) {
 						best_distance = distance;
-						k=NO_CLUSTER_ROUNDS;
+						k=NO_CLUSTER_ROUNDS+1;
 						done = true;
 						break;
 					}
