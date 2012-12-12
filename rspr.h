@@ -1851,7 +1851,7 @@ cout << ",";
 				if (T2_a->parent()->parent() == T2_c->parent()
 					&& T2_c->parent() != NULL)
 					cut_b_only=true;
-			//		cob = true;
+					cob = true;
 			}
 			else if (CUT_ONE_AB) {
 				if (T2_a->parent()->parent() == T2_c->parent()
@@ -2330,6 +2330,9 @@ cout << ",";
 							|| !PREFER_RHO || !AFs->front().first.contains_rho() )
 						&& !cut_a_only && !cut_c_only) {
 					if (multi_node) {
+						// BUG: we need to cut b or c when b is a multifurcating COB
+						if (cob)
+							cut_b_only=false;
 						um.add_event(new ChangeEdgePreInterval(T2_a));
 						T2_a->copy_edge_pre_interval(T2_ab);
 						um.add_event(new CutParent(T2_a));
@@ -2376,7 +2379,7 @@ cout << ",";
 
 					// TODO: check carefully
 
-					if (CUT_ALL_B && !cob) {
+					if (CUT_ALL_B) {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
 									sibling_pairs, singletons, true, AFs, T1_a, T1_c);
