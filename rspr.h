@@ -738,7 +738,7 @@ if(!sibling_pairs->empty()) {
 		bool cut_b_only = false;
 		bool cut_c_only = false;
 		bool cut_b_only_if_not_a_or_c = false;
-		if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent()) {
+		if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent() && !multi_node) {
 //						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
 			cut_b_only = true;
 			um.add_event(new AddToSiblingPairs(sibling_pairs));
