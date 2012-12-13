@@ -129,9 +129,12 @@ bool DEFAULT_OPTIMIZATIONS=true;
 
 
 bool FPT = false;
+bool RF = false;
 bool QUIET = false;
 bool UNROOTED = false;
+bool ALL_UNROOTED = false;
 bool SIMPLE_UNROOTED = false;
+bool SIMPLE_UNROOTED_RSPR = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool TOTAL = false;
@@ -221,6 +224,9 @@ int main(int argc, char *argv[]) {
 	int max_args = argc-1;
 	while (argc > 1) {
 		char *arg = argv[--argc];
+		if (strcmp(arg, "-rf") == 0) {
+			RF = true;
+		}
 		if (strcmp(arg, "-fpt") == 0) {
 			FPT = true;
 			DEFAULT_ALGORITHM=false;
@@ -241,6 +247,7 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-fast_approx") == 0) {
 			APPROX_CUT_ONE_B = true;
 			APPROX_CUT_TWO_B = true;
+			APPROX_CUT_TWO_B_ROOT = true;
 			APPROX_REVERSE_CUT_ONE_B = true;
 			APPROX_EDGE_PROTECTION = true;
 		}
@@ -249,6 +256,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-a_c2b") == 0) {
 			APPROX_CUT_TWO_B = true;
+		}
+		else if (strcmp(arg, "-a_c2br") == 0) {
+			APPROX_CUT_TWO_B_ROOT = true;
 		}
 		else if (strcmp(arg, "-a_rcob") == 0) {
 			APPROX_REVERSE_CUT_ONE_B = true;
@@ -265,8 +275,16 @@ int main(int argc, char *argv[]) {
 			APPROX_CHECK_COMPONENT = true;
 		else if (strcmp(arg, "-unrooted") == 0)
 			UNROOTED = true;
+		else if (strcmp(arg, "-all_unrooted") == 0) {
+			ALL_UNROOTED = true;
+			UNROOTED = true;
+		}
 		else if (strcmp(arg, "-simple_unrooted") == 0)
 			SIMPLE_UNROOTED = true;
+		else if (strcmp(arg, "-simple_unrooted_rspr") == 0) {
+			SIMPLE_UNROOTED = true;
+			SIMPLE_UNROOTED_RSPR = true;
+		}
 		else if (strcmp(arg, "-unrooted_min_approx") == 0)
 			UNROOTED_MIN_APPROX = true;
 		else if (strcmp(arg, "-noopt") == 0) {
@@ -289,6 +307,11 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-cut_two_b") == 0 ||
 				strcmp(arg, "-c2b") == 0) {
 			CUT_TWO_B = true;
+			DEFAULT_OPTIMIZATIONS=false;
+		}
+		else if (strcmp(arg, "-cut_two_b_root") == 0 ||
+				strcmp(arg, "-c2br") == 0) {
+			CUT_TWO_B_ROOT = true;
 			DEFAULT_OPTIMIZATIONS=false;
 		}
 		else if (strcmp(arg, "-cut_all_b") == 0 ||
@@ -381,9 +404,23 @@ int main(int argc, char *argv[]) {
 			cout << "EDGE_PROTECTION=" << EDGE_PROTECTION << endl;
 			DEFAULT_OPTIMIZATIONS=false;
 		}
+		else if (strcmp(arg, "-protect_edges_two_b") == 0) {
+			EDGE_PROTECTION_TWO_B = true;
+//			cout << "EDGE_PROTECTION=" << EDGE_PROTECTION << endl;
+//			DEFAULT_OPTIMIZATIONS=false;
+		}
+		else if (strcmp(arg, "-check_merge_depth") == 0) {
+			CHECK_MERGE_DEPTH = true;
+			cout << "CHECK_MERGE_DEPTH=" << CHECK_MERGE_DEPTH << endl;
+//			DEFAULT_OPTIMIZATIONS=false;
+		}
+//		else if (strcmp(arg, "-check_fewer_pairs") == 0) {
+//			check_all_pairs = false;
+//			DEFAULT_OPTIMIZATIONS=false;
+//		}
 		else if (strcmp(arg, "-allow_abort") == 0) {
 			ABORT_AT_FIRST_SOLUTION = true;
-			DEFAULT_OPTIMIZATIONS=false;
+//			DEFAULT_OPTIMIZATIONS=false;
 		}
 		else if (strcmp(arg, "-preorder_sib_pairs") == 0) {
 			PREORDER_SIBLING_PAIRS = true;
@@ -406,9 +443,9 @@ int main(int argc, char *argv[]) {
 				char *arg2 = argv[argc+1];
 				if (arg2[0] != '-')
 					SPLIT_APPROX_THRESHOLD = atoi(arg2);
-				cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
-						<< endl;
 			}
+			cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
+					<< endl;
 		}
 		else if (strcmp(arg, "-support") == 0) {
 			if (max_args > argc) {
@@ -418,6 +455,12 @@ int main(int argc, char *argv[]) {
 				cout << "REQUIRED_SUPPORT=" << REQUIRED_SUPPORT
 						<< endl;
 			}
+		}
+		else if (strcmp(arg, "-prefer_nonbranching") == 0) {
+			PREFER_NONBRANCHING = true;
+		}
+		else if (strcmp(arg, "-deepest") == 0) {
+			DEEPEST_ORDER = true;
 		}
 		else if (strcmp(arg, "-count_losses") == 0) {
 			COUNT_LOSSES = true;
@@ -436,17 +479,22 @@ int main(int argc, char *argv[]) {
 		CUT_ONE_B = true;
 		REVERSE_CUT_ONE_B = true;
 		CUT_TWO_B = true;
+//		CUT_TWO_B_ROOT = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
+		EDGE_PROTECTION_TWO_B = true;
+//		CHECK_MERGE_DEPTH = true;
 //		if (ALL_MAFS == false)
 //			ABORT_AT_FIRST_SOLUTION = true;
 //		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
-		//LEAF_REDUCTION2 = true;
+		LEAF_REDUCTION2 = true;
+		PREFER_NONBRANCHING = true;
 
 		APPROX_CUT_ONE_B = true;
 		APPROX_CUT_TWO_B = true;
+		APPROX_CUT_TWO_B_ROOT = true;
 		APPROX_REVERSE_CUT_ONE_B = true;
 		APPROX_EDGE_PROTECTION = true;
 	}
@@ -521,7 +569,18 @@ int main(int argc, char *argv[]) {
 			Forest F3 = Forest(T1);
 			Forest F4 = Forest(T2);
 
+			if (RF) {
+				int rf_d = rf_distance(T1, T2);
+				cout << "RF Distance=" << rf_d << endl;
+				T1->delete_tree();
+				T2->delete_tree();
+				continue;
+			}
 			if (CLUSTER_TEST) {
+//				T1->preorder_number();
+//				T1->edge_preorder_interval();
+//				T2->preorder_number();
+//				T2->edge_preorder_interval();
 				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true, &label_map, &reverse_label_map);
 				//int exact_k = rSPR_branch_and_bound_simple_clustering(&F3,&F4,true, &label_map, &reverse_label_map);
 
@@ -780,34 +839,61 @@ int main(int argc, char *argv[]) {
 			#pragma omp parallel for
 			for(int i = 0; i < end; i++) {
 				trees[i]->preorder_number();
-				Node *new_root =
-					find_best_root(T1, trees[i]);
+				Node *new_root;
+				if (SIMPLE_UNROOTED_RSPR)
+					new_root = find_best_root_rspr(T1, trees[i]);
+				else
+					new_root = find_best_root(T1, trees[i]);
 				if (new_root != NULL)
 					trees[i]->reroot(new_root);
 					trees[i]->set_depth(0);
 					trees[i]->fix_depths();
+					trees[i]->preorder_number();
 			}
 		}
-	T1->set_depth(0);
-	T1->fix_depths();
-	T1->preorder_number();
-
-		int distance;
-		if (APPROX) {
-			if (UNROOTED) {
-				distance = rSPR_total_approx_distance_unrooted(T1,trees);
-			}
-			else
-				distance = rSPR_total_approx_distance(T1,trees);
-			cout << "total approx distance= " << distance << endl;
+		vector<Node *> rootings;
+		if (ALL_UNROOTED) {
+			rootings = T1->find_descendants();
 		}
 		else {
-			if (UNROOTED)
-				distance = rSPR_total_distance_unrooted(T1,trees);
-			else
-				distance = rSPR_total_distance(T1,trees);
-			cout << "total distance= " << distance << endl;
+			rootings = vector<Node *>();
+			rootings.push_back(T1->lchild());
 		}
+		int best_distance;
+		for(int i = 0; i < rootings.size(); i++) {
+			if (rootings[i] != T1)
+				T1->reroot(rootings[i]);
+			T1->set_depth(0);
+			T1->fix_depths();
+			T1->preorder_number();
+
+			int distance;
+
+			if (RF) {
+				distance = rf_total_distance(T1, trees);
+				cout << "total RF distance=" << distance << endl;
+			}
+			else if (APPROX) {
+				if (UNROOTED) {
+					distance = rSPR_total_approx_distance_unrooted(T1,trees);
+				}
+				else
+					distance = rSPR_total_approx_distance(T1,trees);
+				cout << "total approx distance= " << distance << endl;
+			}
+			else {
+				if (UNROOTED)
+					distance = rSPR_total_distance_unrooted(T1,trees);
+				else
+					distance = rSPR_total_distance(T1,trees);
+				cout << "total distance= " << distance << endl;
+			}
+			if (ALL_UNROOTED && distance < best_distance)
+				best_distance = distance;
+
+		}
+		if (ALL_UNROOTED)
+			cout << "best distance=" << best_distance << endl;
 		T1->delete_tree();
 		for(vector<Node *>::iterator T2 = trees.begin(); T2 != trees.end(); T2++)
 			(*T2)->delete_tree();

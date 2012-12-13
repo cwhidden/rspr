@@ -261,8 +261,13 @@ class ContractSiblingPair : public Undoable {
 		int c1_depth;
 		int c2_depth;
 		bool binary_node;
+		bool node_protected;
 		ContractSiblingPair(Node *n) {
 			init(n);
+			if (n->is_protected())
+				node_protected = true;
+			else
+				node_protected = false;
 		}
 		ContractSiblingPair(Node *n, Node *child1, Node *child2,
 				UndoMachine *um) {
@@ -272,7 +277,12 @@ class ContractSiblingPair : public Undoable {
 				um->add_event(new CutParent(child1));
 				um->add_event(new CutParent(child2));
 				binary_node = false;
+				node = n;
 			}
+			if (n->is_protected())
+				node_protected = true;
+			else
+				node_protected = false;
 		}
 
 		void init(Node *n) {
@@ -296,6 +306,8 @@ class ContractSiblingPair : public Undoable {
 				if (c2_depth > -1)
 					node->rchild()->set_depth(c2_depth);
 			}
+			if (node_protected)
+				node->protect_edge();
 		}
 };
 
@@ -412,6 +424,39 @@ class ChangeName : public Undoable {
 		}
 };
 
+class ChangeEdgePreInterval : public Undoable {
+	public:
+		Node *node;
+		int start;
+		int end;
+
+		ChangeEdgePreInterval(Node *n) {
+			start = n->get_edge_pre_start();
+			end = n->get_edge_pre_end();
+			node = n;
+		}
+
+		void undo() {
+			node->set_edge_pre_start(start);
+			node->set_edge_pre_end(end);
+		}
+};
+
+class ChangePreNum : public Undoable {
+	public:
+		Node *node;
+		int prenum;
+
+		ChangePreNum(Node *n) {
+			prenum = n->get_preorder_number();
+			node = n;
+		}
+
+		void undo() {
+			node->set_preorder_number(prenum);
+		}
+};
+
 class ChangeRightChild : public Undoable {
 	public:
 		Node *node;
@@ -520,13 +565,19 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 		if (parent != NULL) {
 			if (lc && !rc) {
 				child = lc;
+				um->add_event(new ChangeEdgePreInterval(child));
 				um->add_event(new CutParent(child));
 				um->add_event(new CutParent(n));
+				if (n->is_protected() && !child->is_protected())
+					um->add_event(new ProtectEdge(child));
 			}
 			else if (rc && !lc) {
 				child = rc;
+				um->add_event(new ChangeEdgePreInterval(child));
 				um->add_event(new CutParent(child));
 				um->add_event(new CutParent(n));
+				if (n->is_protected() && !child->is_protected())
+					um->add_event(new ProtectEdge(child));
 			}
 			else if (lc == NULL && rc == NULL) {
 				um->insert_event(bookmark, new CutParent(n));
@@ -577,6 +628,7 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 						}
 						um->add_event(new ChangeName(n));
 					}
+					um->add_event(new ChangePreNum(n));
 					//um->add_event(new CutParent(n));
 					list<Node *>::iterator c;
 					for(c = child->get_children().begin();

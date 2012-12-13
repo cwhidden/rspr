@@ -35,6 +35,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <cstdio>
 #include <string>
 #include <iostream>
+#include <iomanip>
 #include <sstream>
 #include <map>
 #include <set>
@@ -54,6 +55,7 @@ struct StringCompare {
 
 // representation of a component with no leaves
 #define DEAD_COMPONENT "*"
+//#define DEBUG_PROTECTED "@"
 /*void find_sibling_pairs_hlpr(Node *node, list<Node *> &sibling_pairs);
 void find_leaves_hlpr(Node *node, vector<Node *> &leaves);
 void str_subtree_hlpr(string *s);
@@ -75,6 +77,8 @@ class Node {
 	string name;		// label
 	int depth;			//distance from root
 	int pre_num;	// preorder number
+	int edge_pre_start;
+	int edge_pre_end;
 
 	int component_number;
 	list <Node *> active_descendants;
@@ -89,9 +93,11 @@ class Node {
 	Node *contracted_rc;
 	bool is_contracted;
 	bool edge_protected;
+	int max_merge_depth;
 	bool allow_sibling;
 	int lost_children;
 	double support;
+	double support_normalization;
 
 	public:
 	Node() {
@@ -114,6 +120,8 @@ class Node {
 		this->twin = NULL;
 		this->depth = d;
 		this->pre_num = -1;
+		this->edge_pre_start = -1;
+		this->edge_pre_end = -1;
 		this->component_number = -2;
 		this->active_descendants = list <Node *>();
 		this->root_lcas = list <Node *>();
@@ -128,7 +136,9 @@ class Node {
 		this->edge_protected = false;
 		this->allow_sibling = true;
 		this->lost_children = 0;
+		this->max_merge_depth = -1;
 		this->support = -1;
+		this->support_normalization = -1;
 		if (lc != NULL)
 			add_child(lc);
 		if (rc != NULL)
@@ -142,6 +152,8 @@ class Node {
 		depth = n.depth;
 //		depth = 0;
 		pre_num = n.pre_num;
+		edge_pre_start = n.edge_pre_start;
+		edge_pre_end = n.edge_pre_end;
 		component_number = n.component_number;
 		this->active_descendants = list <Node *>();
 		this->removable_descendants = list< list<Node *>::iterator>();
@@ -174,7 +186,9 @@ class Node {
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
 		this->lost_children = n.lost_children;
+		this->max_merge_depth = n.max_merge_depth;
 		this->support = n.support;
+		this->support_normalization = n.support_normalization;
 	}
 
 	Node(const Node &n, Node *parent) {
@@ -186,6 +200,8 @@ class Node {
 		else
 		depth = n.depth;
 		pre_num = n.pre_num;
+		edge_pre_start = n.edge_pre_start;
+		edge_pre_end = n.edge_pre_end;
 		component_number = n.component_number;
 		this->active_descendants = list <Node *>();
 		this->removable_descendants = list< list<Node *>::iterator>();
@@ -218,7 +234,9 @@ class Node {
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
 		this->lost_children = n.lost_children;
+		this->max_merge_depth = n.max_merge_depth;
 		this->support = n.support;
+		this->support_normalization = n.support_normalization;
 	}
 	// TODO: clear_parent function
 	~Node() {
@@ -405,6 +423,25 @@ class Node {
 		return pre_num;
 	}
 
+	int set_edge_pre_start(int p) {
+		edge_pre_start= p;
+		return edge_pre_start;
+	}
+
+	int set_edge_pre_end(int p) {
+		edge_pre_end= p;
+		return edge_pre_end;
+	}
+
+	void copy_edge_pre_interval(Node *n) {
+		if (n->edge_pre_start > -1) {
+			edge_pre_start = n->edge_pre_start;
+		}
+		if (n->edge_pre_end > -1) {
+			edge_pre_end = n->edge_pre_end;
+		}
+	}
+
 	int set_component_number(int c) {
 		component_number = c;
 	}
@@ -429,6 +466,15 @@ class Node {
 		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
 			(*c)->unprotect_edge();
+		}
+	}
+
+	void protect_supported_edges() {
+		if (support > 0)
+			edge_protected = true;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->protect_supported_edges();
 		}
 	}
 
@@ -461,10 +507,17 @@ class Node {
 	}
 
 
-	// TODO: make this an int?
 	int num_lost_children() {
 		return lost_children;
 	}
+
+	int get_max_merge_depth() {
+		return max_merge_depth;
+	}
+	void set_max_merge_depth(int d) {
+		max_merge_depth = d;
+	}
+
 
 	int count_lost_children_subtree() {
 		int lost_children_count = lost_children;
@@ -505,6 +558,37 @@ class Node {
 	}
 	double set_support(double s) {
 		support = s;
+	}
+	double a_inc_support() {
+#pragma omp atomic
+		support += 1;
+	}
+	double a_dec_support() {
+#pragma omp atomic
+		support -= 1;
+	}
+	double get_support_normalization() {
+		return support_normalization;
+	}
+	double set_support_normalization(double s) {
+		support_normalization = s;
+	}
+	double a_inc_support_normalization() {
+#pragma omp atomic
+		support_normalization += 1;
+	}
+	double a_dec_support_normalization() {
+#pragma omp atomic
+		support_normalization -= 1;
+	}
+
+	void normalize_support() {
+		if (support_normalization != 0)
+			support /= support_normalization;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->normalize_support();
+		}
 	}
 
 	int get_component_number() {
@@ -608,6 +692,9 @@ class Node {
 						Node *sibling = *sib;
 						parent->insert_child(sibling, child);
 					}
+					child->copy_edge_pre_interval(this);
+					if (edge_protected && !child->is_protected())
+						child->protect_edge();
 					cut_parent();
 					if (remove)
 						delete this;
@@ -671,6 +758,7 @@ class Node {
 						new_child->cut_parent();
 						add_child(new_child);
 					}
+					pre_num = child->get_preorder_number();
 					if (remove)
 						delete child;
 					ret = this;
@@ -725,6 +813,7 @@ class Node {
 			lchild()->cut_parent();
 			contracted_lc->is_contracted = true;
 			contracted_rc->is_contracted = true;
+			edge_protected = false;
 			return true;
 		}
 		return false;
@@ -746,9 +835,11 @@ class Node {
 		}
 		else {
 			Node *new_child = new Node();
+			new_child->set_preorder_number(pre_num);
 			add_child(new_child);
 			new_child->add_child(child1);
 			new_child->add_child(child2);
+			edge_protected = false;
 			//new_child->contract_sibling_pair_undoable();
 			return new_child;
 		}
@@ -842,6 +933,12 @@ class Node {
 	int get_preorder_number() {
 		return pre_num;
 	}
+	int get_edge_pre_start() {
+		return edge_pre_start;
+	}
+	int get_edge_pre_end() {
+		return edge_pre_end;
+	}
 	string str() {
 		string s = "";
 		str_hlpr(&s);
@@ -903,15 +1000,23 @@ class Node {
 	a = ss.str();
 		*s+= a;
 #endif
+#ifdef DEBUG_PROTECTED
+		if (edge_protected)
+			*s += DEBUG_PROTECTED;
+#endif
 	}
 
-	string str_support_subtree() {
+	string str_support_subtree(bool allow_negative) {
 		string s = "";
-		str_support_subtree_hlpr(&s);
+		str_support_subtree_hlpr(&s, allow_negative);
 		return s;
 	}
 
-	void str_support_subtree_hlpr(string *s) {
+	string str_support_subtree() {
+		return str_support_subtree(false);
+	}
+
+	void str_support_subtree_hlpr(string *s, bool allow_negative) {
 		str_hlpr(s);
 		if (!is_leaf()) {
 			*s += "(";
@@ -919,16 +1024,58 @@ class Node {
 			for(c = children.begin(); c != children.end(); c++) {
 				if (c != children.begin())
 					*s += ",";
-				(*c)->str_support_subtree_hlpr(s);
+				(*c)->str_support_subtree_hlpr(s, allow_negative);
 				if ((*c)->parent() != this)
 					cout << "#";
 			}
 			*s += ")";
-			if (get_support() > -1) {
+			if (get_support() > -1 || allow_negative) {
 				stringstream ss;
-				ss << get_support();
+				ss << setprecision (2) << get_support();
 				*s+= ss.str();
+				if (get_support_normalization() > -1 || allow_negative) {
+					stringstream ss;
+					ss << "#";
+					ss << get_support_normalization();
+					*s+= ss.str();
+				}
 			}
+		}
+	}
+
+	string str_edge_pre_interval_subtree() {
+		string s = "";
+		str_edge_pre_interval_subtree_hlpr(&s);
+		return s;
+	}
+
+	void str_edge_pre_interval_subtree_hlpr(string *s) {
+		str_hlpr(s);
+		if (!is_leaf()) {
+			*s += "(";
+			list<Node *>::iterator c;
+			for(c = children.begin(); c != children.end(); c++) {
+				if (c != children.begin())
+					*s += ",";
+				(*c)->str_edge_pre_interval_subtree_hlpr(s);
+				if ((*c)->parent() != this)
+					cout << "#";
+			}
+			*s += ")";
+		}
+		if (get_preorder_number() > -1) {
+			stringstream ss;
+			ss << ":";
+			if (get_edge_pre_start() > -1) {
+				ss << get_edge_pre_start();
+				ss << ";";
+			}
+			ss << get_preorder_number();
+			if (get_edge_pre_end() > -1) {
+				ss << ";";
+				ss << get_edge_pre_end();
+			}
+			*s+= ss.str();
 		}
 	}
 
@@ -1161,6 +1308,36 @@ class Node {
 		return root;
 	}
 
+	bool same_component(Node *n, int &lca_depth, int &path_length) {
+		Node *a = this;
+		Node *b = n;
+		path_length = 0;
+		while(a != b) {
+			if ((b == NULL) || (a != NULL && a->get_depth() > b->get_depth()))
+				a = a->parent();
+			else
+				b = b->parent();
+			path_length++;
+		}
+		if (a == NULL) {
+			path_length = -1;
+			return false;
+		}
+		lca_depth = a->get_depth();
+		return true;
+	}
+
+	bool same_component(Node *n) {
+		int a,b;
+		return same_component(n, a, b);
+	}
+
+	bool same_component(Node *n, int &lca_depth) {
+		int a;
+		return same_component(n, lca_depth, a);
+	}
+
+
 	void labels_to_numbers(map<string, int> *label_map, map<int, string> *reverse_label_map) {
 		if (name != "") {
 			map<string, int>::iterator i = label_map->find(name);
@@ -1258,6 +1435,21 @@ class Node {
 		return next;
 	}
 
+	void edge_preorder_interval() {
+		edge_pre_start = pre_num;
+		if (is_leaf()) {
+			edge_pre_end = pre_num;
+		}
+		else {
+			list<Node *>::iterator c;
+			for(c = children.begin(); c != children.end(); c++) {
+				(*c)->edge_preorder_interval();
+				if (edge_pre_end == -1 || (*c)->edge_pre_end > edge_pre_end)
+					edge_pre_end = (*c)->edge_pre_end;
+			}
+		}
+	}
+
 	int size() {
 		int s  = 1;
 		list<Node *>::iterator c;
@@ -1283,6 +1475,17 @@ class Node {
 				d = c_d;
 		}
 		return d+1;
+	}
+
+	int max_degree() {
+		int d = children.size();
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			int c_d = (*c)->max_degree();
+			if (c_d > d)
+				d = c_d;
+		}
+		return d;
 	}
 
 	// TODO: binary only
@@ -1471,8 +1674,8 @@ void reroot(Node *new_lc) {
 	}
 	Node *prev = new_rc;
 	Node *next = new_rc->parent();
-	Node *old_lc = lchild();
-	Node *old_rc_rc = rchild();
+//	Node *old_lc = lchild();
+//	Node *old_rc_rc = rchild();
 	new_lc->cut_parent();
 	new_rc->cut_parent();
 	while(next != NULL) {
@@ -1482,7 +1685,9 @@ void reroot(Node *new_lc) {
 		prev = current;
 	}
 	Node *root = prev;
-	root->parent()->add_child(root->lchild());
+	while(root->get_children().size() > 0)
+		root->parent()->add_child(root->lchild());
+//	root->parent()->add_child(root->lchild());
 	root->cut_parent();
 	root->add_child(new_lc);
 	root->add_child(new_rc);
@@ -1490,11 +1695,13 @@ void reroot(Node *new_lc) {
 
 // make the root binay again
 void fixroot() {
-	Node *new_lc = new Node();
-	while(get_children().size() > 1) {
-		new_lc->add_child(get_children().back());
+	if (get_children().size() > 2) {
+		Node *new_lc = new Node();
+		while(get_children().size() > 1) {
+			new_lc->add_child(get_children().back());
+		}
+		add_child(new_lc);
 	}
-	add_child(new_lc);
 }
 
 
@@ -1712,6 +1919,26 @@ vector<int> *find_descendant_counts() {
 	return dc;
 }
 
+void find_leaf_counts_hlpr(vector<int> *lc) {
+	int num_leaves = 0;
+	list<Node *>::iterator c;
+	for(c = children.begin(); c != children.end(); c++) {
+		(*c)->find_leaf_counts_hlpr(lc);
+		num_leaves += (*lc)[(*c)->get_preorder_number()];
+	}
+	if (is_leaf())
+		num_leaves++;
+	if (lc->size() <= get_preorder_number())
+		lc->resize(get_preorder_number() + 1, -1);
+	(*lc)[get_preorder_number()] = num_leaves;
+}
+
+vector<int> *find_leaf_counts() {
+	vector<int> *lc = new vector<int>();
+	find_leaf_counts_hlpr(lc);
+	return lc;
+}
+
 Node *find_median() {
 	vector<int> *dc = find_descendant_counts();
 	return find_median_hlpr(dc, (*dc)[get_preorder_number()] / 2);
@@ -1771,6 +1998,24 @@ Node *find_by_prenum(int prenum) {
 		return search_child->find_by_prenum(prenum);
 	else
 		return NULL;
+}
+
+// expand all contracted nodes of a subtree starting at n
+void expand_contracted_nodes() {
+	if (is_leaf()) {
+		if (contracted_lc != NULL) {
+			add_child(contracted_lc);
+			contracted_lc = NULL;
+		}
+		if (contracted_rc != NULL) {
+			add_child(contracted_rc);
+			contracted_rc = NULL;
+		}
+	}
+	list<Node *>::iterator c;
+	for(c = get_children().begin(); c != get_children().end(); c++) {
+		(*c)->expand_contracted_nodes();
+	}
 }
 
 
@@ -1903,26 +2148,6 @@ void swap(Node **a, Node **b) {
 	Node *temp = *a;
 	*a = *b;
 	*b = temp;
-}
-
-// expand all contracted nodes of a subtree starting at n
-void expand_contracted_nodes(Node *n) {
-	list<Node *>::iterator c;
-	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
-		expand_contracted_nodes(*c);
-	}
-	if (n->is_leaf()) {
-		Node *subtree = build_tree(n->str(), n->get_depth());
-		c = subtree->get_children().begin();
-		while(c!= subtree->get_children().end()) {
-			Node *child = *c;
-			c++;
-			child->cut_parent();
-			n->add_child(*c);
-			n->set_name("");
-		}
-		delete subtree;
-	}
 }
 
 

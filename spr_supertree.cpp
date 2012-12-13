@@ -158,21 +158,33 @@ bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
 bool SIMPLE_UNROOTED = false;
+int SIMPLE_UNROOTED_NUM = INT_MAX;
 bool REROOT = false;
+bool REROOT_INITIAL = false;
+bool APPROX_ROOTING = false;
+bool EXACT_ROOTING = false;
+bool RANDOM_ROOTING = false;
+bool RANDOM_INSERT_ORDER = false;
 bool APPROX = false;
 bool TIMING = false;
 int NUM_ITERATIONS = 25;
 bool SMALL_TREES = false;
 bool CONVERT_LIST = false;
 bool VALID_TREES = false;
+bool VALID_TREES_ROOTED = false;
+bool FIND_MAX_DEGREE = false;
 bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
 int APPROX_SIBLINGS = 0;
 int C_SOURCE = -1;
 int NUM_SOURCE = -1;
+bool RF_TIES = false;
+double SUPPORT_THRESHOLD = 0.5;
+bool TABOO_SEARCH = false;
 
 /*variables Joel aadded*/
 int R_DISTANCE;
+bool R_VARIABLE = false;
 bool R_LIMIT = false;
 bool R_RAND = false;
 bool R_CONTROL = false;
@@ -293,15 +305,15 @@ Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
 Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
 		vector<Node *> *best_siblings, int label);
 void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		Node **best_sibling);
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, Node **best_sibling);
 vector<Node *> *find_best_siblings(Node *super_tree, vector<Node *> &gene_trees, int label, int num_siblings);
 void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		multimap<int, Node*> *best_siblings, int num_siblings);
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, multimap<int, Node*> *best_siblings, int num_siblings);
 void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		Node **best_sibling);
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, Node **best_sibling);
 void find_best_spr(Node *super_tree, vector<Node *> &gene_trees,
 		Node *&best_spr_move, Node *&best_sibling);
 void find_best_spr_helper(Node *n, Node *super_tree,
@@ -314,6 +326,8 @@ void get_support(Node *super_tree, vector<Node *> *gene_trees);
 void get_support(Node *n, Node *super_tree, vector<Node *> *gene_trees);
 void get_transfer_support(Node *super_tree, vector<Node *> *gene_trees);
 void get_transfer_support(Node *n, Node *super_tree, vector<Node *> *gene_trees);
+void get_bipartition_support(Node *super_tree, vector<Node *> *gene_trees,
+		enum RELAXATION relaxed);
 
 /*Prototypes of Joel's functions*/
 void find_best_spr_r(Node *super_tree, vector<Node *> &gene_trees, Node *&best_spr_move, Node *&best_sibling, int r);
@@ -323,14 +337,16 @@ void find_best_spr_r_helper(Node *n, Node *super_tree,
 		Node *&best_sibling, int &min_distance, int &num_ties, int r);
 void find_best_spr_r_helper(Node *n, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
-		Node *&best_sibling, int &min_distance, int &num_ties, int r,
+		Node *&best_sibling, int &min_distance, int &min_tie_distance,
+		int &num_ties, int r,
 		vector<int> *original_scores);
 void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
 		Node *&best_sibling, int &min_distance, int &num_ties, int r, int origin);
 void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
-		Node *&best_sibling, int &min_distance, int &num_ties, int r, int origin, int offset);
+		Node *&best_sibling, int &min_distance, int &min_tie_distance,
+		int &num_ties, int r, int origin, int offset);
 void find_best_spr(Node *super_tree, vector<Node *> &gene_trees, Node *&best_spr_move, Node *&best_sibling, vector <pair <int, pair<int, int> > > &stats);
 void find_best_spr_helper(Node *n, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
@@ -359,6 +375,7 @@ vector<pair<Node *, int> > get_best_scores(vector<pair<Node *, int> > &scores);
 void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
 		Node *&best_sibling, int &min_distance, int &num_ties, int r, int origin, vector<pair <pair<Node*,Node*>, int> > &approx_moves);
+bool is_taboo(list<Node> taboo_trees, Node *super_tree);
 
 	map<string, int> label_map;
 	map<int, string> reverse_label_map;
@@ -367,13 +384,22 @@ bool is_pow_2(int n) {
 	return (n) && !(n & (n - 1));
 }
 
+bool BIPARTITION_CLUSTER = false;
+
+list<Node> taboo_trees = list<Node>();
+
 int main(int argc, char *argv[]) {
 
 	// ignore multifurcating trees by default
 	IGNORE_MULTI = true;
 	string INCLUDE_ONLY = "";
+	bool OUTGROUP_ROOT = false;
+	string OUTGROUP = "";
 	string INITIAL_SUPER_TREE = "";
+	bool INITIAL_SUPER_TREE_UNROOTED = false;
 	bool FIND_SUPPORT = false;
+	bool FIND_BIPARTITION_SUPPORT = false;
+	enum RELAXATION RELAXED_BIPARTITION_SUPPORT = NEGATIVE_RELAXED;
 	bool FIND_CLADE_TRANSFERS = false;
 
 	int max_args = argc-1;
@@ -396,10 +422,51 @@ int main(int argc, char *argv[]) {
 			APPROX_CHECK_COMPONENT = true;
 		else if (strcmp(arg, "-unrooted") == 0)
 			UNROOTED = true;
-		else if (strcmp(arg, "-simple_unrooted") == 0)
+		else if (strcmp(arg, "-simple_unrooted") == 0) {
 			SIMPLE_UNROOTED = true;
-		else if (strcmp(arg, "-reroot") == 0)
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SIMPLE_UNROOTED_NUM = atoi(arg2);
+				cout << "SIMPLE_UNROOTED_NUM=" << SIMPLE_UNROOTED_NUM << endl;
+			}
+		}
+		else if (strcmp(arg, "-simple_unrooted_rspr") == 0) {
+			SIMPLE_UNROOTED = true;
+			EXACT_ROOTING = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SIMPLE_UNROOTED_NUM = atoi(arg2);
+				cout << "SIMPLE_UNROOTED_NUM=" << SIMPLE_UNROOTED_NUM << endl;
+			}
+		}
+		else if (strcmp(arg, "-simple_unrooted_random") == 0) {
+			SIMPLE_UNROOTED = true;
+			RANDOM_ROOTING = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SIMPLE_UNROOTED_NUM = atoi(arg2);
+				cout << "SIMPLE_UNROOTED_NUM=" << SIMPLE_UNROOTED_NUM << endl;
+			}
+		}
+		else if (strcmp(arg, "-random_insert_order") == 0) {
+			RANDOM_INSERT_ORDER = true;
+		}
+		else if (strcmp(arg, "-reroot") == 0) {
 			REROOT = true;
+			REROOT_INITIAL = true;
+		}
+		else if (strcmp(arg, "-reroot_initial") == 0) {
+			REROOT_INITIAL = true;
+		}
+		else if (strcmp(arg, "-rspr_root") == 0) {
+			EXACT_ROOTING = true;
+		}
+		else if (strcmp(arg, "-random_root") == 0) {
+			RANDOM_ROOTING = true;
+		}
 		else if (strcmp(arg, "-unrooted_min_approx") == 0) {
 			UNROOTED = true;
 			UNROOTED_MIN_APPROX = true;
@@ -482,6 +549,9 @@ int main(int argc, char *argv[]) {
 				}
 
 			}
+		}
+		else if (strcmp(arg, "-r_variable") == 0) {
+			R_VARIABLE = true;
 		}
 
 		else if (strcmp(arg, "-p") == 0) {
@@ -571,19 +641,26 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-clamp") == 0) {
 			CLAMP= true;
 		}
-/*
 		else if (strcmp(arg, "-small_trees") == 0) {
 			SMALL_TREES=true;
 		}
-*/
 		else if (strcmp(arg, "-convert_list") == 0) {
 			CONVERT_LIST=true;
 		}
 		else if (strcmp(arg, "-valid_trees") == 0) {
 			VALID_TREES=true;
 		}
+		else if (strcmp(arg, "-valid_trees_rooted") == 0) {
+			VALID_TREES_ROOTED=true;
+		}
+		else if (strcmp(arg, "-max_degree") == 0) {
+			FIND_MAX_DEGREE=true;
+		}
 		else if (strcmp(arg, "-multi_trees") == 0) {
 			MULTI_TREES=true;
+		}
+		else if (strcmp(arg, "-rf_ties") == 0) {
+			RF_TIES=true;
 		}
 		else if (strcmp(arg, "-allow_multi") == 0) {
 			IGNORE_MULTI = false;
@@ -648,6 +725,16 @@ int main(int argc, char *argv[]) {
 						<< endl;
 			}
 		}
+		else if (strcmp(arg, "-outgroup") == 0) {
+			OUTGROUP_ROOT = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					OUTGROUP = string(arg2);
+				cout << "OUTGROUP=" << OUTGROUP
+						<< endl;
+			}
+		}
 		else if (strcmp(arg, "-initial_tree") == 0) {
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
@@ -655,6 +742,17 @@ int main(int argc, char *argv[]) {
 					INITIAL_SUPER_TREE = string(arg2);
 				cout << "INITIAL_TREE=" << INITIAL_SUPER_TREE
 						<< endl;
+			}
+		}
+		else if (strcmp(arg, "-initial_tree_unrooted") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					INITIAL_SUPER_TREE = string(arg2);
+				cout << "INITIAL_TREE=" << INITIAL_SUPER_TREE
+						<< endl;
+				INITIAL_SUPER_TREE_UNROOTED=true;
+				REROOT_INITIAL=true;
 			}
 		}
 		else if (strcmp(arg, "-count_losses") == 0) {
@@ -666,8 +764,31 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-find_support") == 0) {
 			FIND_SUPPORT = true;
 		}
+		else if (strcmp(arg, "-find_bipartition_support") == 0) {
+			FIND_BIPARTITION_SUPPORT = true;
+		}
+		else if (strcmp(arg, "-relaxed_bipartition_support") == 0) {
+			RELAXED_BIPARTITION_SUPPORT = ALL_RELAXED;
+		}
+		else if (strcmp(arg, "-strict_bipartition_support") == 0) {
+			RELAXED_BIPARTITION_SUPPORT = STRICT;
+		}
+		else if (strcmp(arg, "-bipartition_cluster") == 0) {
+			BIPARTITION_CLUSTER = true;
+			cout << "BIPARTITION_CLUSTER=true" << endl;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SUPPORT_THRESHOLD = atof(arg2);
+			}
+			cout << "CLUSTER THRESHOLD=" << SUPPORT_THRESHOLD
+					<< endl;
+		}
 		else if (strcmp(arg, "-find_clade_transfers") == 0) {
 			FIND_CLADE_TRANSFERS = true;
+		}
+		else if (strcmp(arg, "-taboo_search") == 0) {
+			TABOO_SEARCH = true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -678,12 +799,17 @@ int main(int argc, char *argv[]) {
 	if (DEFAULT_OPTIMIZATIONS) {
 		CUT_ALL_B=true;
 		CUT_ONE_B = true;
+		CUT_TWO_B = true;
+//		CUT_TWO_B_ROOT = true;
 		REVERSE_CUT_ONE_B = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
-//		if (ALL_MAFS == false)
-//			ABORT_AT_FIRST_SOLUTION = true;
-//		PREORDER_SIBLING_PAIRS = true;
+		EDGE_PROTECTION_TWO_B = true;
+		PREFER_NONBRANCHING = true;
+
+//		CHECK_MERGE_DEPTH = true;
+//		ABORT_AT_FIRST_SOLUTION = true;
+		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
 //		LEAF_REDUCTION2 = true;
@@ -715,6 +841,7 @@ int main(int argc, char *argv[]) {
 //		= multimap<int, pair<Node*, string> >();
 	vector<string> gene_tree_names = vector<string>();
 	set<string, StringCompare> include_only;
+	set<string, StringCompare> outgroup;
 	if (INCLUDE_ONLY != "") {
 		include_only.insert("");
 		ifstream include_only_file;
@@ -736,10 +863,32 @@ int main(int argc, char *argv[]) {
 		else
 			INCLUDE_ONLY = "";
 	}
+	if (OUTGROUP != "") {
+		outgroup.insert("");
+		ifstream outgroup_file;
+		outgroup_file.open(OUTGROUP.c_str());
+		if (outgroup_file.is_open()) {
+			string line;
+			while(outgroup_file.good()) {
+				getline(outgroup_file, line);
+//				cout << "\"" << line << "\"" << endl;
+				outgroup.insert(line);
+			}
+//			cout << endl;
+			outgroup_file.close();
+			for(set<string, StringCompare>::iterator i = outgroup.begin();
+					i != outgroup.end(); i++) {
+//				cout << "\"" << *i << "\"" << endl;
+			}
+		}
+		else
+			OUTGROUP = "";
+	}
 	int skipped_multifurcating = 0;
 	int skipped_small = 0;
 	int skipped_no_bracket = 0;
 	int skipped_star = 0;
+	int skipped_no_outgroup = 0;
 	while (getline(cin, T_line)) {
 		string name = "";
 		size_t loc = T_line.find_first_of("(");
@@ -748,7 +897,9 @@ int main(int argc, char *argv[]) {
 				name = T_line.substr(0,loc);
 				T_line.erase(0,loc);
 			}
-			if (UNROOTED || SIMPLE_UNROOTED) {
+			// TODO: should we be doing this with OUTGROUP?
+			if ((UNROOTED || SIMPLE_UNROOTED || OUTGROUP_ROOT)
+					&& IGNORE_MULTI) {
 				T_line = root(T_line);
 			}
 			Node *T;
@@ -756,6 +907,9 @@ int main(int argc, char *argv[]) {
 				T = build_tree(T_line, &include_only);
 			else
 				T = build_tree(T_line);
+			if (UNROOTED || SIMPLE_UNROOTED || OUTGROUP_ROOT) {
+				T->fixroot();
+			}
 //			cout << T->str_subtree() << endl;
 			// TODO: check that this works
 			/*
@@ -797,16 +951,33 @@ int main(int argc, char *argv[]) {
 			}
 			if (!IGNORE_MULTI) {
 				int T_depth = T->max_depth();
-				if (T_depth <= 2 ||
-						((UNROOTED || SIMPLE_UNROOTED) && T_depth <= 3)) {
+				if (T_depth <= 1 ||
+						((UNROOTED || SIMPLE_UNROOTED) && T_depth <= 2)) {
 					skipped_star++;
 					continue;
 				//cout << T->str_subtree() << endl;
 				//cout << T_depth << endl;
 				}
 			}
-			if (UNROOTED || SIMPLE_UNROOTED)
+			if (UNROOTED || SIMPLE_UNROOTED || OUTGROUP_ROOT)
 				T->preorder_number();
+
+			if (OUTGROUP != "") {
+				// TODO: write a function that will root the tree based on the
+				// outgroup
+				// TODO: do we simply skip the tree if the outgroup is seperate?
+				set<string>::iterator i;
+				if (!outgroup_root(T, outgroup)) {
+					skipped_no_outgroup++;
+					continue;
+				}
+				else {
+					T->preorder_number();
+				}
+
+				
+			}
+
 			gene_tree_names.push_back(name);
 			gene_trees.push_back(T);
 			//gene_tree_map.insert(make_pair(T->size(), make_pair(T, name)));
@@ -828,6 +999,8 @@ int main(int argc, char *argv[]) {
 		if (!IGNORE_MULTI)
 		cout << "skipped " << skipped_star << " star trees" << endl;
 	}
+	if (OUTGROUP_ROOT)
+		cout << "skipped " << skipped_no_outgroup << " trees with no outgroup or an unresolved outgroup" << endl;
 
 /*	int end = gene_tree_map.size();
 	for(int i = 0; i < end; i++) {
@@ -850,6 +1023,10 @@ int main(int argc, char *argv[]) {
 			cout << gene_tree_names[i];
 			cout << gene_trees[i]->str_subtree() << endl;
 		}
+		if (FIND_MAX_DEGREE) {
+			cout << gene_tree_names[i];
+			cout << gene_trees[i]->max_degree() << endl;
+		}
 
 		gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
 //		cout << gene_tree_names[i] << gene_trees[i]->str_subtree() << endl;
@@ -863,7 +1040,10 @@ int main(int argc, char *argv[]) {
 	// iterate over the taxa by number of occurences
 	multimap<int, int> labels = multimap<int, int>();
 	for(int i = 0; i < label_counts.size(); i++) {
-		labels.insert(make_pair(label_counts[i],i));
+		int key = label_counts[i];
+		if (RANDOM_INSERT_ORDER)
+			key = rand();
+		labels.insert(make_pair(key,i));
 	}
 
 	if (CONVERT_LIST) {
@@ -877,6 +1057,8 @@ int main(int argc, char *argv[]) {
 	}
 
 	int best_distance;
+	int best_rooted_distance = INT_MAX;
+	int best_tie_distance = 0;
 	Node *super_tree;
 	multimap<int, int>::reverse_iterator label = labels.rbegin();
 	int leaf_num = 1;
@@ -893,7 +1075,12 @@ int main(int argc, char *argv[]) {
 			string line;
 			if(super_tree_file.good()) {
 				getline(super_tree_file, line);
-				super_tree = build_tree(line);
+				if (INITIAL_SUPER_TREE_UNROOTED)
+					line = root(line);
+				if (INCLUDE_ONLY != "")
+					super_tree = build_tree(line, &include_only);
+				else
+					super_tree = build_tree(line);
 				super_tree->preorder_number();
 				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 			}
@@ -1063,9 +1250,9 @@ int main(int argc, char *argv[]) {
 		}
 		cout << "gene_trees: " << gene_trees.size() << endl;
 		cout << "current_gene_trees: " << current_gene_trees.size() << endl;
-		bool APPROX_ROOTING = false;
 		if (SIMPLE_UNROOTED) {
-			if (REROOT && is_pow_2(leaf_num-5)) {
+//			if (REROOT && is_pow_2(leaf_num-5)) {
+			if (REROOT) {
 				cout << "rerooting super_tree" << endl;
 				// reroot the supertree based on the balanced accuracy of splits
 				vector<Node *> descendants =
@@ -1073,7 +1260,7 @@ int main(int argc, char *argv[]) {
 					//super_tree->find_descendants();
 				Node *best_root = super_tree->lchild();
 				double best_root_avg_acc = 0;
-				if (APPROX_ROOTING)
+				if (APPROX_ROOTING || EXACT_ROOTING || RANDOM_ROOTING)
 					best_root_avg_acc = -INT_MAX;
 				int num_ties = 2;
 				for(int j = 0; j < descendants.size(); j++) {
@@ -1086,6 +1273,12 @@ int main(int argc, char *argv[]) {
 					if (APPROX_ROOTING) {
 						root_avg_acc = -rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
 						//root_avg_acc = -rSPR_total_distance_unrooted(super_tree, current_gene_trees);
+					}
+					else if (EXACT_ROOTING) {
+						root_avg_acc = -rSPR_total_distance(super_tree, gene_trees);
+					}
+					else if (RANDOM_ROOTING) {
+						root_avg_acc = 0;
 					}
 					else {
 						int end = current_gene_trees.size();
@@ -1127,6 +1320,7 @@ int main(int argc, char *argv[]) {
 				super_tree->reroot(best_root);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
+				super_tree->preorder_number();
 			}
 
 			cout << "rerooting gene trees" << endl;
@@ -1136,12 +1330,18 @@ int main(int argc, char *argv[]) {
 			#pragma omp parallel for
 			for(int i = 0; i < end; i++) {
 				current_gene_trees[i]->preorder_number();
-				Node *new_root =
-					find_best_root(super_tree, current_gene_trees[i]);
+				Node *new_root;
+				if (EXACT_ROOTING)
+					new_root = find_best_root_rspr(super_tree, current_gene_trees[i]);
+				else if (RANDOM_ROOTING)
+					new_root = find_random_root(super_tree, current_gene_trees[i]);
+				else
+					new_root = find_best_root(super_tree, current_gene_trees[i]);
 				if (new_root != NULL) {
 					current_gene_trees[i]->reroot(new_root);
 					current_gene_trees[i]->set_depth(0);
 					current_gene_trees[i]->fix_depths();
+					current_gene_trees[i]->preorder_number();
 				}
 			}
 		}
@@ -1176,10 +1376,9 @@ int main(int argc, char *argv[]) {
 	super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 	Node *best_supertree = new Node(*super_tree);
 
-			bool APPROX_ROOTING = false;
 			if (UNROOTED_MIN_APPROX)
 				APPROX_ROOTING=true;
-			if (REROOT) {
+			if (REROOT_INITIAL) {
 				cout << "rerooting super_tree" << endl;
 				// reroot the supertree based on the balanced accuracy of splits
 				vector<Node *> descendants =
@@ -1187,7 +1386,7 @@ int main(int argc, char *argv[]) {
 					//super_tree->find_descendants();
 				Node *best_root = super_tree->lchild();
 				double best_root_avg_acc = 0;
-				if (APPROX_ROOTING)
+				if (APPROX_ROOTING || EXACT_ROOTING || RANDOM_ROOTING)
 					best_root_avg_acc = -INT_MAX;
 				int num_ties = 2;
 				int end = descendants.size();
@@ -1204,6 +1403,12 @@ int main(int argc, char *argv[]) {
 					if (APPROX_ROOTING) {
 						root_avg_acc = -rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
 						//root_avg_acc = -rSPR_total_distance_unrooted(super_tree, current_gene_trees);
+					}
+					else if (EXACT_ROOTING) {
+						root_avg_acc = -rSPR_total_distance(super_tree, gene_trees);
+					}
+					else if (RANDOM_ROOTING) {
+						root_avg_acc = 0;
 					}
 					else {
 						int end = gene_trees.size();
@@ -1246,6 +1451,7 @@ int main(int argc, char *argv[]) {
 				super_tree->reroot(best_root);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
+				super_tree->preorder_number();
 				super_tree->numbers_to_labels(&reverse_label_map);
 				cout << "Rerooted Supertree: " <<  super_tree->str_subtree() << endl;
 				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
@@ -1258,13 +1464,20 @@ int main(int argc, char *argv[]) {
 		#pragma omp parallel for
 		for(int i = 0; i < end; i++) {
 			gene_trees[i]->preorder_number();
-			Node *new_root =
-				find_best_root(super_tree, gene_trees[i]);
+			Node *new_root;
+			if (EXACT_ROOTING)
+				new_root = find_best_root_rspr(super_tree, gene_trees[i]);
+			else if (RANDOM_ROOTING)
+				new_root = find_random_root(super_tree, gene_trees[i]);
+			else
+				new_root = find_best_root(super_tree, gene_trees[i]);
 				//find_best_root(super_tree, gene_trees[i]);
-			if (new_root != NULL)
+			if (new_root != NULL) {
 				gene_trees[i]->reroot(new_root);
 				gene_trees[i]->set_depth(0);
 				gene_trees[i]->fix_depths();
+				gene_trees[i]->preorder_number();
+			}
 		}
 	}
 	super_tree->set_depth(0);
@@ -1277,11 +1490,17 @@ int main(int argc, char *argv[]) {
 		else
 			best_distance = rSPR_total_approx_distance(super_tree, gene_trees);
 	else
-		if (UNROOTED)
+		if (UNROOTED || RANDOM_ROOTING || SIMPLE_UNROOTED)
+		//if (UNROOTED || RANDOM_ROOTING)
 			best_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
 		else
 			best_distance = rSPR_total_distance(super_tree, gene_trees);
 	cout << "Total Distance: " << best_distance << endl;
+	if (RF_TIES) {
+		int current_rf_distance = rf_total_distance(super_tree, gene_trees);
+		cout << "Total RF Distance: " << current_rf_distance << endl;
+		best_tie_distance = current_rf_distance;
+	}
 		if (TIMING) {
 			current_time = time;
 			time = clock()/(double)CLOCKS_PER_SEC;
@@ -1295,13 +1514,38 @@ int main(int argc, char *argv[]) {
 			cout << super_tree->str_support_subtree() << endl;
 			return 0;
 		}
-		if (FIND_CLADE_TRANSFERS) {
+		else if (FIND_BIPARTITION_SUPPORT) {
+			cout << "finding bipartition support" << endl;
+			super_tree->preorder_number();
+			super_tree->edge_preorder_interval();
+			for(int i = 0; i < gene_trees.size(); i++) {
+				gene_trees[i]->preorder_number();
+				gene_trees[i]->edge_preorder_interval();
+			}
+			get_bipartition_support(super_tree, &gene_trees,
+					RELAXED_BIPARTITION_SUPPORT);
+			super_tree->normalize_support();
+			super_tree->numbers_to_labels(&reverse_label_map);
+			cout << super_tree->str_support_subtree(true) << endl;
+			return 0;
+		}
+		else if (FIND_CLADE_TRANSFERS) {
 			get_transfer_support(super_tree, &gene_trees);
 			super_tree->numbers_to_labels(&reverse_label_map);
 			cout << super_tree->str_support_subtree() << endl;
 			return 0;
 		}
 
+		if (VALID_TREES_ROOTED) {
+			cout << "Rerooted Gene Trees: " <<  endl;
+			for(int i = 0; i < gene_trees.size(); i++) {
+				cout << gene_tree_names[i];
+				gene_trees[i]->numbers_to_labels(&reverse_label_map);
+				cout << gene_trees[i]->str_subtree() << endl;
+				gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
+			}
+			return 0;
+		}
 
 
 /*Joel: added these vectors*/
@@ -1317,8 +1561,99 @@ int main(int argc, char *argv[]) {
 		NUM_ITERATIONS=labels.size(); 
 
 	for(int i = 0; i < NUM_ITERATIONS; i++) {
+/*		if (TABOO_SEARCH) {
+			cout << "TABOO " << taboo_trees.size() << endl;
+			list<Node>::iterator t;
+			for(t = taboo_trees.begin(); t != taboo_trees.end(); t++) {
+				cout << (*t).str_subtree() << endl;
+			}
+			cout << endl;
+		}
+*/
 
-		if (SIMPLE_UNROOTED) {
+			if (REROOT) {
+				cout << "rerooting super_tree" << endl;
+				// reroot the supertree based on the balanced accuracy of splits
+				vector<Node *> descendants =
+					super_tree->find_interior();
+					//super_tree->find_descendants();
+				Node *best_root = super_tree->lchild();
+				double best_root_avg_acc = 0;
+				if (APPROX_ROOTING || EXACT_ROOTING || RANDOM_ROOTING)
+					best_root_avg_acc = -INT_MAX;
+				int num_ties = 2;
+				int end = descendants.size();
+				for(int j = 0; j < end; j++) {
+					if (j > 0)
+						cout << '\r';
+					cout << j << "/" << end - 1 << flush;
+					double root_avg_acc = 0;
+					int count = 0;
+					super_tree->reroot(descendants[j]);
+					super_tree->set_depth(0);
+					super_tree->fix_depths();
+					super_tree->preorder_number();
+					if (APPROX_ROOTING) {
+						root_avg_acc = -rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+						//root_avg_acc = -rSPR_total_distance_unrooted(super_tree, current_gene_trees);
+					}
+					else if (EXACT_ROOTING) {
+						root_avg_acc = -rSPR_total_distance(super_tree, gene_trees);
+					}
+					else if (RANDOM_ROOTING) {
+						root_avg_acc = 0;
+					}
+					else {
+						int end = gene_trees.size();
+						#pragma omp parallel for schedule(static) reduction(+: root_avg_acc) reduction(+: count)
+						for(int i = 0; i < end; i++) {
+							gene_trees[i]->preorder_number();
+							double acc;
+							acc = 
+								find_best_root_acc(super_tree, gene_trees[i]);
+		//					cout <<  j << "\t" << i << "\t" << acc << endl;
+							if (acc > -1) {
+								root_avg_acc += acc;
+								//root_avg_acc += (acc - root_avg_acc) / count;
+								count++;
+							}
+						}
+						if (count > 0)
+							root_avg_acc /= count;
+						int lsize = super_tree->lchild()->size_using_prenum();
+						int rsize = super_tree->rchild()->size_using_prenum();
+						int size = (lsize < rsize) ? lsize : rsize;
+						root_avg_acc *= mylog2(size);
+					}
+					#pragma omp critical
+					{
+						if (root_avg_acc > best_root_avg_acc) {
+							best_root = descendants[j];
+							best_root_avg_acc = root_avg_acc;
+						}
+						else if (root_avg_acc == best_root_avg_acc) {
+							int r = rand();
+							if (r < RAND_MAX/ num_ties) {
+								best_root = descendants[j];
+								best_root_avg_acc = root_avg_acc;
+								num_ties = 2;
+							}
+						}
+					}
+				}
+				cout << "\r";
+				super_tree->reroot(best_root);
+				super_tree->set_depth(0);
+				super_tree->fix_depths();
+				super_tree->preorder_number();
+				super_tree->numbers_to_labels(&reverse_label_map);
+				cout << "Rerooted Supertree: " <<  super_tree->str_subtree() << endl;
+				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+				if (TABOO_SEARCH && !is_taboo(taboo_trees, super_tree))
+						taboo_trees.push_back(Node(*super_tree));
+			}
+		if (SIMPLE_UNROOTED && SIMPLE_UNROOTED_NUM > 0) {
+			SIMPLE_UNROOTED_NUM--;
 			cout << "rerooting gene trees" << endl;
 			// reroot the gene trees based on the balanced accuracy of splits
 			super_tree->preorder_number();
@@ -1326,14 +1661,34 @@ int main(int argc, char *argv[]) {
 			#pragma omp parallel for
 			for(int i = 0; i < end; i++) {
 				gene_trees[i]->preorder_number();
-				Node *new_root =
-					find_best_root(super_tree, gene_trees[i]);
-					//find_best_root(super_tree, gene_trees[i]);
-				if (new_root != NULL)
+				Node *new_root;
+				if (EXACT_ROOTING)
+					new_root = find_best_root_rspr(super_tree, gene_trees[i]);
+				else if (RANDOM_ROOTING)
+					new_root = find_random_root(super_tree, gene_trees[i]);
+				else
+					new_root = find_best_root(super_tree, gene_trees[i]);
+				if (new_root != NULL) {
 					gene_trees[i]->reroot(new_root);
 					gene_trees[i]->set_depth(0);
 					gene_trees[i]->fix_depths();
+					gene_trees[i]->preorder_number();
+				}
 			}
+		}
+		if (BIPARTITION_CLUSTER) {
+			cout << "finding bipartition support" << endl;
+			super_tree->preorder_number();
+			super_tree->edge_preorder_interval();
+			for(int i = 0; i < gene_trees.size(); i++) {
+				gene_trees[i]->preorder_number();
+				gene_trees[i]->edge_preorder_interval();
+			}
+			get_bipartition_support(super_tree, &gene_trees,
+					RELAXED_BIPARTITION_SUPPORT);
+			super_tree->normalize_support();
+//			super_tree->unprotect_subtree();
+//			super_tree->protect_supported_edges();
 		}
 		Node *best_subtree_root;
 		Node *best_sibling;
@@ -1377,17 +1732,26 @@ int main(int argc, char *argv[]) {
 		else if(R_LIMIT && !S_LIMIT){
 			int r = find_r();
 			vector<int> *original_scores = NULL;
-			if ((!UNROOTED || UNROOTED_MIN_APPROX) && !APPROX) {
+			if (!APPROX) {
 				original_scores = new vector<int>(gene_trees.size(), 0);
+				int distance;
 				if (UNROOTED_MIN_APPROX) {
-					rSPR_total_distance_unrooted(super_tree, gene_trees, INT_MAX, original_scores);
+					distance = rSPR_total_distance_unrooted(super_tree, gene_trees, INT_MAX, original_scores);
 				}
 				else {
-					rSPR_total_distance(super_tree, gene_trees, original_scores);
+					distance = rSPR_total_distance(super_tree, gene_trees, original_scores);
 				}
-				NUM_SOURCE = super_tree->size();
-				C_SOURCE = 1;
+				if (SIMPLE_UNROOTED) {
+					cout << "Rerooted Distance: " << distance << endl;
+						best_rooted_distance = distance;
+//					if (distance < best_rooted_distance) {
+						//best_supertree->delete_tree();
+						//best_supertree = new Node(*super_tree);
+//					}
+				}
 			}
+			NUM_SOURCE = super_tree->size();
+			C_SOURCE = 1;
 			find_best_spr_r(super_tree, gene_trees, best_subtree_root, best_sibling,r, original_scores);
 			if ((!UNROOTED || UNROOTED_MIN_APPROX) && !APPROX) {
 				delete original_scores;
@@ -1416,6 +1780,7 @@ int main(int argc, char *argv[]) {
 				Node *undo = approx_moves[i].first.first->spr(approx_moves[i].first.second, which_sibling);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
+				super_tree->preorder_number();
 	
 
 				if (APPROX)
@@ -1435,6 +1800,7 @@ int main(int argc, char *argv[]) {
 					approx_moves[i].first.first->spr(undo, which_sibling);
 					super_tree->set_depth(0);
 					super_tree->fix_depths();
+					super_tree->preorder_number();
 				}
 			}
 			super_tree->numbers_to_labels(&reverse_label_map);
@@ -1482,6 +1848,7 @@ int main(int argc, char *argv[]) {
 				Node *undo = approx_moves[i].first.first->spr(approx_moves[i].first.second, which_sibling);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
+				super_tree->preorder_number();
 	
 
 				if (APPROX)
@@ -1501,6 +1868,7 @@ int main(int argc, char *argv[]) {
 					approx_moves[i].first.first->spr(undo, which_sibling);
 					super_tree->set_depth(0);
 					super_tree->fix_depths();
+					super_tree->preorder_number();
 				}
 			}
 			super_tree->numbers_to_labels(&reverse_label_map);
@@ -1527,6 +1895,9 @@ int main(int argc, char *argv[]) {
 			best_subtree_root->spr(best_sibling);
 			super_tree->set_depth(0);
 			super_tree->fix_depths();
+			super_tree->preorder_number();
+			if (TABOO_SEARCH && !is_taboo(taboo_trees, super_tree))
+				taboo_trees.push_back(Node(*super_tree));
 			super_tree->numbers_to_labels(&reverse_label_map);
 			cout << "Current Supertree: " <<  super_tree->str_subtree() << endl;
 			super_tree->labels_to_numbers(&label_map, &reverse_label_map);
@@ -1538,17 +1909,46 @@ int main(int argc, char *argv[]) {
 				else
 					current_distance = rSPR_total_approx_distance(super_tree, gene_trees);
 			else
-				if (UNROOTED)
+				if (UNROOTED || RANDOM_ROOTING || SIMPLE_UNROOTED)
 					current_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
 				else
 					current_distance = rSPR_total_distance(super_tree, gene_trees);
+
+			int current_tie_distance = best_tie_distance;
+			if (RF_TIES)
+				current_tie_distance = rf_total_distance(super_tree, gene_trees);
 		
-			if (current_distance < best_distance) {
+			if (current_distance < best_distance ||
+					(RF_TIES && current_distance == best_distance
+					 && current_tie_distance < best_tie_distance)) {
 				best_supertree->delete_tree();
 				best_supertree = new Node(*super_tree);
 				best_distance = current_distance;
+				best_tie_distance = current_tie_distance;
+				if (R_VARIABLE && R_LIMIT && R_DISTANCE > 1) {
+					R_DISTANCE--;
+					cout << "R_DISTANCE=" << R_DISTANCE << endl;
+				}
+			}
+			else if (R_VARIABLE && R_LIMIT) {
+				if (SIMPLE_UNROOTED) {
+					int current_rooted_distance =
+						rSPR_total_distance(super_tree, gene_trees);
+					if (current_rooted_distance < best_rooted_distance) {
+						R_DISTANCE--;
+						cout << "R_DISTANCE=" << R_DISTANCE << endl;
+					}
+					else {
+						super_tree->delete_tree();
+						super_tree = new Node(*best_supertree);
+						R_DISTANCE++;
+						cout << "R_DISTANCE=" << R_DISTANCE << endl;
+					}
+				}
 			}
 			cout << "Total Distance: " << current_distance << endl;
+			if (RF_TIES)
+				cout << "Total RF Distance: " << current_tie_distance << endl;
 		}
 /*Approx Distance vs Total Distance stats*/
 		if(D_STATS){
@@ -1578,6 +1978,9 @@ int main(int argc, char *argv[]) {
 	super_tree->numbers_to_labels(&reverse_label_map);
 	cout << "Final Supertree: " <<  super_tree->str_subtree() << endl;
 	cout << "Final Distance: " << best_distance << endl;
+	if (RF_TIES) {
+		cout << "Final RF Distance: " << best_tie_distance << endl;
+	}
 
 
 	// cleanup
@@ -1595,27 +1998,29 @@ Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees, int label)
 	Node *best_sibling;
 	Node *new_leaf = new Node(itos(label));
 	int min_distance = INT_MAX;
+	int min_tie_distance = INT_MAX;
 	int num_ties = 0;
 	find_best_sibling_helper(super_tree, new_leaf, super_tree, gene_trees,
-			min_distance, num_ties, &best_sibling);
+			min_distance, min_tie_distance, num_ties, &best_sibling);
 	delete new_leaf;
 	return best_sibling;
 }
 
 void find_best_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties,
 		Node **best_sibling) {
 
 	if (n->lchild() != NULL) {
 		find_best_sibling_helper(n->lchild(), new_leaf, super_tree,
-				gene_trees, min_distance, num_ties, best_sibling);
+				gene_trees, min_distance, min_tie_distance, num_ties, best_sibling);
 	}
 	if (n->rchild() != NULL) {
 		find_best_sibling_helper(n->rchild(), new_leaf, super_tree,
-				gene_trees, min_distance, num_ties, best_sibling);
+				gene_trees, min_distance, min_tie_distance, num_ties, best_sibling);
 	}
 	test_sibling_helper(n, new_leaf, super_tree,
-			gene_trees, min_distance, num_ties, best_sibling);
+			gene_trees, min_distance, min_tie_distance, num_ties, best_sibling);
 }
 
 Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
@@ -1623,18 +2028,19 @@ Node *find_best_sibling(Node *super_tree, vector<Node *> &gene_trees,
 	Node *best_sibling;
 	Node *new_leaf = new Node(itos(label));
 	int min_distance = INT_MAX;
+	int min_tie_distance = INT_MAX;
 	int num_ties = 0;
 	for(int i = 0; i < best_siblings->size(); i++) {
 		test_sibling_helper((*best_siblings)[i], new_leaf, super_tree, gene_trees,
-				min_distance, num_ties, &best_sibling);
+				min_distance, min_tie_distance, num_ties, &best_sibling);
 	}
 	delete new_leaf;
 	return best_sibling;
 }
 
 void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		Node **best_sibling) {
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, Node **best_sibling) {
 
 	// TODO: modify this to keep a single intermediate node rather
 	//than recreating and destroying it
@@ -1651,6 +2057,7 @@ void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
+	super_tree->preorder_number();
 	int distance;
 	if (RANDOM_TREE)
 		distance = 0;
@@ -1671,16 +2078,34 @@ void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 	}
 	if (distance < min_distance) {
 		min_distance = distance;
+		if (RF_TIES)
+			min_tie_distance = rf_total_distance(super_tree, gene_trees);
 		*best_sibling = n;
 		num_ties = 2;
 	}
 	else if (distance == min_distance) {
-		int r = rand();
-		if (r < RAND_MAX/num_ties) {
-			min_distance = distance;
-			*best_sibling = n;
+		bool check_tie = true;
+		bool tie = false;
+		if (RF_TIES) {
+			int rf_distance = rf_total_distance(super_tree, gene_trees);
+			if (rf_distance < min_tie_distance) {
+				min_tie_distance = rf_distance;
+				*best_sibling = n;
+				num_ties = 2;
+				check_tie = false;
+			}
+			else if (rf_distance == min_tie_distance)
+				tie = true;
+			else
+				check_tie = false;
 		}
-		num_ties++;
+		if (check_tie) {
+			int r = rand();
+			if (r < RAND_MAX/num_ties) {
+				*best_sibling = n;
+			}
+			num_ties++;
+		}
 	}
 //	cout << "distance: " << distance;
 //	cout << endl;
@@ -1700,6 +2125,7 @@ void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 		}
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
+	super_tree->preorder_number();
 //	cout << "Reverted: " << super_tree->str_subtree() << endl;
 
 }
@@ -1707,10 +2133,11 @@ void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 vector<Node *> *find_best_siblings(Node *super_tree, vector<Node *> &gene_trees, int label, int num_siblings) {
 	Node *new_leaf = new Node(itos(label));
 	int min_distance = INT_MAX;
+	int min_tie_distance = INT_MAX;
 	int num_ties = 0;
 	multimap<int, Node*> best_siblings = multimap<int, Node*>();
 	find_best_siblings_helper(super_tree, new_leaf, super_tree, gene_trees,
-			min_distance, num_ties, &best_siblings, num_siblings);
+			min_distance, min_tie_distance, num_ties, &best_siblings, num_siblings);
 	vector<Node *> *bs = new vector<Node *>();
 	int end = best_siblings.size();
 	for(int i = 0; i < end; i++) {
@@ -1725,8 +2152,8 @@ vector<Node *> *find_best_siblings(Node *super_tree, vector<Node *> &gene_trees,
 }
 
 void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
-		vector<Node *> &gene_trees, int &min_distance, int &num_ties,
-		multimap<int, Node*> *best_siblings, int num_siblings) {
+		vector<Node *> &gene_trees, int &min_distance, int &min_tie_distance,
+		int &num_ties, multimap<int, Node*> *best_siblings, int num_siblings) {
 
 /*	vector<Node *> descendants = N->find_descendants();
 	descendants.push_back(N);
@@ -1736,11 +2163,13 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 		*/
 	if (n->lchild() != NULL) {
 		find_best_siblings_helper(n->lchild(), new_leaf, super_tree,
-				gene_trees, min_distance, num_ties, best_siblings, num_siblings);
+				gene_trees, min_distance, min_tie_distance, num_ties,
+				best_siblings, num_siblings);
 	}
 	if (n->rchild() != NULL) {
 		find_best_siblings_helper(n->rchild(), new_leaf, super_tree,
-				gene_trees, min_distance, num_ties, best_siblings, num_siblings);
+				gene_trees, min_distance, min_tie_distance, num_ties,
+				best_siblings, num_siblings);
 	}
 
 	// TODO: modify this to keep a single intermediate node rather
@@ -1758,6 +2187,7 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
+	super_tree->preorder_number();
 	int distance;
 	distance = rSPR_total_approx_distance(super_tree, gene_trees,
 			min_distance);
@@ -1799,6 +2229,7 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 		}
 	super_tree->set_depth(0);
 	super_tree->fix_depths();
+	super_tree->preorder_number();
 //	cout << "Reverted: " << super_tree->str_subtree() << endl;
 //	}
 
@@ -1891,6 +2322,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
@@ -1937,6 +2369,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 	}
 
 }
@@ -2001,6 +2434,32 @@ void get_transfer_support(Node *n, Node *super_tree, vector<Node *> *gene_trees)
 		n->set_support(distance);
 		temp_tree->delete_tree();
 	}
+}
+
+void get_bipartition_support(Node *super_tree, vector<Node *> *gene_trees,
+		enum RELAXATION relaxed) {
+	vector<Node *> descendants = super_tree->find_descendants();
+	descendants.push_back(super_tree);
+	for(int i = 0; i < descendants.size(); i++) {
+		descendants[i]->set_support(0);
+		descendants[i]->set_support_normalization(0);
+	}
+	int end = gene_trees->size();
+	#pragma omp parallel for
+	for(int i = 0; i < end; i++) {
+		modify_bipartition_support(super_tree, (*gene_trees)[i], relaxed);
+	}
+}
+
+bool is_taboo(list<Node> taboo_trees, Node *super_tree) {
+	list<Node>::iterator i;
+	Forest F1 = Forest(super_tree);
+	for(i = taboo_trees.begin(); i != taboo_trees.end(); i++) {
+		Forest F2 = Forest(&(*i));
+		if (rSPR_branch_and_bound(&F1, &F2, 0) >= 0)
+			return true;
+	}
+	return false;
 }
 
 /*Joel: Limiting starting point*/
@@ -2138,6 +2597,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
@@ -2182,6 +2642,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		n->spr(undo, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 //		cout << "Reverted Super Tree: "
 //	<< super_tree->str_subtree() << endl;
 	}
@@ -2307,6 +2768,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
@@ -2339,6 +2801,7 @@ void find_best_spr_helper(Node *n, Node *new_sibling, Node *super_tree,
 		n->spr(undo, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 //		cout << "Reverted Super Tree: "
 //	<< super_tree->str_subtree() << endl;
 	}
@@ -2358,32 +2821,35 @@ void find_best_spr_r(Node *super_tree, vector<Node *> &gene_trees, Node *&best_s
 }
 void find_best_spr_r(Node *super_tree, vector<Node *> &gene_trees, Node *&best_spr_move, Node *&best_sibling, int r, vector<int> *original_scores) {
 	int min_distance = INT_MAX;
+	int min_tie_distance = INT_MAX;
 	int num_ties = 0;
 	find_best_spr_r_helper(super_tree, super_tree, gene_trees,
-			best_spr_move, best_sibling, min_distance, num_ties, r,
-			original_scores);
+			best_spr_move, best_sibling, min_distance, min_tie_distance,
+			num_ties, r, original_scores);
 }
 
 void find_best_spr_r_helper(Node *n, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
 		Node *&best_sibling, int &min_distance, int &num_ties, int r) {
+	int min_tie_distance = INT_MAX;
 	find_best_spr_r_helper(n, super_tree, gene_trees, best_spr_move,
-			best_sibling, min_distance, num_ties, r, NULL);
+			best_sibling, min_distance, min_tie_distance, num_ties, r, NULL);
 }
+
 void find_best_spr_r_helper(Node *n, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
-		Node *&best_sibling, int &min_distance, int &num_ties, int r,
-		vector<int> *original_scores) {
+		Node *&best_sibling, int &min_distance, int &min_tie_distance,
+		int &num_ties, int r, vector<int> *original_scores) {
 
 	if (n->lchild() != NULL) {
 		find_best_spr_r_helper(n->lchild(), super_tree,
-				gene_trees, best_spr_move, best_sibling, min_distance, num_ties, r,
-				original_scores);
+				gene_trees, best_spr_move, best_sibling, min_distance,
+				min_tie_distance, num_ties, r, original_scores);
 	}
 	if (n->rchild() != NULL) {
 		find_best_spr_r_helper(n->rchild(), super_tree,
-				gene_trees, best_spr_move, best_sibling, min_distance, num_ties, r,
-				original_scores);
+				gene_trees, best_spr_move, best_sibling, min_distance,
+				min_tie_distance, num_ties, r, original_scores);
 	}
 	vector<Node *> current_gene_trees;
 	vector<Node *> *gene_trees_p = &gene_trees;
@@ -2393,6 +2859,8 @@ void find_best_spr_r_helper(Node *n, Node *super_tree,
 	cout << C_SOURCE << "/" << NUM_SOURCE << flush;
 	C_SOURCE++;
 	
+	// TODO: check here if there will be any moves
+	// if not, then we do not need to look at the gene trees
 	if (original_scores != NULL) {
 //		cout << "selecting gene_trees" << endl;
 		vector<Node *> leaves = n->find_leaves();
@@ -2415,49 +2883,79 @@ void find_best_spr_r_helper(Node *n, Node *super_tree,
 //		cout << "gene_trees: " << gene_trees.size() << endl;
 //		cout << "c_gene_trees: " << current_gene_trees.size() << endl;
 	}
+// TODO FROM HERE
+// TODO: I think this works for the sibling subtree but goes one
+//	to far in the grandparent
+
+////	cout << endl;
 	if(n->parent() != NULL) {
 		if(!R_CONTROL  && R_RAND)
 			r = find_r(R_PROB);
 		if(n->parent()->lchild() == n)
-			find_best_spr_r_helper(n, n->parent(), super_tree, *gene_trees_p, best_spr_move, best_sibling, min_distance, num_ties, r+1, 1, offset);
+			find_best_spr_r_helper(n, n->parent(), super_tree, *gene_trees_p,
+					best_spr_move, best_sibling, min_distance, min_tie_distance,
+					num_ties, r+1, 1, offset);
 		else if(n->parent()->rchild() == n)
-			find_best_spr_r_helper(n, n->parent(), super_tree, *gene_trees_p, best_spr_move, best_sibling, min_distance, num_ties, r+1, 2, offset);
+			find_best_spr_r_helper(n, n->parent(), super_tree, *gene_trees_p,
+					best_spr_move, best_sibling, min_distance, min_tie_distance,
+					num_ties, r+1, 2, offset);
 	}
 
 }
+// TODO FROM HERE
 void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
-		Node *&best_sibling, int &min_distance, int &num_ties, int r, int origin) {
+		Node *&best_sibling, int &min_distance, int &num_ties, int r,
+		int origin) {
+	int min_tie_distance = INT_MAX;
 	find_best_spr_r_helper(n, new_sibling, super_tree, gene_trees,
-			best_spr_move, best_sibling, min_distance, num_ties,
-			r, origin, 0);
+			best_spr_move, best_sibling, min_distance, min_tie_distance,
+			num_ties, r, origin, 0);
 }
 
+/*
+ origin 1: left child to parent
+ origin 2: right child to parent
+ origin 3: parent to either child
+*/
 void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		vector<Node *> &gene_trees, Node *&best_spr_move,
-		Node *&best_sibling, int &min_distance, int &num_ties, int r, int origin, int offset) {
+		Node *&best_sibling, int &min_distance, int &min_tie_distance,
+		int &num_ties, int r, int origin, int offset) {
 	// do not consider invalid spr moves to n's subtree
 	if (new_sibling == n)
 		return;
 
 
 	// recurse
+//		n->numbers_to_labels(&reverse_label_map);
+//		new_sibling->numbers_to_labels(&reverse_label_map);
+//	cout << n->str_subtree() << "  " << new_sibling->str_subtree() << " origin " << origin << endl;
+//		n->labels_to_numbers(&label_map, &reverse_label_map);	
+//		new_sibling->labels_to_numbers(&label_map, &reverse_label_map);	
 	if(origin == 1 && r > 0 ){
 		//cout << "n1: " << n->str_subtree() << "\t\tnew_sibling: " << new_sibling->str_subtree() << endl;
-		if(new_sibling->parent() != NULL){
+		if(new_sibling->parent() != NULL
+				&& (!BIPARTITION_CLUSTER || new_sibling->get_support() < SUPPORT_THRESHOLD
+					|| new_sibling->parent()->parent() == NULL)) {//!new_sibling->is_protected())){
 			if(new_sibling->parent()->lchild() == new_sibling){
-				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 1, offset);	
+				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, min_tie_distance,
+						num_ties, --r, 1, offset);	
 				//cout << "Origin1, Target: " << new_sibling->parent()->str_subtree() << endl;
 			}
 			else{
-				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 2, offset);	
+				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, min_tie_distance,
+						num_ties, --r, 2, offset);	
 				//cout << "Origin1, Target: " << new_sibling->parent()->str_subtree() << endl;
 			}
 		}
-		if(new_sibling->rchild() != NULL){
+		if(new_sibling->rchild() != NULL) {
+//				&& (!BIPARTITION_CLUSTER
+//						|| new_sibling->rchild()->is_protected())){
 			//cout << "Going to Origin 3\n";
 			//cout << "n to 3: " << n->str_subtree() << "\tsibling to 3: " << new_sibling->rchild()->str_subtree() << endl;
-			find_best_spr_r_helper(n, new_sibling->rchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 3, offset);
+			find_best_spr_r_helper(n, new_sibling->rchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, min_tie_distance,
+					num_ties, --r, 3, offset);
 			//cout << "Origin1, Target: " << new_sibling->rchild()->str_subtree() << endl;
 		}
 
@@ -2465,21 +2963,28 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 
 	if(origin == 2 && r > 0){
 		//cout << "n2: " << n->str_subtree() << "\t\tnew_sibling: " << new_sibling->str_subtree() << endl;
-		if(new_sibling->parent() != NULL){
+		if(new_sibling->parent() != NULL
+				&& (!BIPARTITION_CLUSTER || new_sibling->get_support() < SUPPORT_THRESHOLD
+					|| new_sibling->parent()->parent() == NULL)) {//!new_sibling->is_protected())){
 			if(new_sibling->parent()->lchild() == new_sibling){
-				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 1, offset);
+				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, min_tie_distance,
+						num_ties, --r, 1, offset);
 				//cout << "Origin2, Target: " << new_sibling->parent()->str_subtree() << endl;	
 			}			
 			else{
-				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 2, offset);	
+				find_best_spr_r_helper(n, new_sibling->parent(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, min_tie_distance,
+						num_ties, --r, 2, offset);	
 				//cout << "Origin2, Target: " << new_sibling->parent()->str_subtree() << endl;	
 			}
 		}		
-			if(new_sibling->lchild() != NULL){
+			if(new_sibling->lchild() != NULL) {
+//				&& (!BIPARTITION_CLUSTER
+//						|| new_sibling->lchild()->is_protected())){
 			//cout << "Going to Origin 3\n";
 			//cout << "n to 3: " << n->str_subtree() << "\tsibling to 3: " << new_sibling->lchild()->str_subtree() << endl;
 			//cout << "Origin2, Target: " << new_sibling->lchild()->str_subtree() << endl;
-			find_best_spr_r_helper(n, new_sibling->lchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 3, offset);
+			find_best_spr_r_helper(n, new_sibling->lchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, min_tie_distance,
+					num_ties, --r, 3, offset);
 		}
 
 	}
@@ -2487,15 +2992,24 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 	
 	if(origin == 3 && r > 0){
 		//cout << "n3: " << n->str_subtree() << "\t\tnew_sibling: " << new_sibling->str_subtree() << endl;
-		if(new_sibling->lchild() != NULL){
-			find_best_spr_r_helper(n, new_sibling->lchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 3, offset);
+		if(new_sibling->lchild() != NULL
+				&& (!BIPARTITION_CLUSTER
+//						|| !new_sibling->is_protected())){
+				|| new_sibling->get_support() < SUPPORT_THRESHOLD)) {//!new_sibling->is_protected())){
+			find_best_spr_r_helper(n, new_sibling->lchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, min_tie_distance,
+					num_ties, --r, 3, offset);
 			//cout << "Origin3, Target: " << new_sibling->lchild()->str_subtree() << endl;
 		}
-		if(new_sibling->rchild() != NULL){
-			find_best_spr_r_helper(n, new_sibling->rchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, num_ties, --r, 3, offset);
+		if(new_sibling->rchild() != NULL
+				&& (!BIPARTITION_CLUSTER
+//						|| !new_sibling->is_protected())){
+				|| new_sibling->get_support() < SUPPORT_THRESHOLD)) {//!new_sibling->is_protected())){
+			find_best_spr_r_helper(n, new_sibling->rchild(), super_tree, gene_trees, best_spr_move, best_sibling, min_distance, min_tie_distance,
+					num_ties, --r, 3, offset);
 			//cout << "Origin3, Target: " << new_sibling->rchild()->str_subtree() << endl;
 		}
 	}
+//	cout << n->str_subtree() << "  " << new_sibling->str_subtree() << " origin " << origin << endl;
 //	cout << "n: " << n->str_subtree() << endl;
 //	cout << "s: " << new_sibling->str_subtree() << endl;
 
@@ -2511,6 +3025,7 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 //		cout << "rule 2" << endl;
 		return;
 	}
+	
 	if (new_sibling == n->get_sibling()) {
 //		cout << "rule 3" << endl;
 		return;
@@ -2520,19 +3035,27 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 	if (n != super_tree && new_sibling != n) {
 		Node *old_sibling = n->get_sibling();
 		//if (new_sibling != old_sibling)
-/*
+
+/*		cout << endl;
 		cout << "SPR Move:" << endl;
-		super_tree->numbers_to_labels(&reverse_label_map);
+//		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Previous Super Tree: "
 		<< super_tree->str_subtree() << endl;
 		cout << "Subtree: " << n->str_subtree() << endl;
 		cout << "New Sibling: " << new_sibling->str_subtree() << endl;
-		super_tree->labels_to_numbers(&label_map, &reverse_label_map);	
+//		super_tree->labels_to_numbers(&label_map, &reverse_label_map);	
 */
+
+//		cout << endl;
+//		cout << "Previous Super Tree: "
+//		<< super_tree->str_support_subtree(true) << endl;
 		int which_sibling = 0;
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
+//		cout << "Proposed Super Tree: "
+//		<< super_tree->str_support_subtree(true) << endl;
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
@@ -2551,28 +3074,61 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 			else
 				distance = rSPR_total_distance(super_tree, gene_trees);
 		}
-/*		cout << "\t" << distance << endl;
-*/
+//		cout << "\t" << distance << endl;
+
+//		cout << "After SPR Distance Super Tree: "
+//		<< super_tree->str_support_subtree(true) << endl;
 		distance += offset;
 		if (distance < min_distance) {
-			min_distance = distance;
-			best_spr_move = n;
-			best_sibling = new_sibling;
-			num_ties = 2;
-		}
-		else if (distance == min_distance) {
-			int r = rand();
-			if (r < RAND_MAX/num_ties) {
+			if (!TABOO_SEARCH || !is_taboo(taboo_trees, super_tree)) {
 				min_distance = distance;
+				if (RF_TIES)
+					min_tie_distance = rf_total_distance(super_tree, gene_trees);
 				best_spr_move = n;
 				best_sibling = new_sibling;
+				num_ties = 2;
 			}
-			num_ties++;
+		}
+		else if (distance == min_distance) {
+			bool check_tie = true;
+			bool tie = false;
+			if (RF_TIES) {
+				int rf_distance = rf_total_distance(super_tree, gene_trees);
+				if (rf_distance < min_tie_distance) {
+					if (!TABOO_SEARCH || !is_taboo(taboo_trees, super_tree)) {
+						min_tie_distance = rf_distance;
+						best_spr_move = n;
+						best_sibling = new_sibling;
+						num_ties = 2;
+					}
+					check_tie = false;
+				}
+				else if (rf_distance == min_tie_distance)
+					tie = true;
+				else
+					check_tie = false;
+			}
+			if (check_tie) {
+				int r = rand();
+				if (r < RAND_MAX/num_ties) {
+					if (!TABOO_SEARCH || !is_taboo(taboo_trees, super_tree)) {
+						min_distance = distance;
+						best_spr_move = n;
+						best_sibling = new_sibling;
+					}
+				}
+				num_ties++;
+			}
 		}
 		// restore the previous tree
 		n->spr(undo, which_sibling);
+
+//		cout << "Reverted Super Tree: "
+//		<< super_tree->str_support_subtree(true) << endl;
+
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 //		cout << "Reverted Super Tree: "
 //		<< super_tree->str_subtree() << endl;
 
@@ -2672,6 +3228,7 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		Node *undo = n->spr(new_sibling, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 /*
 		super_tree->numbers_to_labels(&reverse_label_map);
 		cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
@@ -2685,6 +3242,7 @@ void find_best_spr_r_helper(Node *n, Node *new_sibling, Node *super_tree,
 		n->spr(undo, which_sibling);
 		super_tree->set_depth(0);
 		super_tree->fix_depths();
+		super_tree->preorder_number();
 //		cout << "Reverted Super Tree: "
 //		<< super_tree->str_subtree() << endl;
 

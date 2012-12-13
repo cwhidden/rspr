@@ -60,12 +60,16 @@ class LCA {
 	vector<int> E;		// preorder numbers of euler tour
 	vector<int> L;		// levels of euler tour
 	vector<int> H;		// first occurence of a preorder number in E
+	vector<int> T;    // real preorder to internal preorder mapping
 	vector<Node *> N;	// preorder to node mapping
 	vector<vector<int> > RMQ;	// precomputed RMQ values
 
 	public:
 	LCA(Node *tree) {
 		this->tree = tree;
+		T = vector<int>();
+		if (tree->get_preorder_number() == -1)
+			tree->preorder_number();
 		euler_tour(tree, 0);
 		precompute_rmq();
 	}
@@ -78,7 +82,9 @@ class LCA {
 		int preorder_number = N.size();
 		int euler_number = E.size();
 		N.push_back(node);
-		node->set_preorder_number(preorder_number);
+		if (T.size() <= node->get_preorder_number())
+			T.resize(node->get_preorder_number()+1,-1);
+		T[node->get_preorder_number()] = preorder_number;
 
 		//cout << preorder_number << "\t";
 		//node->print_subtree();
@@ -134,8 +140,8 @@ class LCA {
 		return rmq2;
 	}
 	Node *get_lca(Node *a, Node *b) {
-		int preorder_a = a->get_preorder_number();
-		int preorder_b = b->get_preorder_number();
+		int preorder_a = T[a->get_preorder_number()];
+		int preorder_b = T[b->get_preorder_number()];
 		int lca_index;
 		if (preorder_a <= preorder_b)
 			lca_index = rmq(H[preorder_a], H[preorder_b]);
