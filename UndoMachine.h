@@ -416,7 +416,8 @@ class ChangeName : public Undoable {
 
 		ChangeName(Node *n) {
 			node = n;
-			name = n->str();
+			name = n->get_name();//str();
+//			name = n->str();
 		}
 
 		void undo() {
@@ -523,6 +524,32 @@ class AddChild : public Undoable {
 				child->cut_parent();
 				child->set_depth(depth);
 			}
+		}
+};
+
+class AddContractedLC : public Undoable {
+	public:
+		Node *node;
+
+		AddContractedLC(Node *n) {
+			node = n;
+		}
+
+		void undo() {
+			node->set_contracted_lc(NULL);
+		}
+};
+
+class AddContractedRC : public Undoable {
+	public:
+		Node *node;
+
+		AddContractedRC(Node *n) {
+			node = n;
+		}
+
+		void undo() {
+			node->set_contracted_rc(NULL);
 		}
 };
 
@@ -636,6 +663,10 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 							c++) {
 						um->add_event(new CutParent(*c));
 					}
+					if (child->get_contracted_lc() != NULL)
+						um->add_event(new AddContractedLC(n));
+					if (child->get_contracted_rc() != NULL)
+						um->add_event(new AddContractedRC(n));
 				}
 			}
 		}

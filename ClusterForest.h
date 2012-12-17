@@ -87,6 +87,15 @@ class ClusterForest: public Forest {
 		f->cluster_nodes = cluster_nodes_temp;
 	}
 
+	void swap(Forest *f) {
+		vector<Node *> components_temp = this->components;
+		this->components = f->components;
+		f->components = components_temp;
+
+		if (contains_rho())
+			f->rho = true;
+	}
+
 	inline Node *get_cluster_node(int i) {
 		return cluster_nodes[i];
 	}

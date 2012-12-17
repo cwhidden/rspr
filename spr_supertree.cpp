@@ -145,6 +145,7 @@ OTHER OPTIONS
 #include "LCA.h"
 #include "ClusterInstance.h"
 #include "UndoMachine.h"
+#include "lgt.h"
 
 using namespace std;
 
@@ -172,6 +173,7 @@ bool SMALL_TREES = false;
 bool CONVERT_LIST = false;
 bool VALID_TREES = false;
 bool VALID_TREES_ROOTED = false;
+bool LGT_ANALYSIS = false;
 bool FIND_MAX_DEGREE = false;
 bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
@@ -396,6 +398,7 @@ int main(int argc, char *argv[]) {
 	bool OUTGROUP_ROOT = false;
 	string OUTGROUP = "";
 	string INITIAL_SUPER_TREE = "";
+	string LGT_GROUPS = "";
 	bool INITIAL_SUPER_TREE_UNROOTED = false;
 	bool FIND_SUPPORT = false;
 	bool FIND_BIPARTITION_SUPPORT = false;
@@ -623,7 +626,7 @@ int main(int argc, char *argv[]) {
 				char *arg2 = argv[argc+1];
 				if (arg2[0] != '-') {
 					CLUSTER_MAX_SPR = atoi(arg2);
-				cout << "CLUSTER_MAX_SPR=" << MAX_SPR << endl;
+				cout << "CLUSTER_MAX_SPR=" << CLUSTER_MAX_SPR << endl;
 				}
 			}
 		}
@@ -652,6 +655,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-valid_trees_rooted") == 0) {
 			VALID_TREES_ROOTED=true;
+		}
+		else if (strcmp(arg, "-lgt_analysis") == 0) {
+			LGT_ANALYSIS=true;
 		}
 		else if (strcmp(arg, "-max_degree") == 0) {
 			FIND_MAX_DEGREE=true;
@@ -741,6 +747,15 @@ int main(int argc, char *argv[]) {
 				if (arg2[0] != '-')
 					INITIAL_SUPER_TREE = string(arg2);
 				cout << "INITIAL_TREE=" << INITIAL_SUPER_TREE
+						<< endl;
+			}
+		}
+		else if (strcmp(arg, "-lgt_groups") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					LGT_GROUPS = string(arg2);
+				cout << "LGT_GROUPS=" << LGT_GROUPS 
 						<< endl;
 			}
 		}
@@ -1507,12 +1522,13 @@ int main(int argc, char *argv[]) {
 			current_time = time - current_time;
 			cout << "\t" << current_time << "\t" << time << endl;
 		}
+		bool cleanup = false;
 	//super_tree->numbers_to_labels(&reverse_label_map);
 		if (FIND_SUPPORT) {
 			get_support(super_tree, &gene_trees);
 			super_tree->numbers_to_labels(&reverse_label_map);
 			cout << super_tree->str_support_subtree() << endl;
-			return 0;
+			cleanup = true;
 		}
 		else if (FIND_BIPARTITION_SUPPORT) {
 			cout << "finding bipartition support" << endl;
@@ -1527,13 +1543,13 @@ int main(int argc, char *argv[]) {
 			super_tree->normalize_support();
 			super_tree->numbers_to_labels(&reverse_label_map);
 			cout << super_tree->str_support_subtree(true) << endl;
-			return 0;
+			cleanup = true;
 		}
 		else if (FIND_CLADE_TRANSFERS) {
 			get_transfer_support(super_tree, &gene_trees);
 			super_tree->numbers_to_labels(&reverse_label_map);
 			cout << super_tree->str_support_subtree() << endl;
-			return 0;
+			cleanup = true;
 		}
 
 		if (VALID_TREES_ROOTED) {
@@ -1544,6 +1560,135 @@ int main(int argc, char *argv[]) {
 				cout << gene_trees[i]->str_subtree() << endl;
 				gene_trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
 			}
+			cleanup = true;
+		}
+
+		if (LGT_ANALYSIS) {
+			cout << "LGT Analysis" << endl;
+			super_tree->preorder_number();
+			super_tree->edge_preorder_interval();
+			int num_nodes = super_tree->size();
+			vector<vector<int> > transfer_counts =
+				vector<vector<int> >(num_nodes, vector<int>(num_nodes, 0));
+			for(int i = 0; i < gene_trees.size(); i++) {
+				gene_trees[i]->preorder_number();
+				gene_trees[i]->edge_preorder_interval();
+			}
+			add_transfers(&transfer_counts, super_tree, &gene_trees);
+			for(int i = 0; i < num_nodes; i++) {
+				for(int j = 0; j < num_nodes; j++) {
+					if (j > 0)
+						cout << " ";
+					cout << transfer_counts[i][j];
+				}
+				cout << endl;
+			}
+
+			if (LGT_GROUPS != "") {
+				ifstream lgt_group_file;
+				lgt_group_file.open(LGT_GROUPS.c_str());
+				vector<int> pre_to_group = vector<int>(num_nodes, 0);
+				vector<string> group_names = vector<string>();
+				map<string, int> name_to_pre = map<string, int>();
+				super_tree->numbers_to_labels(&reverse_label_map);
+				super_tree->build_name_to_pre_map(&name_to_pre);
+				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+				group_names.push_back("Mixed");
+				if (lgt_group_file.is_open()) {
+					string line;
+					bool new_group = true;
+					int group_num = 0;
+					while(lgt_group_file.good()) {
+						getline(lgt_group_file, line);
+						// finish group
+						if (line == "")
+							new_group = true;
+						// new group
+						else if (new_group) {
+							group_names.push_back(line);
+							group_num++;
+							new_group = false;
+						}
+						// add to group
+						else {
+							map<string, int>::iterator i = name_to_pre.find(line);
+							if (i != name_to_pre.end()) {
+								int pre = i->second;
+								cout << pre << ": " << line << endl;
+								cout << "group " << group_num << endl;
+								pre_to_group[pre] = group_num;
+							}
+						}
+					}
+					cout << endl;
+
+					for(int i = 0; i < num_nodes; i++) {
+						cout << pre_to_group[i] << ": " << super_tree->find_by_prenum(i)->str_subtree() << endl;
+					}
+
+					// add LCAs to groups
+					add_lcas_to_groups(&pre_to_group, super_tree);
+
+					// TODO: backfill polytomies
+					// * look at children and grandchildren of a 0 group node
+					// * in pre order
+					// * match parent group (or this is the root)
+
+					for(int i = 0; i < num_nodes; i++) {
+						cout << pre_to_group[i] << ": " << super_tree->find_by_prenum(i)->str_subtree() << endl;
+					}
+
+
+					for(int i = 0; i < group_names.size(); i++) {
+						cout << group_names[i] << endl;
+					}
+
+					int num_group_nodes = group_names.size();
+					vector<vector<int> > group_transfer_counts =
+							vector<vector<int> >(num_group_nodes,
+							vector<int>(num_group_nodes, 0));
+
+					for(int i = 0; i < num_nodes; i++) {
+						for(int j = 0; j < num_nodes; j++) {
+							group_transfer_counts[pre_to_group[i]][pre_to_group[j]]
+								+= transfer_counts[i][j];
+						}
+					}
+					cout << endl;
+					for(int i = 0; i < num_group_nodes; i++) {
+						for(int j = 0; j < num_group_nodes; j++) {
+							if (j > 0)
+								cout << " ";
+							cout << group_transfer_counts[i][j];
+						}
+						cout << endl;
+					}
+					cout << endl;
+					// NOTE: these are inferred SPRs
+					//       transfers are transposed
+					for(int j = 0; j < num_group_nodes; j++) {
+						for(int i = 0; i < num_group_nodes; i++) {
+							if (i > 0)
+								cout << " ";
+							cout << group_transfer_counts[i][j];
+						}
+						cout << endl;
+					}
+					cout << endl;
+					lgt_group_file.close();
+				}
+			else
+				LGT_GROUPS = "";
+			}
+			cleanup = true;
+		}
+
+		if (cleanup) {
+			for(int i = 0; i < gene_trees.size(); i++) {
+				gene_trees[i]->delete_tree();
+			}
+			super_tree->delete_tree();
+			best_supertree->delete_tree();
 			return 0;
 		}
 
