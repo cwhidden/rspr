@@ -159,6 +159,7 @@ bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
 bool SIMPLE_UNROOTED = false;
+bool SIMPLE_UNROOTED_FAST = false;
 int SIMPLE_UNROOTED_NUM = INT_MAX;
 bool REROOT = false;
 bool REROOT_INITIAL = false;
@@ -453,6 +454,10 @@ int main(int argc, char *argv[]) {
 					SIMPLE_UNROOTED_NUM = atoi(arg2);
 				cout << "SIMPLE_UNROOTED_NUM=" << SIMPLE_UNROOTED_NUM << endl;
 			}
+		}
+		else if (strcmp(arg, "-simple_unrooted_fast") == 0) {
+			SIMPLE_UNROOTED=true;
+			SIMPLE_UNROOTED_FAST=true;
 		}
 		else if (strcmp(arg, "-random_insert_order") == 0) {
 			RANDOM_INSERT_ORDER = true;
@@ -2054,7 +2059,7 @@ int main(int argc, char *argv[]) {
 				else
 					current_distance = rSPR_total_approx_distance(super_tree, gene_trees);
 			else
-				if (UNROOTED || RANDOM_ROOTING || SIMPLE_UNROOTED)
+				if (UNROOTED || RANDOM_ROOTING || (SIMPLE_UNROOTED && !SIMPLE_UNROOTED_FAST))
 					current_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
 				else
 					current_distance = rSPR_total_distance(super_tree, gene_trees);
