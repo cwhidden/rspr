@@ -28,6 +28,8 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef LGT
 #define LGT
 
+//#define DEBUG_LGT
+
 #include <cstdio>
 #include <cstdlib>
 #include <string>
@@ -46,6 +48,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include "SiblingPair.h"
 #include "UndoMachine.h"
 
+
 using namespace std;
 
 void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
@@ -58,6 +61,7 @@ Node *find_best_target(Node *source, Node *target, Node **best_target);
 
 void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
 		vector<Node *> *gene_trees) {
+	#pragma omp parallel for
 	for(int i = 0; i < gene_trees->size(); i++) {
 		Forest MAF1;
 		Forest MAF2;
@@ -111,6 +115,13 @@ void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 			cout << "\tF1t: p" << endl;
 		cout << endl;
 #endif
+		string a = F1_source->get_name();
+		string b = F1_target->get_name();
+		if ((a == "5" || a == "18" || a == "(5,18)")
+				&& (b == "5" || b == "18" || b == "(5,18)"))
+			cout << "FOO: " << a << "\t" << b << endl;
+
+		#pragma omp atomic
 		(*transfer_counts)[F1_source->get_preorder_number()][F1_target->get_preorder_number()]++;
 		// do we want to check that the move is valid here?
 	}
@@ -145,14 +156,14 @@ Node *find_best_target(Node *source, Forest *AF) {
 Node *find_best_target(Node *source, Node *target, Node **best_target) {
 	if (target->get_edge_pre_start() <= source->get_preorder_number()
 			&& target->get_edge_pre_end() >= source->get_preorder_number()
-			&& (*best_target == NULL || target->get_preorder_number() >
-					(*best_target)->get_preorder_number())) {
+			&& (*best_target == NULL || target->get_edge_pre_start() >
+					(*best_target)->get_edge_pre_start())) {
 		*best_target = target;
-		list<Node *>::const_iterator c;
-		for(c = target->get_children().begin();
-				c != target->get_children().end(); c++) {
-			find_best_target(source, *c, best_target);
-		}
+	}
+	list<Node *>::const_iterator c;
+	for(c = target->get_children().begin();
+			c != target->get_children().end(); c++) {
+		find_best_target(source, *c, best_target);
 	}
 }
 

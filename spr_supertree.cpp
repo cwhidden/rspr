@@ -1510,7 +1510,7 @@ int main(int argc, char *argv[]) {
 		else
 			best_distance = rSPR_total_approx_distance(super_tree, gene_trees);
 	else
-		if (UNROOTED || RANDOM_ROOTING || SIMPLE_UNROOTED)
+		if (UNROOTED || RANDOM_ROOTING || (SIMPLE_UNROOTED && !SIMPLE_UNROOTED_FAST) )
 		//if (UNROOTED || RANDOM_ROOTING)
 			best_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
 		else
@@ -1580,6 +1580,7 @@ int main(int argc, char *argv[]) {
 				gene_trees[i]->edge_preorder_interval();
 			}
 			add_transfers(&transfer_counts, super_tree, &gene_trees);
+#ifdef DEBUG_LGT
 			for(int i = 0; i < num_nodes; i++) {
 				for(int j = 0; j < num_nodes; j++) {
 					if (j > 0)
@@ -1588,6 +1589,7 @@ int main(int argc, char *argv[]) {
 				}
 				cout << endl;
 			}
+#endif
 
 			if (LGT_GROUPS != "") {
 				ifstream lgt_group_file;

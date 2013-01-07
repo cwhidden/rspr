@@ -1848,6 +1848,9 @@ cout << ",";
 				Node *T2_b = T2_a->parent()->rchild();
 				if (T2_b == T2_a)
 					T2_b = T2_a->parent()->lchild();
+				bool multi_node = false;
+				if (T2_a->parent()->get_children().size() > 2)
+					multi_node = true;
 
 			if (CUT_ONE_B) {
 				if (T2_a->parent()->parent() == T2_c->parent()
@@ -1889,19 +1892,26 @@ cout << ",";
 					}
 				}
 			}
-			if (REVERSE_CUT_ONE_B && !cut_b_only && T1_ac->parent() != NULL) {
+			if (REVERSE_CUT_ONE_B && (!cut_b_only || (cob && multi_node)) &&
+					T1_ac->parent() != NULL) {
 				Node *T1_s = T1_ac->get_sibling();
 				if (T1_s->is_leaf()) {
 					if (T1_s->get_twin()->parent() == T2_a->parent()) {
 						cut_c_only=true;
+						cut_b_only=false;
+						cob=false;
 					}
 					else if (T1_s->get_twin()->parent() == T2_c->parent()) {
 						cut_a_only=true;
+						cut_b_only=false;
+						cob=false;
 					}
 				}
 				else if (REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
 						&& chain_match(T1_s, T2_c->get_sibling(), T2_a))
 					cut_a_only = true;
+					cut_b_only=false;
+					cob=false;
 			}
 			if (CUT_TWO_B_ROOT && cut_a_only == false && cut_c_only == false
 					&& cut_b_only_if_not_a_or_c == true) {
@@ -2309,10 +2319,7 @@ cout << ",";
 
 
 				// get T2_b
-				bool multi_node = false;
 				T2_ab = T2_a->parent();
-				if (T2_ab->get_children().size() > 2)
-					multi_node = true;
 				T2_b = T2_ab->rchild();
 
 				if (T2_b == T2_a)
