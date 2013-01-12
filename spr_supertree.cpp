@@ -405,6 +405,7 @@ int main(int argc, char *argv[]) {
 	bool FIND_BIPARTITION_SUPPORT = false;
 	enum RELAXATION RELAXED_BIPARTITION_SUPPORT = NEGATIVE_RELAXED;
 	bool FIND_CLADE_TRANSFERS = false;
+	bool LGT_CSV = false;
 
 	int max_args = argc-1;
 	while (argc > 1) {
@@ -664,6 +665,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-lgt_analysis") == 0) {
 			LGT_ANALYSIS=true;
 		}
+		else if (strcmp(arg, "-lgt_csv") == 0) {
+			LGT_CSV=true;
+		}
 		else if (strcmp(arg, "-max_degree") == 0) {
 			FIND_MAX_DEGREE=true;
 		}
@@ -836,6 +840,7 @@ int main(int argc, char *argv[]) {
 
 		APPROX_CUT_ONE_B = true;
 		APPROX_CUT_TWO_B = true;
+//		APPROX_CUT_TWO_B_ROOT = true;
 		APPROX_REVERSE_CUT_ONE_B = true;
 		APPROX_EDGE_PROTECTION = true;
 	}
@@ -1621,17 +1626,21 @@ int main(int argc, char *argv[]) {
 							map<string, int>::iterator i = name_to_pre.find(line);
 							if (i != name_to_pre.end()) {
 								int pre = i->second;
+#ifdef DEBUG_LGT
 								cout << pre << ": " << line << endl;
 								cout << "group " << group_num << endl;
+#endif
 								pre_to_group[pre] = group_num;
 							}
 						}
 					}
+#ifdef DEBUG_LGT
 					cout << endl;
 
 					for(int i = 0; i < num_nodes; i++) {
 						cout << pre_to_group[i] << ": " << super_tree->find_by_prenum(i)->str_subtree() << endl;
 					}
+#endif
 
 					// add LCAs to groups
 					add_lcas_to_groups(&pre_to_group, super_tree);
@@ -1646,8 +1655,16 @@ int main(int argc, char *argv[]) {
 					}
 
 
+					cout << "INFERRED SPRS" << endl;
+					if (LGT_CSV)
+						cout << ",";
 					for(int i = 0; i < group_names.size(); i++) {
-						cout << group_names[i] << endl;
+						cout << group_names[i];
+						if (LGT_CSV && (i + 1 < group_names.size())) {
+							cout << ",";
+						}
+						else
+							cout << endl;
 					}
 
 					int num_group_nodes = group_names.size();
@@ -1661,23 +1678,75 @@ int main(int argc, char *argv[]) {
 								+= transfer_counts[i][j];
 						}
 					}
-					cout << endl;
+					if (!LGT_CSV)
+						cout << endl;
 					for(int i = 0; i < num_group_nodes; i++) {
+						if (LGT_CSV)
+							cout << group_names[i] << ",";
 						for(int j = 0; j < num_group_nodes; j++) {
-							if (j > 0)
-								cout << " ";
 							cout << group_transfer_counts[i][j];
+							if (j + 1 < group_names.size()) {
+								if (LGT_CSV)
+									cout << ",";
+								else
+									cout << " ";
+							}
 						}
 						cout << endl;
 					}
 					cout << endl;
 					// NOTE: these are inferred SPRs
 					//       transfers are transposed
+					cout << "INFERRED TRANSFERS" << endl;
+					if (LGT_CSV)
+						cout << ",";
+					for(int i = 0; i < group_names.size(); i++) {
+						cout << group_names[i];
+						if (LGT_CSV && (i + 1 < group_names.size())) {
+							cout << ",";
+						}
+						else cout << endl; }
+					if (!LGT_CSV)
+						cout << endl;
 					for(int j = 0; j < num_group_nodes; j++) {
+						if (LGT_CSV)
+							cout << group_names[j] << ",";
 						for(int i = 0; i < num_group_nodes; i++) {
-							if (i > 0)
-								cout << " ";
 							cout << group_transfer_counts[i][j];
+							if (i + 1 < group_names.size()) {
+								if (LGT_CSV)
+									cout << ",";
+								else
+									cout << " ";
+							}
+						}
+						cout << endl;
+					}
+					cout << endl;
+
+					cout << "NONDIRECTIONAL TRANSFERS" << endl;
+					if (LGT_CSV)
+						cout << ",";
+					for(int i = 0; i < group_names.size(); i++) {
+						cout << group_names[i];
+						if (LGT_CSV && (i + 1 < group_names.size())) {
+							cout << ",";
+						}
+						else cout << endl; }
+					if (!LGT_CSV)
+						cout << endl;
+					for(int j = 0; j < num_group_nodes; j++) {
+						if (LGT_CSV)
+							cout << group_names[j] << ",";
+						for(int i = 0; i < num_group_nodes; i++) {
+							cout << group_transfer_counts[i][j]
+								+ (i == j ?  0 : group_transfer_counts[j][i]);
+							if (i + 1 < group_names.size()) {
+								if (LGT_CSV)
+									cout << ",";
+								else
+									cout << " ";
+							}
 						}
 						cout << endl;
 					}

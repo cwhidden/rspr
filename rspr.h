@@ -1854,7 +1854,7 @@ cout << ",";
 
 			if (CUT_ONE_B) {
 				if (T2_a->parent()->parent() == T2_c->parent()
-					&& T2_c->parent() != NULL)
+					&& T2_c->parent() != NULL && !cut_b_only)
 					cut_b_only=true;
 					cob = true;
 			}

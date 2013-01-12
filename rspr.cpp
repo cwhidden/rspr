@@ -493,7 +493,7 @@ int main(int argc, char *argv[]) {
 
 		APPROX_CUT_ONE_B = true;
 		APPROX_CUT_TWO_B = true;
-		APPROX_CUT_TWO_B_ROOT = true;
+//		APPROX_CUT_TWO_B_ROOT = true;
 		APPROX_REVERSE_CUT_ONE_B = true;
 		APPROX_EDGE_PROTECTION = true;
 	}
