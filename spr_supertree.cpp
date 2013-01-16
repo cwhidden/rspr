@@ -826,6 +826,7 @@ int main(int argc, char *argv[]) {
 		CUT_TWO_B = true;
 //		CUT_TWO_B_ROOT = true;
 		REVERSE_CUT_ONE_B = true;
+		REVERSE_CUT_ONE_B_3 = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
 		EDGE_PROTECTION = true;
 		EDGE_PROTECTION_TWO_B = true;
@@ -842,7 +843,14 @@ int main(int argc, char *argv[]) {
 		APPROX_CUT_TWO_B = true;
 //		APPROX_CUT_TWO_B_ROOT = true;
 		APPROX_REVERSE_CUT_ONE_B = true;
-		APPROX_EDGE_PROTECTION = true;
+/* BUGGY: we aren't guaranteed that the protected edges mean
+	 anything because we may cut off the only things that can merge with
+	 them. It might make sense to cut a protected edge because it should
+	 have already merged by then.
+*/
+//		APPROX_EDGE_PROTECTION = true;
+		DEEPEST_PROTECTED_ORDER = true;
+		DEEPEST_ORDER = true;
 	}
 	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {

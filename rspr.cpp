@@ -246,9 +246,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-fast_approx") == 0) {
 			APPROX_CUT_ONE_B = true;
 			APPROX_CUT_TWO_B = true;
-			APPROX_CUT_TWO_B_ROOT = true;
+//			APPROX_CUT_TWO_B_ROOT = true;
 			APPROX_REVERSE_CUT_ONE_B = true;
-			APPROX_EDGE_PROTECTION = true;
+//			APPROX_EDGE_PROTECTION = true;
 		}
 		else if (strcmp(arg, "-a_cob") == 0) {
 			APPROX_CUT_ONE_B = true;
@@ -302,6 +302,10 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-reverse_cut_one_b_2") == 0 ||
 				strcmp(arg, "-rcob2") == 0) {
 			REVERSE_CUT_ONE_B_2 = true;
+		}
+		else if (strcmp(arg, "-reverse_cut_one_b_3") == 0 ||
+				strcmp(arg, "-rcob3") == 0) {
+			REVERSE_CUT_ONE_B_3 = true;
 		}
 		else if (strcmp(arg, "-cut_two_b") == 0 ||
 				strcmp(arg, "-c2b") == 0) {
@@ -461,6 +465,10 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-deepest") == 0) {
 			DEEPEST_ORDER = true;
 		}
+		else if (strcmp(arg, "-deepest_protected") == 0) {
+			DEEPEST_PROTECTED_ORDER = true;
+			DEEPEST_ORDER = true;
+		}
 		else if (strcmp(arg, "-count_losses") == 0) {
 			COUNT_LOSSES = true;
 		}
@@ -477,6 +485,7 @@ int main(int argc, char *argv[]) {
 		CUT_ALL_B=true;
 		CUT_ONE_B = true;
 		REVERSE_CUT_ONE_B = true;
+		REVERSE_CUT_ONE_B_3 = true;
 		CUT_TWO_B = true;
 //		CUT_TWO_B_ROOT = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
@@ -495,7 +504,13 @@ int main(int argc, char *argv[]) {
 		APPROX_CUT_TWO_B = true;
 //		APPROX_CUT_TWO_B_ROOT = true;
 		APPROX_REVERSE_CUT_ONE_B = true;
-		APPROX_EDGE_PROTECTION = true;
+/* BUGGY: we aren't guaranteed that the protected edges mean
+	 anything because we may cut off the only things that can merge with
+	 them. It might make sense to cut a protected edge because it should
+	 have already merged by then.
+*/
+
+//		APPROX_EDGE_PROTECTION = true;
 	}
 	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {

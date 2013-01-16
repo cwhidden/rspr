@@ -91,7 +91,7 @@ class Node {
 	// TODO: contracted_list ?
 	Node *contracted_lc;
 	Node *contracted_rc;
-	bool is_contracted;
+	bool contracted;
 	bool edge_protected;
 	int max_merge_depth;
 	bool allow_sibling;
@@ -132,7 +132,7 @@ class Node {
 		this->forest = NULL;
 		this->contracted_lc = NULL;
 		this->contracted_rc = NULL;
-		this->is_contracted = false;
+		this->contracted = false;
 		this->edge_protected = false;
 		this->allow_sibling = true;
 		this->lost_children = 0;
@@ -177,11 +177,11 @@ class Node {
 			contracted_rc = NULL;
 		else
 			contracted_rc = new Node(*(n.contracted_rc), this);
-		this->is_contracted = n.is_contracted;
+		this->contracted = n.contracted;
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
-		this->is_contracted = n.is_contracted;
+		this->contracted = n.contracted;
 #endif
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
@@ -225,11 +225,11 @@ class Node {
 			contracted_rc = NULL;
 		else
 			contracted_rc = new Node(*(n.contracted_rc), this);
-		this->is_contracted = n.is_contracted;
+		this->contracted = n.contracted;
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
-		this->is_contracted = n.is_contracted;
+		this->contracted = n.contracted;
 #endif
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
@@ -320,7 +320,7 @@ class Node {
 		n->p_link = children.insert(children.end(),n);
 		n->p = this;
 		n->depth = depth+1;
-		n->is_contracted = false;
+		n->contracted = false;
 	}
 
 	// TODO: make sure this doesn't break things with >2 children
@@ -330,7 +330,7 @@ class Node {
 			n->cut_parent();
 		n->p_link = children.insert(children.end(),n);
 		n->p = this;
-		n->is_contracted = false;
+		n->contracted = false;
 	}
 
 
@@ -347,7 +347,7 @@ class Node {
 		n->p_link = children.insert(sibling->p_link, n);
 		n->depth = depth+1;
 		n->p = this;
-		n->is_contracted = false;
+		n->contracted = false;
 	 }
 
 	// insert a child before the given sibling
@@ -356,7 +356,7 @@ class Node {
 			n->cut_parent();
 	 	n->p_link = children.insert(sibling->p_link, n);
 		n->p = this;
-		n->is_contracted = false;
+		n->contracted = false;
 	 }
 
 
@@ -465,6 +465,9 @@ class Node {
 
 	bool is_protected() {
 		return edge_protected;
+	}
+	bool is_contracted() {
+		return contracted;
 	}
 
 	void protect_edge() {
@@ -835,8 +838,8 @@ class Node {
 			contracted_rc = rc;
 			rc->cut_parent();
 			lc->cut_parent();
-			contracted_lc->is_contracted = true;
-			contracted_rc->is_contracted = true;
+			contracted_lc->contracted = true;
+			contracted_rc->contracted = true;
 			edge_protected = false;
 			return true;
 		}
@@ -893,7 +896,7 @@ class Node {
 	void cut_parent() {
 		if (p != NULL) {
 			// TODO hacky: fix this to use a multi list for contractions
-			if (!is_contracted) {
+			if (!contracted) {
 				p->children.erase(p_link);
 			}
 			else {

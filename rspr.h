@@ -80,10 +80,10 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 		int end_k);
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		set<SiblingPair> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
-		list<pair<Forest,Forest> > *AFs);
+		list<pair<Forest,Forest> > *AFs, list<Node *> *protected_stack);
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		set<SiblingPair> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
-		list<pair<Forest,Forest> > *AFs, Node *prev_T1_a, Node *prev_T1_c);
+		list<pair<Forest,Forest> > *AFs, list<Node *> *protected_stack, Node *prev_T1_a, Node *prev_T1_c);
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
 		int threshold);
@@ -143,6 +143,7 @@ bool APPROX_EDGE_PROTECTION = false;
 bool CUT_ONE_B = false;
 bool REVERSE_CUT_ONE_B = false;
 bool REVERSE_CUT_ONE_B_2 = false;
+bool REVERSE_CUT_ONE_B_3 = false;
 bool CUT_TWO_B = false;
 bool CUT_TWO_B_ROOT = false;
 bool CUT_ALL_B = false;
@@ -167,6 +168,7 @@ bool EDGE_PROTECTION_TWO_B = false;
 bool ABORT_AT_FIRST_SOLUTION = false;
 bool PREORDER_SIBLING_PAIRS = false;
 bool DEEPEST_ORDER = false;
+bool DEEPEST_PROTECTED_ORDER = false;
 bool NEAR_PREORDER_SIBLING_PAIRS = false;
 bool LEAF_REDUCTION = false;
 bool LEAF_REDUCTION2 = false;
@@ -740,20 +742,22 @@ if(!sibling_pairs->empty()) {
 		bool cut_b_only = false;
 		bool cut_c_only = false;
 		bool cut_b_only_if_not_a_or_c = false;
-		if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent() && !multi_node) {
-//						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
+		if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent() && !multi_node
+						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
 			cut_b_only = true;
 			um.add_event(new AddToSiblingPairs(sibling_pairs));
 			sibling_pairs->push_back(T1_c);
 			sibling_pairs->push_back(T1_a);
 		}
-	if (APPROX_CUT_TWO_B && !cut_b_only && T1_ac->parent() != NULL) {
-//						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
+	if (APPROX_CUT_TWO_B && !cut_b_only && T1_ac->parent() != NULL
+						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
 		Node *T1_s = T1_ac->get_sibling();
 		if (T1_s->is_leaf()) {
 			Node *T2_l = T2_a->parent()->parent();
 			if (T2_l != NULL) {
-				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l) {
+				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
+						&& T2_a->parent()->get_children().size() > 2
+						&& T2_c->parent()->get_children().size() > 2) {
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						cut_b_only=true;
 					}
@@ -764,7 +768,9 @@ if(!sibling_pairs->empty()) {
 					}
 				}
 				else if ((T2_l = T2_l->parent()) != NULL
-						&& T2_c->parent() == T2_l) {
+						&& T2_c->parent() == T2_l
+						&& T2_a->parent()->get_children().size() > 2
+						&& T2_a->parent()->parent()->get_children().size() > 2) {
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						cut_b_only=true;
 					}
@@ -780,19 +786,19 @@ if(!sibling_pairs->empty()) {
 	if (APPROX_REVERSE_CUT_ONE_B && !cut_b_only && T1_ac->parent() != NULL) {
 		Node *T1_s = T1_ac->get_sibling();
 		if (T1_s->is_leaf()) {
-			if (T1_s->get_twin()->parent() == T2_a->parent()) {
-//						&& (!APPROX_EDGE_PROTECTION || !T2_c->is_protected())) {
+			if (T1_s->get_twin()->parent() == T2_a->parent()//) {
+						&& (!APPROX_EDGE_PROTECTION || !T2_c->is_protected())) {
 				cut_c_only=true;
 			}
-			else if (T1_s->get_twin()->parent() == T2_c->parent()) {
-//						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())) {
+			else if (T1_s->get_twin()->parent() == T2_c->parent()//) {
+						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())) {
 				cut_a_only=true;
 			}
 		}
 		else if (APPROX_REVERSE_CUT_ONE_B_2) {
 			if (T2_c->parent() != NULL
-				&& chain_match(T1_s, T2_c->get_sibling(), T2_a) )
-//						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected()))
+				&& chain_match(T1_s, T2_c->get_sibling(), T2_a) //)
+						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected()))
 			cut_a_only = true;
 		}
 	}
@@ -833,10 +839,14 @@ if(!sibling_pairs->empty()) {
 
 		bool cut_a = false;
 		bool cut_c = false;
-		if (!cut_b_only) {
+		if (!cut_b_only || T2_a->parent()->get_children().size() > 2) {
 			if (!cut_c_only &&
-					(!APPROX_EDGE_PROTECTION || !T2_a->is_protected()
-					|| cut_a_only)) {
+					(!APPROX_EDGE_PROTECTION
+					 	|| (!T2_a->is_protected()
+							&& (T2_a->parent()->parent() != NULL
+								|| !T2_b->is_protected()
+								|| T2_a->parent()->get_children().size() > 2)))) {
+//					|| cut_a_only)) {
 				um.add_event(new CutParent(T1_a));
 				T1_a->cut_parent();
 				cut_a = true;
@@ -847,8 +857,13 @@ if(!sibling_pairs->empty()) {
 			else
 				node = T1_ac;
 			if (!cut_a_only &&
-					(!APPROX_EDGE_PROTECTION || !T2_c->is_protected()
-					|| cut_c_only)) {
+					(!APPROX_EDGE_PROTECTION
+					 	|| (!T2_c->is_protected()
+						&& (T2_c->parent() == NULL
+								|| T2_c->parent()->parent() != NULL
+								|| !T2_c->get_sibling()->is_protected()
+								|| T2_c->parent()->get_children().size() > 2)))) {// &&
+//					|| cut_c_only)) {
 				um.add_event(new CutParent(T1_c));
 				T1_c->cut_parent();
 				cut_c = true;
@@ -884,8 +899,11 @@ if(!sibling_pairs->empty()) {
 		bool cut_b = false;
 		if (same_component && T2_ab_parent != NULL
 				&& !cut_a_only && !cut_c_only
-				&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected()
-					|| cut_b_only)) {
+				&& (!APPROX_EDGE_PROTECTION
+					|| (!T2_b->is_protected() ))) {
+//							&& (T2_b->parentT2_a->parent()->parent() != NULL
+//								|| !T2_a->is_protected())))) {
+//					|| cut_b_only)) {
 			if (multi_node) {
 				T2_b = T2_ab;
 				um.add_event(new CutParent(T2_ab));
@@ -967,7 +985,7 @@ if(!sibling_pairs->empty()) {
 		num_cut+=3;
 
 		if (cut_a == false && cut_b == false && cut_c == false) {
-			num_cut = INT_MAX;
+			num_cut = INT_MAX-3;
 		}
 
 	}
@@ -1472,18 +1490,26 @@ int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
 	if (!sync_twins(T1, T2))
 return 0;
 	if (PREORDER_SIBLING_PAIRS &&
-	T1->get_component(0)->get_preorder_number() == -1)
-T1->get_component(0)->preorder_number();
+			T1->get_component(0)->get_preorder_number() == -1) {
+		T1->get_component(0)->preorder_number();
+		T2->get_component(0)->preorder_number();
+}
+	if (DEEPEST_PROTECTED_ORDER
+			&& T1->get_component(0)->get_edge_pre_start() == -1) {
+		T1->get_component(0)->edge_preorder_interval();
+		T2->get_component(0)->edge_preorder_interval();
+	}
 
 	set<SiblingPair> *sibling_pairs;
 	list<Node *> singletons;
 	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
 	sibling_pairs = find_sibling_pairs_set(T1);
 	singletons = T2->find_singletons();
+	list<Node *> protected_stack = list<Node *>();
 
 
 	int final_k = 
-rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs, &singletons, false, &AFs);
+rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs, &singletons, false, &AFs, &protected_stack);
 
 //		cout << "foo" << endl;
 	// TODO: this is a cheap hack
@@ -1541,15 +1567,17 @@ SiblingPair pop_sibling_pair(set<SiblingPair>::iterator s, set<SiblingPair> *sib
 
 inline int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 set<SiblingPair> *sibling_pairs, list<Node *> *singletons,
-bool cut_b_only, list<pair<Forest,Forest> > *AFs) {
+bool cut_b_only, list<pair<Forest,Forest> > *AFs,
+list<Node *> *protected_stack) {
 	return rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs,
-			singletons, cut_b_only, AFs, NULL, NULL);
+			singletons, cut_b_only, AFs, protected_stack, NULL, NULL);
 }
 
 // rSPR_branch_and_bound recursive helper function
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 set<SiblingPair> *sibling_pairs, list<Node *> *singletons,
-bool cut_b_only, list<pair<Forest,Forest> > *AFs, Node *prev_T1_a, Node *prev_T1_c) {
+bool cut_b_only, list<pair<Forest,Forest> > *AFs,
+list<Node *> *protected_stack, Node *prev_T1_a, Node *prev_T1_c) {
 	#ifdef DEBUG
 	cout << "rSPR_branch_and_bound_hlpr()" << endl;
 	cout << "\tT1: ";
@@ -1563,6 +1591,12 @@ cout << "  ";
 (*i).a->print_subtree_hlpr();
 cout << ",";
 (*i).c->print_subtree_hlpr();
+	}
+	cout << endl;
+	cout << "protected_stack:";
+	for (list<Node *>::iterator i = protected_stack->begin(); i != protected_stack->end(); i++) {
+cout << "  ";
+(*i)->print_subtree_hlpr();
 	}
 	cout << endl;
 	#endif
@@ -1636,6 +1670,12 @@ cout << ",";
 			int deepest_depth_2 = INT_MAX;
 			Node *best_a = NULL;
 			Node *best_c = NULL;
+			/* pop protected_stack when out of order sibling pairs
+			 have already contracted it */
+			while(!protected_stack->empty() && protected_stack->back()->is_contracted()) {
+				um.add_event(new ListPopBack(protected_stack));
+				protected_stack->pop_back();
+			}
 			if (LEAF_REDUCTION && !cut_b_only) {
 				bool found = false;
 				set<SiblingPair>::iterator sp_i = sibling_pairs->begin();
@@ -1686,11 +1726,26 @@ cout << ",";
 						if (deepest_valid == sibling_pairs->end()
 								|| deepest_depth < depth
 								|| deepest_depth == depth && deepest_depth_2 < depth2) {
-							deepest_valid = sp_i;
-							deepest_depth = depth;
-							deepest_depth_2 = depth2;
+							// TODO: this crashes on bigtest2
+							// Why can we end up cutting the protected node?
+							if (!DEEPEST_PROTECTED_ORDER
+									|| protected_stack->empty()
+									|| (protected_stack->back()->get_twin()->parent()->get_edge_pre_start()
+											<= T1_a->get_preorder_number()
+										&& protected_stack->back()->get_twin()->parent()->get_edge_pre_end()
+											>= T1_a->get_preorder_number())) {
+								deepest_valid = sp_i;
+								deepest_depth = depth;
+								deepest_depth_2 = depth2;
+							}
 						}
 					}
+					/* TODO: create a stack of protected nodes (intervals?) and only
+						 accept the deepest sibling pair within the interval
+					*/
+
+					/* TODO: remember to pop the stack when we include the protected
+					   node */
 					sp_i++;
 				}
 				if (!found) {
@@ -1749,6 +1804,21 @@ cout << ",";
 					um.undo_all();
 					return -1;
 				}
+
+				if (!protected_stack->empty() &&
+						(T2_a == protected_stack->back()
+						 	|| T2_c == protected_stack->back())) {
+					um.add_event(new ListPopBack(protected_stack));
+					protected_stack->pop_back();
+				}
+				// CAN THIS HAPPEN TWICE?
+				if (!protected_stack->empty() &&
+						(T2_a == protected_stack->back()
+						 	|| T2_c == protected_stack->back())) {
+					um.add_event(new ListPopBack(protected_stack));
+					protected_stack->pop_back();
+				}
+
 
 				um.add_event(new ContractSiblingPair(T1_ac));
 				T1_ac->contract_sibling_pair_undoable();
@@ -1868,7 +1938,10 @@ cout << ",";
 				if (T1_s->is_leaf()) {
 					Node *T2_l = T2_a->parent()->parent();
 					if (T2_l != NULL) {
-						if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l) {
+						if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
+								&& (T2_a->parent()->get_children().size() > 2
+										&& T2_c->parent()->get_children().size() > 2)
+									|| T1_s->get_twin()->is_protected()) {
 							if (T2_l->get_sibling() == T1_s->get_twin()) {
 								cut_b_only=true;
 							}
@@ -1879,7 +1952,10 @@ cout << ",";
 							}
 						}
 						else if ((T2_l = T2_l->parent()) != NULL
-								&& T2_c->parent() == T2_l) {
+								&& T2_c->parent() == T2_l
+								&& (T2_a->parent()->get_children().size() > 2
+										&& T2_a->parent()->parent()->get_children().size() > 2)
+									|| T1_s->get_twin()->is_protected()) {
 							if (T2_l->get_sibling() == T1_s->get_twin()) {
 								cut_b_only=true;
 							}
@@ -1896,13 +1972,27 @@ cout << ",";
 					T1_ac->parent() != NULL) {
 				Node *T1_s = T1_ac->get_sibling();
 				if (T1_s->is_leaf()) {
-					if (T1_s->get_twin()->parent() == T2_a->parent()) {
+					Node *T2_s = T1_s->get_twin();
+					if (T2_s->parent() == T2_a->parent()) {
 						cut_c_only=true;
 						cut_b_only=false;
 						cob=false;
 					}
-					else if (T1_s->get_twin()->parent() == T2_c->parent()) {
+					else if (T2_s->parent() == T2_c->parent()) {
 						cut_a_only=true;
+						cut_b_only=false;
+						cob=false;
+					}
+					else if (REVERSE_CUT_ONE_B_3
+							// TODO: there is a chance for an additional optimization
+							// here. If T2_s is not protected then we can cut c or
+							// have to cut a (and s?)
+//							&& T2_c->parent()->parent() != NULL
+							&& T2_s->is_protected()
+							&& T2_s->parent() != NULL
+							&& T2_s->parent()->parent() == T2_a->parent()
+							&& T2_s->parent()->get_children().size() == 2) {
+						cut_c_only = true;
 						cut_b_only=false;
 						cob=false;
 					}
@@ -1959,7 +2049,15 @@ cout << ",";
 						(*i).c->print_subtree_hlpr();
 					}
 					cout << endl;
+					cout << "\tprotected_stack:";
+					for (list<Node *>::iterator i = protected_stack->begin(); i != protected_stack->end(); i++) {
+						cout << "  ";
+						(*i)->print_subtree_hlpr();
+					}
+					cout << endl;
+					cout << "\tcut_a_only=" << cut_a_only << endl;
 					cout << "\tcut_b_only=" << cut_b_only << endl;
+					cout << "\tcut_c_only=" << cut_c_only << endl;
 					cout << "\tT2_a " << T2_a->str() << " "
 						<< T2_a->get_depth() << endl;
 					cout << "\tT2_c " << T2_c->str() << " "
@@ -2233,7 +2331,10 @@ cout << ",";
 //				if (cut_b_only == false && T2_a->is_protected())
 //					cout << "protected k=" << k << endl;
 				if (cut_b_only == false && cut_c_only == false &&
-						!T2_a->is_protected()) {// &&
+						!T2_a->is_protected()
+						&& (T2_a->parent()->parent() != NULL
+								|| !T2_b->is_protected()
+								|| T2_a->parent()->get_children().size() > 2)) {// &&
 //						(!T2_a->parent()->is_protected() ||
 //							T2_a->parent()->get_children().size() > 2)) { }
 					um.add_event(new CutParent(T2_a));
@@ -2250,11 +2351,11 @@ cout << ",";
 					// also require !cut_a_only ?
 					if (EDGE_PROTECTION_TWO_B && T2_c->is_protected()) {
 						if (path_length == 4) {
-							if (!multi_b1 && !T2_b->is_protected()) {
+							if (!multi_b1 && !multi_b2 && !T2_b->is_protected()) {
 								um.add_event(new ProtectEdge(T2_b));
 								T2_b->protect_edge();
 							}
-							if (!multi_b2) {
+							if (!multi_b2 && !multi_b1) {
 								Node *T2_b2 = T2_b->parent()->get_sibling();
 								if (balanced)
 									T2_b2 = T2_d;
@@ -2267,7 +2368,7 @@ cout << ",";
 					}
 					answer_a =
 						rSPR_branch_and_bound_hlpr(T1, T2, k-1,
-								sibling_pairs, singletons, false, AFs);
+								sibling_pairs, singletons, false, AFs, protected_stack);
 				}
 				best_k = answer_a;
 				best_T1 = T1;
@@ -2331,17 +2432,42 @@ cout << ",";
 //						&& (!multi_node && T2_b->is_protected()))
 //					cout << "protected k=" << k << endl;
 
+				// BUG: we need to cut b or c when b is a multifurcating COB
+				// TODO: if the LCA of B_1's leaves in T1 is not an ancestor of 
+				// a then this is safe
+				if (multi_node && cob) {
+					vector<Node *> B_1 = T2_a->parent()->find_leaves();
+					LCA T1_LCA = LCA(T1->get_component(0));
+					Node *B_1_lca = NULL;
+					for(int i = 0; i < B_1.size(); i++) {
+						if (B_1[i] == T2_a) {
+							continue;
+						}
+						if (B_1_lca == NULL) {
+							B_1_lca = B_1[i]->get_twin();
+						}
+						else {
+							B_1_lca = T1_LCA.get_lca(B_1_lca, B_1[i]->get_twin());
+						}
+					}
+					Node *T1_a_ancestor = T1_a;
+					while(T1_a_ancestor != NULL && T1_a_ancestor != B_1_lca) {
+						T1_a_ancestor = T1_a_ancestor->parent();
+					}
+					if (T1_a_ancestor != NULL)
+						cut_b_only=false;
+				}
+
 				// cut T2_b
 				if ((!CUT_AC_SEPARATE_COMPONENTS || same_component)
 //						&& ((!T2_b->parent()->is_protected()
 								&& (((multi_node || !T2_b->is_protected())))
 						&& (!ABORT_AT_FIRST_SOLUTION || best_k < 0
 							|| !PREFER_RHO || !AFs->front().first.contains_rho() )
-						&& !cut_a_only && !cut_c_only) {
+						&& !cut_a_only && !cut_c_only
+						&& (T2_a->parent()->parent() != NULL
+								|| !T2_a->is_protected())) {
 					if (multi_node) {
-						// BUG: we need to cut b or c when b is a multifurcating COB
-						if (cob)
-							cut_b_only=false;
 						um.add_event(new ChangeEdgePreInterval(T2_a));
 						T2_a->copy_edge_pre_interval(T2_ab);
 						um.add_event(new CutParent(T2_a));
@@ -2391,12 +2517,14 @@ cout << ",";
 					if (CUT_ALL_B) {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
-									sibling_pairs, singletons, true, AFs, T1_a, T1_c);
+									sibling_pairs, singletons, true, AFs, protected_stack,
+									T1_a, T1_c);
 					}
 					else {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
-									sibling_pairs, singletons, false, AFs, T1_a, T1_c);
+									sibling_pairs, singletons, false, AFs, protected_stack,
+									T1_a, T1_c);
 					}
 				}
 				if (answer_b > best_k
@@ -2437,7 +2565,13 @@ cout << ",";
 						(!ABORT_AT_FIRST_SOLUTION || best_k < 0
 							|| !PREFER_RHO || !AFs->front().first.contains_rho() )
 						&& cut_b_only == false && cut_ab_only == false
-						&& cut_a_only == false) {
+						&& cut_a_only == false
+						// TODO: do we allow this if T2_c has no parent?
+						// it has to be under rho, right?
+						&& (T2_c->parent() == NULL
+								|| T2_c->parent()->parent() != NULL
+								|| !T2_c->get_sibling()->is_protected()
+								|| T2_c->parent()->get_children().size() > 2)) {// &&
 
 
 					if (T2_c->parent() != NULL) {
@@ -2460,16 +2594,21 @@ cout << ",";
 						if (!T2_a->is_protected()) {
 							um.add_event(new ProtectEdge(T2_a));
 							T2_a->protect_edge();
+							if (DEEPEST_PROTECTED_ORDER && !cut_c_only) {
+								um.add_event(new ListPushBack(protected_stack));
+								protected_stack->push_back(T2_a);
+							}
+							// TODO: add to protected list
 						}
 //						if (EDGE_PROTECTION_TWO_B && !cut_c_only) {
 //					}
 						if (EDGE_PROTECTION_TWO_B) {
 							if (path_length == 4) {
-								if (!multi_b1 && !T2_b->is_protected()) {
+								if (!multi_b1 && !multi_b2 && !T2_b->is_protected()) {
 									um.add_event(new ProtectEdge(T2_b));
 									T2_b->protect_edge();
 								}
-								if (!multi_b2) {
+								if (!multi_b2 && !multi_b1) {
 									Node *T2_b2 = T2_b->parent()->get_sibling();
 									if (balanced)
 										T2_b2 = T2_d;
@@ -2486,7 +2625,7 @@ cout << ",";
 						singletons->push_back(T2_c);
 						answer_c =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
-									sibling_pairs, singletons, false, AFs);
+									sibling_pairs, singletons, false, AFs, protected_stack);
 						if (answer_c > best_k
 									|| (answer_c == best_k
 									&& PREFER_RHO
@@ -2880,10 +3019,11 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 								find_sibling_pairs_set(split_node);
 							list<Node *> singletons = f2s.find_singletons();
 							list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
+							list<Node *> protected_stack = list<Node *>();
 
 
 							int split_k = rSPR_branch_and_bound_hlpr(&f1s, &f2s, k,
-									sibling_pairs, &singletons, false, &AFs);
+									sibling_pairs, &singletons, false, &AFs, &protected_stack);
 							delete sibling_pairs;
 							if (!AFs.empty()) {
 								AFs.front().first.swap(&f1);
@@ -3214,6 +3354,9 @@ void reduction_leaf(Forest *T1, Forest *T2) {
 	delete sibling_pairs;
 }
 
+/* return true if T1_node matches the chain between T2_node and
+	 T2_node_end
+*/
 bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end) {
 	Node *T1_pendant;
 	Node *T2_pendant;
@@ -4153,7 +4296,9 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 		if (T1_s->is_leaf()) {
 			Node *T2_l = T2_a->parent()->parent();
 			if (T2_l != NULL) {
-				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l) {
+				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
+						&& T2_a->parent()->get_children().size() > 2
+						&& T2_c->parent()->get_children().size() > 2) {
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;
 					}
@@ -4164,7 +4309,9 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 					}
 				}
 				else if ((T2_l = T2_l->parent()) != NULL
-						&& T2_c->parent() == T2_l) {
+						&& T2_c->parent() == T2_l
+						&& T2_a->parent()->get_children().size() > 2
+						&& T2_a->parent()->parent()->get_children().size() > 2) {
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;
 					}
@@ -4179,11 +4326,19 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 	}
 	if (REVERSE_CUT_ONE_B && T1_a->parent()->parent() != NULL) {
 		Node *T1_s = T1_a->parent()->get_sibling();
+		Node *T2_s = T1_s->get_twin();
 		if (T1_s->is_leaf()) {
-			if (T1_s->get_twin()->parent() == T2_a->parent()) {
+			if (T2_s->parent() == T2_a->parent()) {
 				return true;
 			}
-			else if (T1_s->get_twin()->parent() == T2_c->parent()) {
+			else if (T2_s->parent() == T2_c->parent()) {
+				return true;
+			}
+			else if (REVERSE_CUT_ONE_B_3
+							&& T2_s->is_protected()
+							&& T2_s->parent() != NULL
+							&& T2_s->parent()->parent() == T2_a->parent()
+							&& T2_s->parent()->get_children().size() == 2) {
 				return true;
 			}
 		}

@@ -30,6 +30,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "Node.h"
 #include "Forest.h"
+#include <list>
 #include <typeinfo>
 
 
@@ -580,6 +581,39 @@ class ProtectEdge : public Undoable {
 				node->unprotect_edge();
 		}
 };
+
+class ListPushBack : public Undoable {
+	public:
+		list<Node *> *l;
+
+		ListPushBack(list<Node *> *x) {
+			l = x;
+		}
+
+		void undo() {
+			l->pop_back();
+		}
+};
+
+class ListPopBack : public Undoable {
+	public:
+		list<Node *> *l;
+		Node *node;
+
+		ListPopBack(list<Node *> *x) {
+			l = x;
+			if (!l->empty())
+				node = l->back();
+			else
+				node = NULL;
+		}
+
+		void undo() {
+			if (node != NULL)
+				l->push_back(node);
+		}
+};
+
 
 void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 		bookmark) {
