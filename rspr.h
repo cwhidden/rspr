@@ -1676,7 +1676,16 @@ cout << "  ";
 			Node *best_c = NULL;
 			/* pop protected_stack when out of order sibling pairs
 			 have already contracted it */
-			while(!protected_stack->empty() && protected_stack->back()->is_contracted()) {
+			if(!protected_stack->empty()
+					&& protected_stack->back()->get_twin()->parent() == NULL
+					&& protected_stack->back()->get_twin() != T1->get_component(0)) {
+				um.undo_all();
+				return -1;
+			}
+			while(!protected_stack->empty()
+					&& (protected_stack->back()->is_contracted()
+					// this shouldn't happen
+						|| protected_stack->back()->get_twin()->parent() == NULL)) {
 				um.add_event(new ListPopBack(protected_stack));
 				protected_stack->pop_back();
 			}
