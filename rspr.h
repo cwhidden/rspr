@@ -80,10 +80,12 @@ int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 		int end_k);
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		set<SiblingPair> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
-		list<pair<Forest,Forest> > *AFs, list<Node *> *protected_stack);
+		list<pair<Forest,Forest> > *AFs, list<Node *> *protected_stack,
+		int *num_ties);
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 		set<SiblingPair> *sibling_pairs, list<Node *> *singletons, bool cut_b_only,
-		list<pair<Forest,Forest> > *AFs, list<Node *> *protected_stack, Node *prev_T1_a, Node *prev_T1_c);
+		list<pair<Forest,Forest> > *AFs, list<Node *> *protected_stack,
+		int *num_ties, Node *prev_T1_a, Node *prev_T1_c);
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
 		int threshold);
@@ -791,7 +793,8 @@ if(!sibling_pairs->empty()) {
 				cut_c_only=true;
 			}
 			else if (T1_s->get_twin()->parent() == T2_c->parent()//) {
-						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())) {
+						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())
+							&& T2_c->parent()->get_children().size() == 2) {
 				cut_a_only=true;
 			}
 		}
@@ -1506,10 +1509,11 @@ return 0;
 	sibling_pairs = find_sibling_pairs_set(T1);
 	singletons = T2->find_singletons();
 	list<Node *> protected_stack = list<Node *>();
+	int num_ties = 2;
 
 
 	int final_k = 
-rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs, &singletons, false, &AFs, &protected_stack);
+rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs, &singletons, false, &AFs, &protected_stack, &num_ties);
 
 //		cout << "foo" << endl;
 	// TODO: this is a cheap hack
@@ -1568,16 +1572,16 @@ SiblingPair pop_sibling_pair(set<SiblingPair>::iterator s, set<SiblingPair> *sib
 inline int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 set<SiblingPair> *sibling_pairs, list<Node *> *singletons,
 bool cut_b_only, list<pair<Forest,Forest> > *AFs,
-list<Node *> *protected_stack) {
+list<Node *> *protected_stack, int *num_ties) {
 	return rSPR_branch_and_bound_hlpr(T1, T2, k, sibling_pairs,
-			singletons, cut_b_only, AFs, protected_stack, NULL, NULL);
+			singletons, cut_b_only, AFs, protected_stack, num_ties, NULL, NULL);
 }
 
 // rSPR_branch_and_bound recursive helper function
 int rSPR_branch_and_bound_hlpr(Forest *T1, Forest *T2, int k,
 set<SiblingPair> *sibling_pairs, list<Node *> *singletons,
 bool cut_b_only, list<pair<Forest,Forest> > *AFs,
-list<Node *> *protected_stack, Node *prev_T1_a, Node *prev_T1_c) {
+list<Node *> *protected_stack, int *num_ties, Node *prev_T1_a, Node *prev_T1_c) {
 	#ifdef DEBUG
 	cout << "rSPR_branch_and_bound_hlpr()" << endl;
 	cout << "\tT1: ";
@@ -1978,7 +1982,8 @@ cout << "  ";
 						cut_b_only=false;
 						cob=false;
 					}
-					else if (T2_s->parent() == T2_c->parent()) {
+					else if (T2_s->parent() == T2_c->parent()
+							&& T2_c->parent()->get_children().size() == 2) {
 						cut_a_only=true;
 						cut_b_only=false;
 						cob=false;
@@ -2367,8 +2372,8 @@ cout << "  ";
 						}
 					}
 					answer_a =
-						rSPR_branch_and_bound_hlpr(T1, T2, k-1,
-								sibling_pairs, singletons, false, AFs, protected_stack);
+						rSPR_branch_and_bound_hlpr(T1, T2, k-1, sibling_pairs,
+								singletons, false, AFs, protected_stack, num_ties);
 				}
 				best_k = answer_a;
 				best_T1 = T1;
@@ -2518,13 +2523,13 @@ cout << "  ";
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
 									sibling_pairs, singletons, true, AFs, protected_stack,
-									T1_a, T1_c);
+									num_ties, T1_a, T1_c);
 					}
 					else {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
 									sibling_pairs, singletons, false, AFs, protected_stack,
-									T1_a, T1_c);
+									num_ties, T1_a, T1_c);
 					}
 				}
 				if (answer_b > best_k
@@ -2624,8 +2629,8 @@ cout << "  ";
 					}
 						singletons->push_back(T2_c);
 						answer_c =
-							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
-									sibling_pairs, singletons, false, AFs, protected_stack);
+							rSPR_branch_and_bound_hlpr(T1, T2, k-1, sibling_pairs,
+									singletons, false, AFs, protected_stack, num_ties);
 						if (answer_c > best_k
 									|| (answer_c == best_k
 									&& PREFER_RHO
@@ -2680,9 +2685,17 @@ cout << "  ";
 			if (!ALL_MAFS)
 				AFs->clear();
 			AFs->push_front(make_pair(Forest(T1),Forest(T2)));
+			*num_ties = 2;
 		}
 		else if (ALL_MAFS || AFs->empty()) {
 			AFs->push_back(make_pair(Forest(T1),Forest(T2)));
+		}
+		else if (!PREFER_RHO || AFs->front().first.contains_rho() == T1->contains_rho()) {
+			if (rand() < RAND_MAX/ *num_ties) {
+				AFs->clear();
+				AFs->push_back(make_pair(Forest(T1),Forest(T2)));
+			}
+			(*num_ties)++;
 		}
 	}
 
@@ -3021,9 +3034,11 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 							list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
 							list<Node *> protected_stack = list<Node *>();
 
+							int num_ties = 2;
 
 							int split_k = rSPR_branch_and_bound_hlpr(&f1s, &f2s, k,
-									sibling_pairs, &singletons, false, &AFs, &protected_stack);
+									sibling_pairs, &singletons, false, &AFs,
+									&protected_stack, &num_ties);
 							delete sibling_pairs;
 							if (!AFs.empty()) {
 								AFs.front().first.swap(&f1);
@@ -4297,12 +4312,13 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 			Node *T2_l = T2_a->parent()->parent();
 			if (T2_l != NULL) {
 				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
-						&& T2_a->parent()->get_children().size() > 2
-						&& T2_c->parent()->get_children().size() > 2) {
+						&& ((T2_a->parent()->get_children().size() > 2
+						&& T2_c->parent()->get_children().size() > 2))
+						|| T1_s->get_twin()->is_protected()){
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;
 					}
-					else if (T2_l->parent() == NULL &&
+					else if (CUT_TWO_B_ROOT && T2_l->parent() == NULL &&
 							(T2->contains_rho() ||
 							 T2->get_component(0) != T2_l)) {
 						return true;
@@ -4310,12 +4326,13 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 				}
 				else if ((T2_l = T2_l->parent()) != NULL
 						&& T2_c->parent() == T2_l
-						&& T2_a->parent()->get_children().size() > 2
-						&& T2_a->parent()->parent()->get_children().size() > 2) {
+						&& ((T2_a->parent()->get_children().size() > 2
+						&& T2_a->parent()->parent()->get_children().size() > 2))
+						|| T1_s->get_twin()->is_protected()){
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;
 					}
-					else if (T2_l->parent() == NULL &&
+					else if (CUT_TWO_B_ROOT && T2_l->parent() == NULL &&
 							(T2->contains_rho() ||
 							 T2->get_component(0) != T2_l)) {
 						return true;
@@ -4331,7 +4348,8 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 			if (T2_s->parent() == T2_a->parent()) {
 				return true;
 			}
-			else if (T2_s->parent() == T2_c->parent()) {
+			else if (T2_s->parent() == T2_c->parent()
+					&& T2_c->parent()->get_children().size() == 2) {
 				return true;
 			}
 			else if (REVERSE_CUT_ONE_B_3
