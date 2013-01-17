@@ -1895,6 +1895,7 @@ cout << "  ";
 				bool cut_ab_only = false;
 				bool cut_a_only = false;
 				bool cut_c_only = false;
+				bool cut_a_or_merge_ac = false;
 				bool same_component = true;
 				int lca_depth = -1;
 				int path_length = -1;
@@ -1982,11 +1983,17 @@ cout << "  ";
 						cut_b_only=false;
 						cob=false;
 					}
-					else if (T2_s->parent() == T2_c->parent()
-							&& T2_c->parent()->get_children().size() == 2) {
-						cut_a_only=true;
-						cut_b_only=false;
-						cob=false;
+					else if (T2_s->parent() == T2_c->parent()) {
+						if (T2_c->parent()->get_children().size() == 2) {
+							cut_a_only=true;
+							cut_b_only=false;
+							cob=false;
+						}
+						else {
+							cut_a_or_merge_ac=true;
+							cut_b_only=false;
+							cob=false;
+						}
 					}
 					else if (REVERSE_CUT_ONE_B_3
 							// TODO: there is a chance for an additional optimization
@@ -2519,6 +2526,19 @@ cout << "  ";
 
 					// TODO: check carefully
 
+					if (cut_a_or_merge_ac) {
+						if (!T2_a->is_protected()) {
+							um.add_event(new ProtectEdge(T2_a));
+							T2_a->protect_edge();
+							um.add_event(new ListPushBack(protected_stack));
+							protected_stack->push_back(T2_a);
+						}
+						if (!T2_c->is_protected()) {
+							um.add_event(new ProtectEdge(T2_c));
+							T2_c->protect_edge();
+						}
+					}
+
 					if (CUT_ALL_B) {
 						answer_b =
 							rSPR_branch_and_bound_hlpr(T1, T2, k-1,
@@ -2564,7 +2584,8 @@ cout << "  ";
 				*/
 //				if (T2_c->is_protected())
 //					cout << "protected k=" << k << endl;
-				if ((!T2_c->is_protected()) &&
+				if (!T2_c->is_protected() &&
+						!cut_a_or_merge_ac &&
 	//					(T2_c->parent() == NULL || !T2_c->parent()->is_protected() ||
 	//						T2_c->parent()->get_children().size() > 2) &&
 						(!ABORT_AT_FIRST_SOLUTION || best_k < 0
