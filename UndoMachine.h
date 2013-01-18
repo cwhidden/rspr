@@ -582,6 +582,20 @@ class ProtectEdge : public Undoable {
 		}
 };
 
+class UnprotectEdge : public Undoable {
+	public:
+		Node *node;
+
+		UnprotectEdge(Node *n) {
+			node = n;
+		}
+
+		void undo() {
+			if (node != NULL)
+				node->protect_edge();
+		}
+};
+
 class ListPushBack : public Undoable {
 	public:
 		list<Node *> *l;

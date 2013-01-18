@@ -1953,9 +1953,9 @@ cout << "  ";
 					Node *T2_l = T2_a->parent()->parent();
 					if (T2_l != NULL) {
 						if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
-								&& (T2_a->parent()->get_children().size() > 2
+								&& ((T2_a->parent()->get_children().size() > 2
 										&& T2_c->parent()->get_children().size() > 2)
-									|| T1_s->get_twin()->is_protected()) {
+									|| T1_s->get_twin()->is_protected())) {
 							if (T2_l->get_sibling() == T1_s->get_twin()) {
 								cut_b_only=true;
 							}
@@ -1967,9 +1967,9 @@ cout << "  ";
 						}
 						else if ((T2_l = T2_l->parent()) != NULL
 								&& T2_c->parent() == T2_l
-								&& (T2_a->parent()->get_children().size() > 2
+								&& ((T2_a->parent()->get_children().size() > 2
 										&& T2_a->parent()->parent()->get_children().size() > 2)
-									|| T1_s->get_twin()->is_protected()) {
+									|| T1_s->get_twin()->is_protected())) {
 							if (T2_l->get_sibling() == T1_s->get_twin()) {
 								cut_b_only=true;
 							}
@@ -4343,8 +4343,8 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 			if (T2_l != NULL) {
 				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
 						&& ((T2_a->parent()->get_children().size() > 2
-						&& T2_c->parent()->get_children().size() > 2))
-						|| T1_s->get_twin()->is_protected()){
+						&& T2_c->parent()->get_children().size() > 2)
+						|| T1_s->get_twin()->is_protected())){
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;
 					}
@@ -4357,8 +4357,8 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 				else if ((T2_l = T2_l->parent()) != NULL
 						&& T2_c->parent() == T2_l
 						&& ((T2_a->parent()->get_children().size() > 2
-						&& T2_a->parent()->parent()->get_children().size() > 2))
-						|| T1_s->get_twin()->is_protected()){
+						&& T2_a->parent()->parent()->get_children().size() > 2)
+						|| T1_s->get_twin()->is_protected())){
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;
 					}
