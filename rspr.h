@@ -794,7 +794,7 @@ if(!sibling_pairs->empty()) {
 			}
 			else if (T1_s->get_twin()->parent() == T2_c->parent()//) {
 						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())
-							&& T2_c->parent()->get_children().size() == 2) {
+							&& T2_c->parent()->get_children().size() <= 2) {
 				cut_a_only=true;
 			}
 		}
@@ -1993,7 +1993,7 @@ cout << "  ";
 						cob=false;
 					}
 					else if (T2_s->parent() == T2_c->parent()) {
-						if (T2_c->parent()->get_children().size() == 2) {
+						if (T2_c->parent()->get_children().size() <= 2) {
 							cut_a_only=true;
 							cut_b_only=false;
 							cob=false;
@@ -2012,7 +2012,7 @@ cout << "  ";
 							&& T2_s->is_protected()
 							&& T2_s->parent() != NULL
 							&& T2_s->parent()->parent() == T2_a->parent()
-							&& T2_s->parent()->get_children().size() == 2) {
+							&& T2_s->parent()->get_children().size() <= 2) {
 						cut_c_only = true;
 						cut_b_only=false;
 						cob=false;
@@ -2354,6 +2354,8 @@ cout << "  ";
 				if (cut_b_only == false && cut_c_only == false &&
 						!T2_a->is_protected()
 						&& (T2_a->parent()->parent() != NULL
+								|| (T2_a->parent() == T2->get_component(0)
+										&& !T2->contains_rho())
 								|| !T2_b->is_protected()
 								|| T2_a->parent()->get_children().size() > 2)) {// &&
 //						(!T2_a->parent()->is_protected() ||
@@ -2370,6 +2372,8 @@ cout << "  ";
 					singletons->push_back(T2_a);
 
 					// also require !cut_a_only ?
+//					if (EDGE_PROTECTION_TWO_B && T2_c->is_protected() && !cut_a_only) {
+//				}
 					if (EDGE_PROTECTION_TWO_B && T2_c->is_protected()) {
 						if (path_length == 4) {
 							if (!multi_b1 && !multi_b2 && !T2_b->is_protected()) {
@@ -2487,7 +2491,9 @@ cout << "  ";
 							|| !PREFER_RHO || !AFs->front().first.contains_rho() )
 						&& !cut_a_only && !cut_c_only
 						&& (T2_a->parent()->parent() != NULL
-								|| !T2_a->is_protected())) {
+								|| !T2_a->is_protected()
+								|| (T2_a->parent() == T2->get_component(0)
+										&& !T2->contains_rho()))) {
 					if (multi_node) {
 						um.add_event(new ChangeEdgePreInterval(T2_a));
 						T2_a->copy_edge_pre_interval(T2_ab);
@@ -2605,6 +2611,8 @@ cout << "  ";
 						// it has to be under rho, right?
 						&& (T2_c->parent() == NULL
 								|| T2_c->parent()->parent() != NULL
+								|| (T2_c->parent() == T2->get_component(0)
+										&& !T2->contains_rho())
 								|| !T2_c->get_sibling()->is_protected()
 								|| T2_c->parent()->get_children().size() > 2)) {// &&
 
@@ -2637,7 +2645,8 @@ cout << "  ";
 						}
 //						if (EDGE_PROTECTION_TWO_B && !cut_c_only) {
 //					}
-						if (EDGE_PROTECTION_TWO_B) {
+						// TODO: problem here :(
+						if (EDGE_PROTECTION_TWO_B && !cut_c_only) {
 							if (path_length == 4) {
 								if (!multi_b1 && !multi_b2 && !T2_b->is_protected()) {
 									um.add_event(new ProtectEdge(T2_b));
@@ -4379,14 +4388,14 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 				return true;
 			}
 			else if (T2_s->parent() == T2_c->parent()
-					&& T2_c->parent()->get_children().size() == 2) {
+					&& T2_c->parent()->get_children().size() <= 2) {
 				return true;
 			}
 			else if (REVERSE_CUT_ONE_B_3
 							&& T2_s->is_protected()
 							&& T2_s->parent() != NULL
 							&& T2_s->parent()->parent() == T2_a->parent()
-							&& T2_s->parent()->get_children().size() == 2) {
+							&& T2_s->parent()->get_children().size() <= 2) {
 				return true;
 			}
 		}
