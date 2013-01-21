@@ -701,13 +701,15 @@ class Node {
 			if (children.size() == 1) {
 					child = children.front();
 					if (this == parent->children.back()) {
-						parent->add_child(child);
+						parent->add_child_keep_depth(child);
+						child->set_depth(depth);
 					}
 					else {
 						list<Node *>::iterator sib = p_link;
 						sib++;
 						Node *sibling = *sib;
-						parent->insert_child(sibling, child);
+						parent->insert_child_keep_depth(sibling, child);
+						child->set_depth(depth);
 					}
 					child->copy_edge_pre_interval(this);
 					if (edge_protected && !child->is_protected())

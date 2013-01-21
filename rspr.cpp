@@ -511,6 +511,8 @@ int main(int argc, char *argv[]) {
 */
 
 //		APPROX_EDGE_PROTECTION = true;
+			DEEPEST_PROTECTED_ORDER = true;
+			DEEPEST_ORDER = true;
 	}
 	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {

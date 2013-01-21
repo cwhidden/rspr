@@ -103,6 +103,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, int min_k, int max_k);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest *out_F1, Forest *out_F2);
 void reduction_leaf(Forest *T1, Forest *T2);
+void reduction_leaf(Forest *T1, Forest *T2, UndoMachine *um);
 bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end);
 Node *find_subtree_of_approx_distance(Node *n, Forest *F1, Forest *F2, int target_size);
 Node *find_best_root(Node *T1, Node *T2);
@@ -2374,7 +2375,8 @@ cout << "  ";
 					// also require !cut_a_only ?
 //					if (EDGE_PROTECTION_TWO_B && T2_c->is_protected() && !cut_a_only) {
 //				}
-					if (EDGE_PROTECTION_TWO_B && T2_c->is_protected()) {
+
+					if (EDGE_PROTECTION_TWO_B && T2_c->is_protected() && !cut_a_only){
 						if (path_length == 4) {
 							if (!multi_b1 && !multi_b2 && !T2_b->is_protected()) {
 								um.add_event(new ProtectEdge(T2_b));
@@ -2391,9 +2393,16 @@ cout << "  ";
 							}
 						}
 					}
-					answer_a =
-						rSPR_branch_and_bound_hlpr(T1, T2, k-1, sibling_pairs,
-								singletons, false, AFs, protected_stack, num_ties);
+					if (cut_a_only) {
+						answer_a =
+							rSPR_branch_and_bound_hlpr(T1, T2, k-1, sibling_pairs,
+									singletons, false, AFs, protected_stack, num_ties, T1_c, T1_c->get_sibling());
+					}
+					else {
+						answer_a =
+							rSPR_branch_and_bound_hlpr(T1, T2, k-1, sibling_pairs,
+									singletons, false, AFs, protected_stack, num_ties);
+					}
 				}
 				best_k = answer_a;
 				best_T1 = T1;
@@ -2633,11 +2642,12 @@ cout << "  ";
 						// don't decrease k
 						k++;
 					}
-					if (EDGE_PROTECTION) {
+					if (EDGE_PROTECTION && !cut_c_only) {
 						if (!T2_a->is_protected()) {
 							um.add_event(new ProtectEdge(T2_a));
 							T2_a->protect_edge();
-							if (DEEPEST_PROTECTED_ORDER && !cut_c_only) {
+//							if (DEEPEST_PROTECTED_ORDER && !cut_c_only) {
+							if (DEEPEST_PROTECTED_ORDER) {
 								um.add_event(new ListPushBack(protected_stack));
 								protected_stack->push_back(T2_a);
 							}
@@ -2646,7 +2656,7 @@ cout << "  ";
 //						if (EDGE_PROTECTION_TWO_B && !cut_c_only) {
 //					}
 						// TODO: problem here :(
-						if (EDGE_PROTECTION_TWO_B && !cut_c_only) {
+						if (EDGE_PROTECTION_TWO_B) {
 							if (path_length == 4) {
 								if (!multi_b1 && !multi_b2 && !T2_b->is_protected()) {
 									um.add_event(new ProtectEdge(T2_b));
@@ -2667,9 +2677,16 @@ cout << "  ";
 							T2_a->set_max_merge_depth(lca_depth);
 					}
 						singletons->push_back(T2_c);
-						answer_c =
-							rSPR_branch_and_bound_hlpr(T1, T2, k-1, sibling_pairs,
-									singletons, false, AFs, protected_stack, num_ties);
+						if (cut_c_only) {
+							answer_c =
+								rSPR_branch_and_bound_hlpr(T1, T2, k-1, sibling_pairs,
+										singletons, false, AFs, protected_stack, num_ties, T1_a, T1_a->get_sibling());
+						}
+						else {
+							answer_c =
+								rSPR_branch_and_bound_hlpr(T1, T2, k-1, sibling_pairs,
+										singletons, false, AFs, protected_stack, num_ties);
+						}
 						if (answer_c > best_k
 									|| (answer_c == best_k
 									&& PREFER_RHO
@@ -3359,7 +3376,12 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest *out_F1, 
 }
 
 // T1 and T2 are assumed to already by synced
+
 void reduction_leaf(Forest *T1, Forest *T2) {
+	reduction_leaf(T1, T2, NULL);
+}
+
+void reduction_leaf(Forest *T1, Forest *T2, UndoMachine *um) {
 	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
 	Node *T1_a;
 	Node *T1_c;
