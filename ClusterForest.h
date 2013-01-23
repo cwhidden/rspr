@@ -122,6 +122,9 @@ class ClusterForest: public Forest {
 			cluster_parent->add_child(solved_cluster->get_component(0));
 			//cluster_parent->add_child(new Node(*(solved_cluster->get_component(0))));
 			start = 1;
+			if (cluster_parent->get_children().size() == 1) {
+				cluster_parent->contract(true);
+			}
 		}
 		// should we add these to a finished_components or something?
 		for(int i = start; i < solved_cluster->num_components(); i++) {
@@ -154,7 +157,6 @@ class ClusterForest: public Forest {
 				solved_cluster->get_component(i)->delete_tree();
 		}
 		solved_cluster->erase_components();
-
 	}
 
 };

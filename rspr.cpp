@@ -139,6 +139,7 @@ bool CLUSTER_TEST = false;
 bool TOTAL = false;
 bool APPROX = false;
 bool LOWER_BOUND = false;
+bool REDUCE_ONLY = false;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -340,6 +341,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-find_rate") == 0) {
 			FIND_RATE = true;
+		}
+		else if (strcmp(arg, "-reduce") == 0) {
+			REDUCE_ONLY = true;
 		}
 
 /*		else if (strcmp(arg, "-cluster") == 0) {
@@ -545,6 +549,14 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			// TODO: should we sync here to prune out additional leaves?
+			if (REDUCE_ONLY) {
+				Forest F1 = Forest(T1);
+				Forest F2 = Forest(T2);
+				sync_twins(&F1, &F2);
+				F1.print_components();
+				F2.print_components();
+				continue;
+			}
 			if (!QUIET) {
 				cout << "T1: ";
 				T1->print_subtree();
