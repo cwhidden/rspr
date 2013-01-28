@@ -31,7 +31,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RSPR
 
-#define DEBUG 1
+//#define DEBUG 1
 #define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
@@ -1954,8 +1954,8 @@ cout << "  ";
 					Node *T2_l = T2_a->parent()->parent();
 					if (T2_l != NULL) {
 						if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
-								&& ((T2_a->parent()->get_children().size() > 2
-										&& T2_c->parent()->get_children().size() > 2)
+								&& ((T2_a->parent()->get_children().size() <= 2
+										&& T2_c->parent()->get_children().size() <= 2)
 									|| T1_s->get_twin()->is_protected())) {
 							if (T2_l->get_sibling() == T1_s->get_twin()) {
 								cut_b_only=true;
@@ -1968,8 +1968,8 @@ cout << "  ";
 						}
 						else if ((T2_l = T2_l->parent()) != NULL
 								&& T2_c->parent() == T2_l
-								&& ((T2_a->parent()->get_children().size() > 2
-										&& T2_a->parent()->parent()->get_children().size() > 2)
+								&& ((T2_a->parent()->get_children().size() <= 2
+										&& T2_a->parent()->parent()->get_children().size() <= 2)
 									|| T1_s->get_twin()->is_protected())) {
 							if (T2_l->get_sibling() == T1_s->get_twin()) {
 								cut_b_only=true;
@@ -2017,6 +2017,10 @@ cout << "  ";
 						cut_c_only = true;
 						cut_b_only=false;
 						cob=false;
+						if (!T2_a->is_protected()) {
+							um.add_event(new ProtectEdge(T2_a));
+							T2_a->protect_edge();
+						}
 					}
 				}
 				else if (REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
@@ -4373,8 +4377,8 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 			Node *T2_l = T2_a->parent()->parent();
 			if (T2_l != NULL) {
 				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
-						&& ((T2_a->parent()->get_children().size() > 2
-						&& T2_c->parent()->get_children().size() > 2)
+						&& ((T2_a->parent()->get_children().size() <= 2
+						&& T2_c->parent()->get_children().size() <= 2)
 						|| T1_s->get_twin()->is_protected())){
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;
@@ -4387,8 +4391,8 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 				}
 				else if ((T2_l = T2_l->parent()) != NULL
 						&& T2_c->parent() == T2_l
-						&& ((T2_a->parent()->get_children().size() > 2
-						&& T2_a->parent()->parent()->get_children().size() > 2)
+						&& ((T2_a->parent()->get_children().size() <= 2
+						&& T2_a->parent()->parent()->get_children().size() <= 2)
 						|| T1_s->get_twin()->is_protected())){
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;

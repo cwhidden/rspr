@@ -140,6 +140,7 @@ bool TOTAL = false;
 bool APPROX = false;
 bool LOWER_BOUND = false;
 bool REDUCE_ONLY = false;
+bool PRINT_ROOTED_TREES = false;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -344,6 +345,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-reduce") == 0) {
 			REDUCE_ONLY = true;
+		}
+		else if (strcmp(arg, "-print_rooted_trees") == 0) {
+			PRINT_ROOTED_TREES = true;
 		}
 
 /*		else if (strcmp(arg, "-cluster") == 0) {
@@ -740,7 +744,7 @@ int main(int argc, char *argv[]) {
 
 
 		// APPROX ALGORITHM
-		int min_spr = (int)1E9;
+		int min_spr = INT_MAX;
 		int min_i = 0;
 		vector<int> approx_spr = vector<int>(trees.size());
 		for (int i = 0; i < trees.size(); i++) {
@@ -877,6 +881,11 @@ int main(int argc, char *argv[]) {
 					trees[i]->set_depth(0);
 					trees[i]->fix_depths();
 					trees[i]->preorder_number();
+				if (PRINT_ROOTED_TREES) {
+					trees[i]->numbers_to_labels(&reverse_label_map);
+					cout << "T" <<  i+2 << ": " << trees[i]->str_subtree() << endl;
+					trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
+				}
 			}
 		}
 		vector<Node *> rootings;
