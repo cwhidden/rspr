@@ -91,7 +91,7 @@ class Node {
 	// TODO: contracted_list ?
 	Node *contracted_lc;
 	Node *contracted_rc;
-	bool is_contracted;
+	bool contracted;
 	bool edge_protected;
 	int max_merge_depth;
 	bool allow_sibling;
@@ -132,7 +132,7 @@ class Node {
 		this->forest = NULL;
 		this->contracted_lc = NULL;
 		this->contracted_rc = NULL;
-		this->is_contracted = false;
+		this->contracted = false;
 		this->edge_protected = false;
 		this->allow_sibling = true;
 		this->lost_children = 0;
@@ -177,11 +177,11 @@ class Node {
 			contracted_rc = NULL;
 		else
 			contracted_rc = new Node(*(n.contracted_rc), this);
-		this->is_contracted = n.is_contracted;
+		this->contracted = n.contracted;
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
-		this->is_contracted = n.is_contracted;
+		this->contracted = n.contracted;
 #endif
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
@@ -225,11 +225,11 @@ class Node {
 			contracted_rc = NULL;
 		else
 			contracted_rc = new Node(*(n.contracted_rc), this);
-		this->is_contracted = n.is_contracted;
+		this->contracted = n.contracted;
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
-		this->is_contracted = n.is_contracted;
+		this->contracted = n.contracted;
 #endif
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
@@ -320,7 +320,7 @@ class Node {
 		n->p_link = children.insert(children.end(),n);
 		n->p = this;
 		n->depth = depth+1;
-		n->is_contracted = false;
+		n->contracted = false;
 	}
 
 	// TODO: make sure this doesn't break things with >2 children
@@ -330,7 +330,7 @@ class Node {
 			n->cut_parent();
 		n->p_link = children.insert(children.end(),n);
 		n->p = this;
-		n->is_contracted = false;
+		n->contracted = false;
 	}
 
 
@@ -347,7 +347,7 @@ class Node {
 		n->p_link = children.insert(sibling->p_link, n);
 		n->depth = depth+1;
 		n->p = this;
-		n->is_contracted = false;
+		n->contracted = false;
 	 }
 
 	// insert a child before the given sibling
@@ -356,7 +356,7 @@ class Node {
 			n->cut_parent();
 	 	n->p_link = children.insert(sibling->p_link, n);
 		n->p = this;
-		n->is_contracted = false;
+		n->contracted = false;
 	 }
 
 
@@ -448,9 +448,26 @@ class Node {
 	list<Node *>& get_children() {
 		return children;
 	}
+	Node *get_contracted_lc() {
+		return contracted_lc;
+	}
+	Node *get_contracted_rc() {
+		return contracted_rc;
+	}
+
+	Node *set_contracted_lc(Node *n) {
+		contracted_lc = n;
+	}
+	Node *set_contracted_rc(Node *n) {
+		contracted_rc = n;
+	}
+
 
 	bool is_protected() {
 		return edge_protected;
+	}
+	bool is_contracted() {
+		return contracted;
 	}
 
 	void protect_edge() {
@@ -684,13 +701,15 @@ class Node {
 			if (children.size() == 1) {
 					child = children.front();
 					if (this == parent->children.back()) {
-						parent->add_child(child);
+						parent->add_child_keep_depth(child);
+						child->set_depth(depth);
 					}
 					else {
 						list<Node *>::iterator sib = p_link;
 						sib++;
 						Node *sibling = *sib;
-						parent->insert_child(sibling, child);
+						parent->insert_child_keep_depth(sibling, child);
+						child->set_depth(depth);
 					}
 					child->copy_edge_pre_interval(this);
 					if (edge_protected && !child->is_protected())
@@ -748,7 +767,8 @@ class Node {
 							set_twin(child->get_twin());
 							child->get_twin()->set_twin(this);
 						}
-						name = child->str();
+						name = child->get_name();
+//						name = child->str();
 					}
 					child->cut_parent();
 					list<Node *>::iterator c = child->children.begin();
@@ -758,9 +778,16 @@ class Node {
 						new_child->cut_parent();
 						add_child(new_child);
 					}
+					if (child->contracted_lc != NULL)
+						contracted_lc = child->contracted_lc;
+					if (child->contracted_rc != NULL)
+						contracted_rc = child->contracted_rc;
 					pre_num = child->get_preorder_number();
-					if (remove)
+					if (remove) {
+						child->contracted_lc = NULL;
+						child->contracted_rc = NULL;
 						delete child;
+					}
 					ret = this;
 				}
 			}
@@ -807,12 +834,14 @@ class Node {
 			#endif
 			set_name(new_name);
 			*/
-			contracted_lc = lchild();
-			contracted_rc = rchild();
-			rchild()->cut_parent();
-			lchild()->cut_parent();
-			contracted_lc->is_contracted = true;
-			contracted_rc->is_contracted = true;
+			Node *lc = lchild();
+			Node *rc = rchild();
+			contracted_lc = lc;
+			contracted_rc = rc;
+			rc->cut_parent();
+			lc->cut_parent();
+			contracted_lc->contracted = true;
+			contracted_rc->contracted = true;
 			edge_protected = false;
 			return true;
 		}
@@ -869,7 +898,7 @@ class Node {
 	void cut_parent() {
 		if (p != NULL) {
 			// TODO hacky: fix this to use a multi list for contractions
-			if (!is_contracted) {
+			if (!contracted) {
 				p->children.erase(p_link);
 			}
 			else {
@@ -1300,6 +1329,17 @@ class Node {
 			twin = NULL;
 	}
 
+	void sync_af_twins() {
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->sync_af_twins();
+		}
+		if (!is_leaf()) {
+			twin = lchild()->get_twin()->parent();
+			twin->set_twin(this);
+		}
+	}
+
 	// find the root of this node's tree
 	Node *find_root() {
 		Node *root = this;
@@ -1402,6 +1442,15 @@ class Node {
 			contracted_lc->numbers_to_labels(reverse_label_map);
 		if (contracted_rc != NULL)
 			contracted_rc->numbers_to_labels(reverse_label_map);
+	}
+
+	void build_name_to_pre_map(map<string, int> *name_to_pre) {
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->build_name_to_pre_map(name_to_pre);
+		}
+		if (is_leaf())
+			name_to_pre->insert(make_pair(get_name(), get_preorder_number()));
 	}
 
 	void count_numbered_labels(vector<int> *label_counts) {

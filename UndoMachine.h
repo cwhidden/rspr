@@ -30,6 +30,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #include "Node.h"
 #include "Forest.h"
+#include <list>
 #include <typeinfo>
 
 
@@ -416,7 +417,8 @@ class ChangeName : public Undoable {
 
 		ChangeName(Node *n) {
 			node = n;
-			name = n->str();
+			name = n->get_name();//str();
+//			name = n->str();
 		}
 
 		void undo() {
@@ -526,6 +528,32 @@ class AddChild : public Undoable {
 		}
 };
 
+class AddContractedLC : public Undoable {
+	public:
+		Node *node;
+
+		AddContractedLC(Node *n) {
+			node = n;
+		}
+
+		void undo() {
+			node->set_contracted_lc(NULL);
+		}
+};
+
+class AddContractedRC : public Undoable {
+	public:
+		Node *node;
+
+		AddContractedRC(Node *n) {
+			node = n;
+		}
+
+		void undo() {
+			node->set_contracted_rc(NULL);
+		}
+};
+
 class CreateNode : public Undoable {
 	public:
 		Node *node;
@@ -553,6 +581,53 @@ class ProtectEdge : public Undoable {
 				node->unprotect_edge();
 		}
 };
+
+class UnprotectEdge : public Undoable {
+	public:
+		Node *node;
+
+		UnprotectEdge(Node *n) {
+			node = n;
+		}
+
+		void undo() {
+			if (node != NULL)
+				node->protect_edge();
+		}
+};
+
+class ListPushBack : public Undoable {
+	public:
+		list<Node *> *l;
+
+		ListPushBack(list<Node *> *x) {
+			l = x;
+		}
+
+		void undo() {
+			l->pop_back();
+		}
+};
+
+class ListPopBack : public Undoable {
+	public:
+		list<Node *> *l;
+		Node *node;
+
+		ListPopBack(list<Node *> *x) {
+			l = x;
+			if (!l->empty())
+				node = l->back();
+			else
+				node = NULL;
+		}
+
+		void undo() {
+			if (node != NULL)
+				l->push_back(node);
+		}
+};
+
 
 void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 		bookmark) {
@@ -636,6 +711,10 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 							c++) {
 						um->add_event(new CutParent(*c));
 					}
+					if (child->get_contracted_lc() != NULL)
+						um->add_event(new AddContractedLC(n));
+					if (child->get_contracted_rc() != NULL)
+						um->add_event(new AddContractedRC(n));
 				}
 			}
 		}

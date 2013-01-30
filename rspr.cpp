@@ -140,6 +140,8 @@ bool CLUSTER_TEST = false;
 bool TOTAL = false;
 bool APPROX = false;
 bool LOWER_BOUND = false;
+bool REDUCE_ONLY = false;
+bool PRINT_ROOTED_TREES = false;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -247,9 +249,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-fast_approx") == 0) {
 			APPROX_CUT_ONE_B = true;
 			APPROX_CUT_TWO_B = true;
-			APPROX_CUT_TWO_B_ROOT = true;
+//			APPROX_CUT_TWO_B_ROOT = true;
 			APPROX_REVERSE_CUT_ONE_B = true;
-			APPROX_EDGE_PROTECTION = true;
+//			APPROX_EDGE_PROTECTION = true;
 		}
 		else if (strcmp(arg, "-a_cob") == 0) {
 			APPROX_CUT_ONE_B = true;
@@ -304,6 +306,10 @@ int main(int argc, char *argv[]) {
 				strcmp(arg, "-rcob2") == 0) {
 			REVERSE_CUT_ONE_B_2 = true;
 		}
+		else if (strcmp(arg, "-reverse_cut_one_b_3") == 0 ||
+				strcmp(arg, "-rcob3") == 0) {
+			REVERSE_CUT_ONE_B_3 = true;
+		}
 		else if (strcmp(arg, "-cut_two_b") == 0 ||
 				strcmp(arg, "-c2b") == 0) {
 			CUT_TWO_B = true;
@@ -337,6 +343,12 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-find_rate") == 0) {
 			FIND_RATE = true;
+		}
+		else if (strcmp(arg, "-reduce") == 0) {
+			REDUCE_ONLY = true;
+		}
+		else if (strcmp(arg, "-print_rooted_trees") == 0) {
+			PRINT_ROOTED_TREES = true;
 		}
 
 /*		else if (strcmp(arg, "-cluster") == 0) {
@@ -462,6 +474,10 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-deepest") == 0) {
 			DEEPEST_ORDER = true;
 		}
+		else if (strcmp(arg, "-deepest_protected") == 0) {
+			DEEPEST_PROTECTED_ORDER = true;
+			DEEPEST_ORDER = true;
+		}
 		else if (strcmp(arg, "-count_losses") == 0) {
 			COUNT_LOSSES = true;
 		}
@@ -478,6 +494,7 @@ int main(int argc, char *argv[]) {
 		CUT_ALL_B=true;
 		CUT_ONE_B = true;
 		REVERSE_CUT_ONE_B = true;
+		REVERSE_CUT_ONE_B_3 = true;
 		CUT_TWO_B = true;
 //		CUT_TWO_B_ROOT = true;
 		CUT_AC_SEPARATE_COMPONENTS = true;
@@ -494,9 +511,17 @@ int main(int argc, char *argv[]) {
 
 		APPROX_CUT_ONE_B = true;
 		APPROX_CUT_TWO_B = true;
-		APPROX_CUT_TWO_B_ROOT = true;
+//		APPROX_CUT_TWO_B_ROOT = true;
 		APPROX_REVERSE_CUT_ONE_B = true;
-		APPROX_EDGE_PROTECTION = true;
+/* BUGGY: we aren't guaranteed that the protected edges mean
+	 anything because we may cut off the only things that can merge with
+	 them. It might make sense to cut a protected edge because it should
+	 have already merged by then.
+*/
+
+//		APPROX_EDGE_PROTECTION = true;
+			DEEPEST_PROTECTED_ORDER = true;
+			DEEPEST_ORDER = true;
 	}
 	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {
@@ -529,6 +554,14 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			// TODO: should we sync here to prune out additional leaves?
+			if (REDUCE_ONLY) {
+				Forest F1 = Forest(T1);
+				Forest F2 = Forest(T2);
+				sync_twins(&F1, &F2);
+				F1.print_components();
+				F2.print_components();
+				continue;
+			}
 			if (!QUIET) {
 				cout << "T1: ";
 				T1->print_subtree();
@@ -712,7 +745,7 @@ int main(int argc, char *argv[]) {
 
 
 		// APPROX ALGORITHM
-		int min_spr = (int)1E9;
+		int min_spr = INT_MAX;
 		int min_i = 0;
 		vector<int> approx_spr = vector<int>(trees.size());
 		for (int i = 0; i < trees.size(); i++) {
@@ -849,6 +882,11 @@ int main(int argc, char *argv[]) {
 					trees[i]->set_depth(0);
 					trees[i]->fix_depths();
 					trees[i]->preorder_number();
+				if (PRINT_ROOTED_TREES) {
+					trees[i]->numbers_to_labels(&reverse_label_map);
+					cout << "T" <<  i+2 << ": " << trees[i]->str_subtree() << endl;
+					trees[i]->labels_to_numbers(&label_map, &reverse_label_map);
+				}
 			}
 		}
 		vector<Node *> rootings;

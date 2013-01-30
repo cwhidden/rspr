@@ -203,6 +203,20 @@ class Forest {
 		cout << endl;
 	}
 
+	// print the forest showing edge intervals
+	void print_components_with_edge_pre_interval() {
+		vector<Node *>::iterator it = components.begin();
+		for(it = components.begin(); it != components.end(); it++) {
+			Node *root = *it;
+			if (root == NULL)
+				cout << "!";
+			else
+				cout << root->str_edge_pre_interval_subtree();
+			cout << " ";
+		}
+		cout << endl;
+	}
+
 	// return the string for this forest
 	string str() {
 		string s = "";
@@ -827,6 +841,15 @@ void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs) {
 		active_descendants->clear();
 }
 
+void sync_af_twins(Forest *F1, Forest *F2) {
+	F1->unsync();
+	F2->unsync();
+	sync_twins(F1, F2);
+	for(int i = 0; i < F1->num_components(); i++) {
+		F1->get_component(i)->sync_af_twins();
+	}
+}
+
 /* merge two nodes from a list into their LCA if they are from
 	 the same component
 	 */
@@ -1071,7 +1094,7 @@ void swap(Forest **a, Forest **b) {
 
 // expand all contracted nodes
 void expand_contracted_nodes(Forest *F) {
-	for(int i = 0; i < F->size(); i++) {
+	for(int i = 0; i < F->num_components(); i++) {
 		F->get_component(i)->expand_contracted_nodes();
 	}
 }
