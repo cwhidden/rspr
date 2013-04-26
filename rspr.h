@@ -2010,11 +2010,12 @@ cout << "  ";
 							// here. If T2_s is not protected then we can cut c or
 							// have to cut a (and s?)
 //							&& T2_c->parent()->parent() != NULL
+							// TODO: buggy? Do we also have to consider cutting b_1 through the other b's?
 							&& T2_s->is_protected()
 							&& T2_s->parent() != NULL
 							&& T2_s->parent()->parent() == T2_a->parent()
 							&& T2_s->parent()->get_children().size() <= 2) {
-						cut_c_only = true;
+						//cut_c_only = true;
 						cut_b_only=false;
 						cob=false;
 						if (!T2_a->is_protected()) {
@@ -2024,10 +2025,29 @@ cout << "  ";
 					}
 				}
 				else if (REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
-						&& chain_match(T1_s, T2_c->get_sibling(), T2_a))
+						&& chain_match(T1_s, T2_c->get_sibling(), T2_a)) {
 					cut_a_only = true;
 					cut_b_only=false;
 					cob=false;
+				}
+			}
+			if (REVERSE_CUT_ONE_B_3 && (!cut_b_only || (cob && multi_node)) &&
+					T1_ac->parent() != NULL && T1_ac->parent()->parent() != NULL) {
+				Node *T1_s = T1_ac->parent()->get_sibling();
+				Node *T2_s = T1_s->get_sibling();
+				if (T1_s->is_leaf()
+						&& T2_s->is_protected()
+						&& T2_s->parent() != NULL
+						&& T2_s->parent()->parent() == T2_a->parent()
+						&& T2_s->parent()->get_children().size() <= 2) {
+					//cut_c_only = true;
+					cut_b_only=false;
+					cob=false;
+					if (!T2_a->is_protected()) {
+						um.add_event(new ProtectEdge(T2_a));
+						T2_a->protect_edge();
+					}
+				}
 			}
 			if (CUT_TWO_B_ROOT && cut_a_only == false && cut_c_only == false
 					&& cut_b_only_if_not_a_or_c == true) {
@@ -2181,7 +2201,7 @@ cout << "  ";
 //				cout << "\tT2: ";
 //				T2->print_components();
 				sync_interior_twins_real(T1, T2);
-				list<Node *> *cluster_points = find_cluster_points(T1);
+				list<Node *> *cluster_points = find_cluster_points(T1, T2);
 				//cluster_points->erase(++cluster_points->begin(),cluster_points->end());
 	
 				// TODO: could this be faster by using the approx to allocate
@@ -2836,6 +2856,14 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		return 0;
 	if (F1.get_component(0)->is_leaf())
 		return 0;
+	if (F1.get_component(0)->get_preorder_number() == -1) {
+		F1.get_component(0)->preorder_number();
+		F2.get_component(0)->preorder_number();
+}
+	if (F1.get_component(0)->get_edge_pre_start() == -1) {
+		F1.get_component(0)->edge_preorder_interval();
+		F2.get_component(0)->edge_preorder_interval();
+	}
 	int loss = 0;
 	if (COUNT_LOSSES) {
 		loss += F1.get_component(0)->count_lost_subtree();
@@ -2844,7 +2872,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	if (LEAF_REDUCTION2)
 		reduction_leaf(&F1, &F2);
 	sync_interior_twins(&F1, &F2);
-	list<Node *> *cluster_points = find_cluster_points(&F1);
+	list<Node *> *cluster_points = find_cluster_points(&F1, &F2);
 //	list<Node *> *cluster_points = new list<Node *>();
 	for(list<Node *>::iterator i = cluster_points->begin();
 			i != cluster_points->end(); i++) {
@@ -3224,7 +3252,7 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 	if (F1.get_component(0)->is_leaf())
 		return 0;
 	sync_interior_twins_real(&F1, &F2);
-	list<Node *> *cluster_points = find_cluster_points(&F1);
+	list<Node *> *cluster_points = find_cluster_points(&F1, &F2);
 
 	int total_k = 0;
 
@@ -4365,6 +4393,11 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 		swap(&T2_a, &T2_c);
 		}
 	}
+	int num_protected = T2_a->is_protected() + T2_c->is_protected();
+	if (T2_a->parent()->get_children().size() == 2)
+		num_protected += T2_a->get_sibling()->is_protected();
+	if (num_protected >= 2)
+		return true;
 	if (CUT_ONE_B) {
 		if (T2_a->parent()->parent() == T2_c->parent()
 			&& T2_c->parent() != NULL
@@ -4417,13 +4450,13 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 					&& T2_c->parent()->get_children().size() <= 2) {
 				return true;
 			}
-			else if (REVERSE_CUT_ONE_B_3
-							&& T2_s->is_protected()
-							&& T2_s->parent() != NULL
-							&& T2_s->parent()->parent() == T2_a->parent()
-							&& T2_s->parent()->get_children().size() <= 2) {
-				return true;
-			}
+//			else if (REVERSE_CUT_ONE_B_3
+//							&& T2_s->is_protected()
+//							&& T2_s->parent() != NULL
+//							&& T2_s->parent()->parent() == T2_a->parent()
+//							&& T2_s->parent()->get_children().size() <= 2) {
+//				return true;
+//			}
 		}
 		else if (REVERSE_CUT_ONE_B_2 && T2_c->parent() != NULL
 				&& chain_match(T1_s, T2_c->get_sibling(), T2_a))

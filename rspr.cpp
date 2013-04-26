@@ -483,6 +483,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-cut_lost") == 0) {
 			CUT_LOST = true;
 		}
+		else if (strcmp(arg, "-multi_cluster") == 0) {
+			MULTI_CLUSTER = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -493,6 +496,7 @@ int main(int argc, char *argv[]) {
 		CUT_ALL_B=true;
 		CUT_ONE_B = true;
 		REVERSE_CUT_ONE_B = true;
+//		REVERSE_CUT_ONE_B_2 = true;
 		REVERSE_CUT_ONE_B_3 = true;
 		CUT_TWO_B = true;
 //		CUT_TWO_B_ROOT = true;

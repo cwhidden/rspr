@@ -172,6 +172,7 @@ bool TIMING = false;
 int NUM_ITERATIONS = 25;
 bool SMALL_TREES = false;
 bool CONVERT_LIST = false;
+bool INVALID_TREES = false;
 bool VALID_TREES = false;
 bool VALID_TREES_ROOTED = false;
 bool LGT_ANALYSIS = false;
@@ -659,6 +660,10 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-valid_trees") == 0) {
 			VALID_TREES=true;
 		}
+		else if (strcmp(arg, "-invalid_trees") == 0) {
+			VALID_TREES=true;
+			INVALID_TREES=true;
+		}
 		else if (strcmp(arg, "-valid_trees_rooted") == 0) {
 			VALID_TREES_ROOTED=true;
 		}
@@ -837,7 +842,7 @@ int main(int argc, char *argv[]) {
 		PREORDER_SIBLING_PAIRS = true;
 		NEAR_PREORDER_SIBLING_PAIRS = true;
 		LEAF_REDUCTION = true;
-//		LEAF_REDUCTION2 = true;
+		LEAF_REDUCTION2 = true;
 
 		APPROX_CUT_ONE_B = true;
 		APPROX_CUT_TWO_B = true;
@@ -977,12 +982,12 @@ int main(int argc, char *argv[]) {
 				continue;
 			}
 			int T_size = T->size();
-			if ((T_size <= 4)
-					|| T_size == 5 && !SMALL_TREES) {
+			if (!INVALID_TREES && ((T_size <= 4)
+					|| T_size == 5 && !SMALL_TREES)) {
 				skipped_small++;
 				continue;
 			}
-			if (!IGNORE_MULTI) {
+			if (!IGNORE_MULTI && !INVALID_TREES) {
 				int T_depth = T->max_depth();
 				if (T_depth <= 1 ||
 						((UNROOTED || SIMPLE_UNROOTED) && T_depth <= 2)) {
@@ -1409,6 +1414,8 @@ int main(int argc, char *argv[]) {
 	super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 	Node *best_supertree = new Node(*super_tree);
 
+	if (!LGT_ANALYSIS) {
+
 			if (UNROOTED_MIN_APPROX)
 				APPROX_ROOTING=true;
 			if (REROOT_INITIAL) {
@@ -1540,6 +1547,8 @@ int main(int argc, char *argv[]) {
 			current_time = time - current_time;
 			cout << "\t" << current_time << "\t" << time << endl;
 		}
+
+	}
 		bool cleanup = false;
 	//super_tree->numbers_to_labels(&reverse_label_map);
 		if (FIND_SUPPORT) {
