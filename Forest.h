@@ -46,6 +46,8 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
+bool MULTI_CLUSTER = false;
+
 class ClusterInstance;
 extern bool LEAF_REDUCTION2;
 
@@ -403,8 +405,9 @@ bool sync_twins(Forest *T1, Forest *T2);
 void sync_interior_twins(Forest *T1, Forest *T2);
 void sync_interior_twins(Node *n, LCA *twin_LCA);
 void sync_interior_twins(Node *n, vector<LCA> *F2_LCAs);
-list<Node *> *find_cluster_points(Forest *f);
-void find_cluster_points(Node *n, list<Node *> *cluster_points);
+list<Node *> *find_cluster_points(Forest *F1, Forest *F2);
+void find_cluster_points(Node *n, list<Node *> *cluster_points,
+		vector<int> *leaf_counts_F1, vector<int> *leaf_counts_F2);
 void delete_and_merge_LCAs(list<Node *> *active_descendants,
 		vector<LCA> *F2_LCAs, list<Node *>:: iterator node1_location,
 		list<Node *>:: iterator node2_location);
@@ -1014,20 +1017,32 @@ void delete_and_merge_LCAs(Node *n, list<Node *>
 	// TODO: continue to lc and rc?
 }
 
-list<Node *> *find_cluster_points(Forest *F) {
+list<Node *> *find_cluster_points(Forest *F1, Forest *F2) {
 	list<Node *> *cluster_points = new list<Node *>();
-	find_cluster_points(F->get_component(0), cluster_points);
+	vector<int> *leaf_counts_F1 = NULL;
+	vector<int> *leaf_counts_F2 = NULL;
+	if (MULTI_CLUSTER) {
+		leaf_counts_F1 = F1->get_component(0)->find_leaf_counts(); 
+		leaf_counts_F2 = F2->get_component(0)->find_leaf_counts(); 
+	}
+	find_cluster_points(F1->get_component(0), cluster_points, leaf_counts_F1,
+			leaf_counts_F2);
+	if (MULTI_CLUSTER) {
+		delete leaf_counts_F1;
+//		delete leaf_counts_F2;
+	}
 	//cout << "foo" << endl;
 	return cluster_points;
 }
 
-
 // find the cluster points
-void find_cluster_points(Node *n, list<Node *> *cluster_points) {
+void find_cluster_points(Node *n, list<Node *> *cluster_points,
+		vector<int> *leaf_counts_F1, vector<int> *leaf_counts_F2) {
 	//cout << "Start: " << n->str_subtree() << endl;
 	list<Node *>::iterator c;
 	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
-		find_cluster_points(*c, cluster_points);
+		find_cluster_points(*c, cluster_points, leaf_counts_F1,
+				leaf_counts_F2);
 	}
 	/*
 	cout << "here" << endl;
@@ -1083,6 +1098,51 @@ void find_cluster_points(Node *n, list<Node *> *cluster_points) {
 	if (is_cluster) {
 //		cout << "added cluster_point" << endl;
 		cluster_points->push_back(n);
+	}
+	// buggy, needs testing, doesn't seem worth it
+	else if (MULTI_CLUSTER && n->get_twin() != NULL && n->parent() != NULL &&
+			n->get_children().size() >= 2) {
+		// TODO: use find_leaf_counts if this works
+		Node *n_twin = n->get_twin();
+		int num_leaves = (*leaf_counts_F1)[n->get_preorder_number()];
+		vector<Node *> chosen = vector<Node *>();
+		int chosen_leaves = 0;
+		if (n_twin != NULL && n->get_edge_pre_start() > -1 && n->get_edge_pre_end() > -1 && n_twin->get_children().size() > 2) {
+//			cout << "foo" << endl;
+//			cout << n->str_subtree() << endl;
+//			cout << num_leaves << endl;
+//			cout << n->get_edge_pre_start() << endl;
+//			cout << n->get_edge_pre_end() << endl;
+			for(c = n_twin->get_children().begin(); c != n_twin->get_children().end(); c++) {
+//				cout << "\t" << (*c)->str_subtree() << endl;
+				int c_num_leaves = (*leaf_counts_F2)[(*c)->get_preorder_number()];
+//				cout << "\t" << c_num_leaves << endl;
+				int c_twin_pre = (*c)->get_twin()->get_preorder_number();
+//				cout << "\t" << c_twin_pre << endl;
+				if (c_twin_pre >= n->get_edge_pre_start() &&
+						c_twin_pre <= n->get_edge_pre_end()) {
+//					cout << "yes" << endl;
+					chosen.push_back(*c);
+					chosen_leaves += c_num_leaves;
+				}
+			}
+			// PROBLEM: the new node should have its own preorder number
+			// and its own size
+			if (num_leaves == chosen_leaves) {
+				Node *new_child = new Node();
+				n_twin->add_child(new_child);
+				new_child->set_preorder_number(n_twin->get_preorder_number());
+				new_child->set_edge_pre_start(n_twin->get_edge_pre_start());
+				new_child->set_edge_pre_end(n_twin->get_edge_pre_end());
+				n->set_twin(new_child);
+				new_child->set_twin(n);
+				cluster_points->push_back(n);
+				for(int i = 0; i < chosen.size(); i++) {
+					new_child->add_child(chosen[i]);
+				}
+			}
+
+		}
 	}
 //	cout << "End: " << n->str_subtree() << endl;
 }
