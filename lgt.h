@@ -117,9 +117,11 @@ void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 #endif
 		string a = F1_source->get_name();
 		string b = F1_target->get_name();
+#ifdef DEBUG_LGT
 		if ((a == "5" || a == "18" || a == "(5,18)")
 				&& (b == "5" || b == "18" || b == "(5,18)"))
 			cout << "FOO: " << a << "\t" << b << endl;
+#endif
 
 		#pragma omp atomic
 		(*transfer_counts)[F1_source->get_preorder_number()][F1_target->get_preorder_number()]++;

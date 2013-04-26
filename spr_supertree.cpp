@@ -1691,9 +1691,11 @@ int main(int argc, char *argv[]) {
 					// * in pre order
 					// * match parent group (or this is the root)
 
+#ifdef DEBUG_LGT
 					for(int i = 0; i < num_nodes; i++) {
 						cout << pre_to_group[i] << ": " << super_tree->find_by_prenum(i)->str_subtree() << endl;
 					}
+#endif
 
 
 					cout << "INFERRED SPRS" << endl;
