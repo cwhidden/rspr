@@ -9,11 +9,11 @@ Calculate supertrees that minimize the SPR distance from the input
 trees. By default calculates a rooted SPR supertree from a list
 of rooted binary trees from STDIN in newick format.
 
-Copyright 2011 Chris Whidden
+Copyright 2011-2013 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/SPR_Supertrees
-Octover 28, 2011
-Version 1.00
+April 26, 2013
+Version 1.2.0
 
 This file is part of spr_supertrees.
 

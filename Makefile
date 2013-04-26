@@ -6,7 +6,7 @@ C64FLAGS=$(CFLAGS)
 BOOST_GRAPH=-lboost_graph-mt
 BOOST_ANY=-L/lib/libboost*
 LFLAGS=#$(BOOST_GRAPH) $(BOOST_ANY)
-DEBUGFLAGS=-g -O0 -std=c++0x
+DEBUGFLAGS=-g -O0
 PROFILEFLAGS=-pg
 OBJS=rspr spr_supertree
 all: $(OBJS)
@@ -48,6 +48,9 @@ w64:
 omp:
 	$(CC) $(CFLAGS) $(OMPFLAGS) -o rspr-omp rspr.cpp
 	$(CC) $(CFLAGS) $(OMPFLAGS) -o spr_supertree-omp spr_supertree.cpp
+omp-w64:
+	$(CC64) $(CFLAGS) $(OMPFLAGS) -o rspr-omp rspr.cpp
+	$(CC64) $(CFLAGS) $(OMPFLAGS) -o spr_supertree-omp spr_supertree.cpp
 omp-debug:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(OMPFLAGS) -o rspr-omp rspr.cpp
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(OMPFLAGS) -o spr_supertree-omp spr_supertree.cpp

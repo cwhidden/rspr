@@ -153,6 +153,7 @@ using namespace std;
 // options to pick default
 bool DEFAULT_ALGORITHM=true;
 bool DEFAULT_OPTIMIZATIONS=true;
+bool DEFAULT_SEARCH_OPTIMIZATIONS=true;
 
 
 bool FPT = false;
@@ -460,6 +461,12 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-simple_unrooted_fast") == 0) {
 			SIMPLE_UNROOTED=true;
 			SIMPLE_UNROOTED_FAST=true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SIMPLE_UNROOTED_NUM = atoi(arg2);
+				cout << "SIMPLE_UNROOTED_NUM=" << SIMPLE_UNROOTED_NUM << endl;
+			}
 		}
 		else if (strcmp(arg, "-random_insert_order") == 0) {
 			RANDOM_INSERT_ORDER = true;
@@ -562,6 +569,7 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-r_variable") == 0) {
 			R_VARIABLE = true;
+			DEFAULT_SEARCH_OPTIMIZATIONS=false;
 		}
 
 		else if (strcmp(arg, "-p") == 0) {
@@ -575,6 +583,7 @@ int main(int argc, char *argv[]) {
 					cout << "PROBABILITY=" << R_PROB << endl;
 				}
 			}	
+			DEFAULT_SEARCH_OPTIMIZATIONS=false;
 		}
 /*Joel: refined greedy search*/
 		else if(strcmp(arg, "-r_greedy")==0){
@@ -593,6 +602,7 @@ int main(int argc, char *argv[]) {
 				else
 					R_DISTANCE = 1;
 			}
+			DEFAULT_SEARCH_OPTIMIZATIONS=false;
 		}
 /*Joel: limit starting points*/
 		else if (strcmp(arg, "-num_start") == 0){
@@ -604,19 +614,24 @@ int main(int argc, char *argv[]) {
 				}
 			}
 			cout << "STARTING POINTS TO CHECK: " << S_NUM << endl;
+			DEFAULT_SEARCH_OPTIMIZATIONS=false;
 		}
 /*Joel: limit SPR radius options*/
 		else if (strcmp(arg, "-stats") == 0){
 			S_STATS = true;
 		}
-		else if (strcmp(arg, "-control") == 0)
+		else if (strcmp(arg, "-control") == 0) {
 			R_CONTROL = true;
+			DEFAULT_SEARCH_OPTIMIZATIONS=false;
+		}
 /*Joel: stats on approx distance vs total distance*/
 		else if (strcmp(arg, "-d_stats") == 0)
 			D_STATS = true;
 /*Joel: greedy search*/
-		else if(strcmp(arg, "-greedy")==0)
+		else if(strcmp(arg, "-greedy")==0) {
 			GREEDY = true;
+			DEFAULT_SEARCH_OPTIMIZATIONS=false;
+		}
 /*Joel: random starting tree*/
 		else if (strcmp(arg, "-rand_tree") == 0)
 			RANDOM_TREE = true;			
@@ -856,6 +871,15 @@ int main(int argc, char *argv[]) {
 //		APPROX_EDGE_PROTECTION = true;
 		DEEPEST_PROTECTED_ORDER = true;
 		DEEPEST_ORDER = true;
+	}
+	if (DEFAULT_SEARCH_OPTIMIZATIONS) {
+		if (BIPARTITION_CLUSTER == false) {
+			BIPARTITION_CLUSTER = true;
+		}
+		if (R_LIMIT == false) {
+			R_LIMIT = true;
+			R_DISTANCE = INT_MAX - 1000;
+		}
 	}
 	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {
