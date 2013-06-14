@@ -95,13 +95,13 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 int rf_total_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold, vector<int> *original_scores);
-int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest *out_F1, Forest *out_F2);
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest **out_F1, Forest **out_F2);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, int min_k, int max_k);
-int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest *out_F1, Forest *out_F2);
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest **out_F1, Forest **out_F2);
 void reduction_leaf(Forest *T1, Forest *T2);
 void reduction_leaf(Forest *T1, Forest *T2, UndoMachine *um);
 bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end);
@@ -2812,7 +2812,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	return rSPR_branch_and_bound_simple_clustering(T1,T2, verbose, label_map, reverse_label_map, min_k, max_k, NULL, NULL);
 }
 
-int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest *out_F1, Forest *out_F2) {
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest **out_F1, Forest **out_F2) {
 	if (max_k > MAX_SPR)
 		max_k = MAX_SPR;
 	else if (max_k == -1)
@@ -3181,14 +3181,14 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 			cout << "total exact drSPR=" << total_k << endl;
 		}
 		if (out_F1 != NULL)
-			*out_F1 = Forest(F1);
+			*out_F1 = new Forest(&F1);
 			//F1.swap(out_F1);
 		if (out_F2 != NULL)
-			*out_F2 = Forest(F2);
+			*out_F2 = new Forest(&F2);
 //			F2.swap(out_F2);
 		if (out_F1 != NULL && out_F2 != NULL) {
 //			out_F1->resync();
-			sync_twins(out_F1, out_F2);
+			sync_twins(*out_F1, *out_F2);
 	//		sync_interior_twins_real(out_F1, out_F2);
 		}
 
@@ -3403,7 +3403,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, in
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2) {
 	return rSPR_branch_and_bound_simple_clustering(T1, T2, false);
 }
-int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest *out_F1, Forest *out_F2) {
+int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest **out_F1, Forest **out_F2) {
 	return rSPR_branch_and_bound_simple_clustering(T1,T2, false, NULL, NULL, -1, -1, out_F1, out_F2);
 }
 

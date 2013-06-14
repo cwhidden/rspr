@@ -139,6 +139,7 @@ class Node {
 		this->max_merge_depth = -1;
 		this->support = -1;
 		this->support_normalization = -1;
+		this->children = list<Node *>();
 		if (lc != NULL)
 			add_child(lc);
 		if (rc != NULL)
@@ -165,6 +166,7 @@ class Node {
 		this->num_clustered_children = 0;
 		this->forest = NULL;
 		list<Node *>::const_iterator c;
+		this->children = list<Node *>();
 		for(c = n.children.begin(); c != n.children.end(); c++) {
 			add_child(new Node(**c));
 		}
@@ -212,6 +214,7 @@ class Node {
 		this->sibling_pair_status = 0;
 		this->num_clustered_children = 0;
 		this->forest = NULL;
+		this->children = list<Node *>();
 		list<Node *>::const_iterator c;
 		for(c = n.children.begin(); c != n.children.end(); c++) {
 			add_child(new Node(**c));

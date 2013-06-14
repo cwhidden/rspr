@@ -231,6 +231,7 @@ int NUM_SOURCE = -1;
 bool RF_TIES = false;
 double SUPPORT_THRESHOLD = 0.5;
 bool TABOO_SEARCH = false;
+bool ONE_TREE_AT_A_TIME = false;
 
 /*variables Joel aadded*/
 int R_DISTANCE;
@@ -941,6 +942,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-taboo_search") == 0) {
 			TABOO_SEARCH = true;
 		}
+		else if (strcmp(arg, "-one_tree_at_a_time") == 0) {
+			ONE_TREE_AT_A_TIME = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -1395,6 +1399,7 @@ int main(int argc, char *argv[]) {
 	if (TIMING)
 		time = clock()/(double)CLOCKS_PER_SEC;
 
+	// GREEDY ADDITION
 	int x = 0;
 	for(; label != labels.rend() &&
 			NUM_LEAVES < 0 || leaf_num <= NUM_LEAVES; label++) {
@@ -1931,6 +1936,7 @@ int main(int argc, char *argv[]) {
 	if (NUM_ITERATIONS < 0)
 		NUM_ITERATIONS=labels.size(); 
 
+	// SUPERTREE IMPROVEMENT STEP
 	for(int i = 0; i < NUM_ITERATIONS; i++) {
 /*		if (TABOO_SEARCH) {
 			cout << "TABOO " << taboo_trees.size() << endl;
@@ -2063,6 +2069,63 @@ int main(int argc, char *argv[]) {
 		}
 		Node *best_subtree_root;
 		Node *best_sibling;
+
+		// SUPERTREE IMPROVEMENT METHOD
+
+		/* one-tree-at-a-time method
+		 * in: rooted super_tree, gene_trees, 
+		 * opt: bipartition support, 
+		 * do: compare each gene_tree to the supertree,
+		 * 		propose an spr move
+		 * 		accept with some criteria
+		 * 			total SPR distance, sampled distance
+		 * 			straight improvement or simulated annealing?
+		 */
+#define DEBUG_ONE_TREE true
+		if (ONE_TREE_AT_A_TIME) {
+			// for each tree
+			for(int i = 0; i < gene_trees.size(); i++) {
+				cout << "i: " << i << endl;
+				// compute an MAF
+				Forest *MAF1 = NULL;
+				Forest *MAF2 = NULL;
+				Forest F1 = Forest(super_tree);
+				Forest F2 = Forest(gene_trees[i]);
+				if (!sync_twins(&F1,&F2)) {
+					continue;
+				}
+				cout << "foo" << endl;
+					cout << "\tT1: "; F1.print_components();
+					cout << "\tT2: "; F2.print_components();
+				int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
+				cout << "foo2" << endl;
+				expand_contracted_nodes(MAF1);
+				expand_contracted_nodes(MAF2);
+				#ifdef DEBUG_ONE_TREE
+					cout << i << ": " << distance << endl;
+					cout << "\tT1: "; F1.print_components();
+					cout << "\tT2: "; F2.print_components();
+					cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
+					cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
+				#endif
+				sync_af_twins(MAF1, MAF2);
+
+				// propose transfers
+				for(int j = 0; j < MAF2->num_components(); j++) {
+					cout << "\tj:" << j << endl;
+					Node *F1_source, *F1_target;
+					if (!map_transfer(MAF2->get_component(j), &F1, MAF2,
+							&F1_source, &F1_target)) {
+						continue;
+					}
+				}
+				if (MAF1 != NULL)
+					delete MAF1;
+				if (MAF2 != NULL)
+					delete MAF2;
+			}
+
+		}
 /*Joel: Limit starting point*/
 		if(S_LIMIT){
 			scores = vector< pair<Node *,int> >();
@@ -2262,7 +2325,8 @@ int main(int argc, char *argv[]) {
 		else {
 			find_best_spr(super_tree, gene_trees, best_subtree_root, best_sibling);
 		}
-		if(!GREEDY && !GREEDY_REFINED){
+		if(!GREEDY && !GREEDY_REFINED) {
+			//&& !ONE_TREE_AT_A_TIME){
 			best_subtree_root->spr(best_sibling);
 			super_tree->set_depth(0);
 			super_tree->fix_depths();

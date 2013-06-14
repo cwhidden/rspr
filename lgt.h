@@ -55,6 +55,8 @@ void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
 		vector<Node *> *gene_trees);
 void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 		Forest *F2, Forest *MAF1, Forest *MAF2);
+bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
+		Node **F1_source_out, Node **F1_target_out);
 Node *find_best_target(Node *source, Forest *AF);
 Node *find_best_target(Node *source, Node *target, Node **best_target);
 
@@ -63,24 +65,28 @@ void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
 		vector<Node *> *gene_trees) {
 	#pragma omp parallel for
 	for(int i = 0; i < gene_trees->size(); i++) {
-		Forest MAF1;
-		Forest MAF2;
+		Forest *MAF1 = NULL;
+		Forest *MAF2 = NULL;
 		Forest F1 = Forest(super_tree);
 		Forest F2 = Forest((*gene_trees)[i]);
 		if (sync_twins(&F1,&F2)) {
 			int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
-			expand_contracted_nodes(&MAF1);
-			expand_contracted_nodes(&MAF2);
+			expand_contracted_nodes(MAF1);
+			expand_contracted_nodes(MAF2);
 #ifdef DEBUG_LGT			
 			cout << i << ": " << distance << endl;
 			cout << "\tT1: "; F1.print_components();
 			cout << "\tT2: "; F2.print_components();
-			cout << "\tF1: "; MAF1.print_components_with_edge_pre_interval();
-			cout << "\tF2: "; MAF2.print_components_with_edge_pre_interval();
+			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
+			cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
 #endif
-			sync_af_twins(&MAF1, &MAF2);
-			add_transfers(transfer_counts, &F1, &F2, &MAF1, &MAF2);
+			sync_af_twins(MAF1, MAF2);
+			add_transfers(transfer_counts, &F1, &F2, MAF1, MAF2);
 		}
+		if (MAF1 != NULL)
+			delete MAF1;
+		if (MAF2 != NULL)
+			delete MAF2;
 	}
 }
 
@@ -91,37 +97,12 @@ void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 		start = 0;
 	for(int i = start; i < MAF2->num_components(); i++) {
 		Node *F2_source = MAF2->get_component(i);
-		if (F2_source->str() == "p")
-			continue;
-		Node *F2_target = find_best_target(F2_source, MAF2);
-#ifdef DEBUG_LGT			
-		cout << "\tF2s: " << F2_source->str_edge_pre_interval_subtree() << endl;
-		if (F2_target != NULL)
-			cout << "\tF2t: " << F2_target->str_edge_pre_interval_subtree() << endl;
-		else
-			cout << "\tF2t: p" << endl;
-#endif
-		Node *F1_source = F2_source->get_twin();
+		Node *F1_source;
 		Node *F1_target;
-		if (F2_target != NULL)
-			F1_target = F2_target->get_twin();
-		else
-			F1_target = F1->get_component(0);
-#ifdef DEBUG_LGT			
-		cout << "\tF1s: " << F1_source->str_edge_pre_interval_subtree() << endl;
-		if (F2_target != NULL)
-			cout << "\tF1t: " << F1_target->str_edge_pre_interval_subtree() << endl;
-		else
-			cout << "\tF1t: p" << endl;
-		cout << endl;
-#endif
-		string a = F1_source->get_name();
-		string b = F1_target->get_name();
-#ifdef DEBUG_LGT
-		if ((a == "5" || a == "18" || a == "(5,18)")
-				&& (b == "5" || b == "18" || b == "(5,18)"))
-			cout << "FOO: " << a << "\t" << b << endl;
-#endif
+		if (!map_transfer(F2_source, F1, MAF2, &F1_source,
+					&F1_target)) {
+			continue;
+		}
 
 		#pragma omp atomic
 		(*transfer_counts)[F1_source->get_preorder_number()][F1_target->get_preorder_number()]++;
@@ -143,6 +124,47 @@ void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 				// 3 using input groups of interest map highways between those
 				// 4 groups
 
+}
+
+bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
+		Node **F1_source_out, Node **F1_target_out) {
+	bool ret_val = false;
+	if (F2_source->str() == "p")
+		return ret_val;
+	Node *F2_target = find_best_target(F2_source, MAF2);
+	#ifdef DEBUG_LGT			
+		cout << "\tF2s: " << F2_source->str_edge_pre_interval_subtree()
+			<< endl;
+		if (F2_target != NULL)
+			cout << "\tF2t: " << F2_target->str_edge_pre_interval_subtree()
+				<< endl;
+		else
+			cout << "\tF2t: p" << endl;
+	#endif
+	Node *F1_source = F2_source->get_twin();
+	Node *F1_target;
+	if (F2_target != NULL)
+		F1_target = F2_target->get_twin();
+	else
+		F1_target = F1->get_component(0);
+	#ifdef DEBUG_LGT			
+		cout << "\tF1s: " << F1_source->str_edge_pre_interval_subtree()
+			<< endl;
+		if (F2_target != NULL)
+			cout << "\tF1t: " << F1_target->str_edge_pre_interval_subtree()
+				<< endl;
+		else
+			cout << "\tF1t: p" << endl;
+		cout << endl;
+	#endif
+	string a = F1_source->get_name();
+	string b = F1_target->get_name();
+
+	*F1_source_out = F1_source;
+	*F1_target_out = F1_target;
+
+	ret_val = true;
+	return ret_val;
 }
 
 Node *find_best_target(Node *source, Forest *AF) {
