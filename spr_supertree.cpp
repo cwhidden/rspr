@@ -194,6 +194,8 @@ OTHER OPTIONS
 
 using namespace std;
 
+//#define DEBUG_ONE_TREE true
+
 
 // options to pick default
 bool DEFAULT_ALGORITHM=true;
@@ -942,7 +944,8 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-taboo_search") == 0) {
 			TABOO_SEARCH = true;
 		}
-		else if (strcmp(arg, "-one_tree_at_a_time") == 0) {
+		else if (strcmp(arg, "-one_tree_at_a_time") == 0
+				|| (strcmp(arg, "-one_tree") == 0) ) {
 			ONE_TREE_AT_A_TIME = true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
@@ -2081,8 +2084,34 @@ int main(int argc, char *argv[]) {
 		 * 			total SPR distance, sampled distance
 		 * 			straight improvement or simulated annealing?
 		 */
-#define DEBUG_ONE_TREE true
 		if (ONE_TREE_AT_A_TIME) {
+			// initial distance
+			int min_distance;
+			int min_tie_distance;
+			int num_ties = 2;
+			super_tree->set_depth(0);
+			super_tree->fix_depths();
+			super_tree->preorder_number();
+			super_tree->edge_preorder_interval();
+
+			if (APPROX)
+				if (UNROOTED)
+					min_distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+				else
+					min_distance = rSPR_total_approx_distance(super_tree, gene_trees);
+			else
+				if (UNROOTED || RANDOM_ROOTING || (SIMPLE_UNROOTED && !SIMPLE_UNROOTED_FAST) )
+				//if (UNROOTED || RANDOM_ROOTING)
+					min_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
+				else
+					min_distance = rSPR_total_distance(super_tree, gene_trees);
+			cout << "Total Distance: " << min_distance << endl;
+			if (RF_TIES) {
+				int current_rf_distance = rf_total_distance(super_tree, gene_trees);
+				cout << "Total RF Distance: " << current_rf_distance << endl;
+				min_tie_distance = current_rf_distance;
+			}
+
 			// for each tree
 			for(int i = 0; i < gene_trees.size(); i++) {
 				cout << "i: " << i << endl;
@@ -2094,8 +2123,6 @@ int main(int argc, char *argv[]) {
 				if (!sync_twins(&F1,&F2)) {
 					continue;
 				}
-					cout << "\tT1: "; F1.print_components();
-					cout << "\tT2: "; F2.print_components();
 				int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
 				if (distance > 0) {
 					expand_contracted_nodes(MAF1);
@@ -2111,21 +2138,137 @@ int main(int argc, char *argv[]) {
 	
 					// propose transfers for each component
 					vector<vector<Node *> > transfers =
-						vector<vector<Node *> >;
+						vector<vector<Node *> >();
 					for(int j = 0; j < MAF2->num_components(); j++) {
-						cout << "\tj:" << j << endl;
 						Node *F1_source, *F1_target;
 						if (!map_transfer(MAF2->get_component(j), &F1, MAF2,
 								&F1_source, &F1_target)) {
 							continue;
 						}
 						// check transfer validity
+						if (F1_target->get_preorder_number() >=
+								F1_source->get_edge_pre_start()
+								&& F1_target->get_preorder_number() <=
+								F1_source->get_edge_pre_end() ) {
+							continue;
+						}
 						// add transfer to list
+						vector<Node *> transfer = vector<Node *>(2);
+						transfer[0] = F1_source;
+						transfer[1] = F1_target;
+						transfers.push_back(transfer);
+
 					}
 					// pick a random transfer
+					int chosen_num = rand() % transfers.size();
+					vector<Node *> chosen_transfer = transfers[chosen_num];
+					Node *F1_source = super_tree->find_by_prenum(chosen_transfer[0]->get_preorder_number());
+					Node *F1_target = super_tree->find_by_prenum(chosen_transfer[1]->get_preorder_number());
+
+					#ifdef DEBUG_ONE_TREE
+						 cout << endl;
+							cout << "SPR Move:" << endl;
+							super_tree->numbers_to_labels(&reverse_label_map);
+							cout << "Previous Super Tree: "
+							<< super_tree->str_subtree() << endl;
+							cout << "Subtree: " << F1_source->str_subtree() << endl;
+							cout << "New Sibling: " << F1_target->str_subtree() << endl;
+							super_tree->labels_to_numbers(&label_map, &reverse_label_map);	
+					#endif
+					
+					//		cout << endl;
+					//		cout << "Previous Super Tree: "
+					//		<< super_tree->str_support_subtree(true) << endl;
+					
 					// apply the transfer
+					int which_sibling = 0;
+					Node *undo = F1_source->spr(F1_target, which_sibling);
+					super_tree->set_depth(0);
+					super_tree->fix_depths();
+					super_tree->preorder_number();
+					super_tree->edge_preorder_interval();
+
+					//		cout << "Proposed Super Tree: "
+					//		<< super_tree->str_support_subtree(true) << endl;
+//					/*
+					#ifdef DEBUG_ONE_TREE
+							super_tree->numbers_to_labels(&reverse_label_map);
+							cout << "Proposed Super Tree: " << super_tree->str_subtree() << endl;
+							super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+					#endif
 					// test the new supertree
+//					*/	
+					int distance;
+					if (APPROX) {
+						if (UNROOTED)
+							distance = rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+						else
+							distance = rSPR_total_approx_distance(super_tree, gene_trees);
+					}
+					else {
+						if (UNROOTED)
+							distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
+						else
+							distance = rSPR_total_distance(super_tree, gene_trees);
+					}
+							cout << "\t" << distance << endl;
+
+					//		cout << "After SPR Distance Super Tree: "
+					//		<< super_tree->str_support_subtree(true) << endl;
+					bool good_move = false;
+					if (distance < best_distance) {
+						if (!TABOO_SEARCH || !is_taboo(taboo_trees, super_tree)) {
+							best_distance = distance;
+							if (RF_TIES)
+								min_tie_distance = rf_total_distance(super_tree, gene_trees);
+							num_ties = 2;
+							good_move = true;
+						}
+					}
+					else if (distance == min_distance) {
+						bool check_tie = true;
+						bool tie = false;
+						if (RF_TIES) {
+							int rf_distance = rf_total_distance(super_tree, gene_trees);
+							if (rf_distance < min_tie_distance) {
+								if (!TABOO_SEARCH || !is_taboo(taboo_trees, super_tree)) {
+									min_tie_distance = rf_distance;
+									num_ties = 2;
+									good_move = true;
+								}
+								check_tie = false;
+							}
+							else if (rf_distance == min_tie_distance)
+								tie = true;
+							else
+								check_tie = false;
+						}
+						if (check_tie) {
+							int r = rand();
+							if (r < RAND_MAX/num_ties) {
+								if (!TABOO_SEARCH || !is_taboo(taboo_trees, super_tree)) {
+									min_distance = distance;
+									good_move = true;
+								}
+							}
+							num_ties++;
+						}
+					}
 					// rollback if worse (or simulated annealing?)
+					if (!good_move) {
+						// restore the previous tree
+						F1_source->spr(undo, which_sibling);
+						super_tree->set_depth(0);
+						super_tree->fix_depths();
+						super_tree->preorder_number();
+						super_tree->edge_preorder_interval();
+						//		cout << "Reverted Super Tree: "
+						//		<< super_tree->str_support_subtree(true) << endl;
+					}
+			
+			
+					//		cout << "Reverted Super Tree: "
+					//		<< super_tree->str_subtree() << endl;
 				}
 				if (MAF1 != NULL)
 					delete MAF1;
@@ -2133,7 +2276,10 @@ int main(int argc, char *argv[]) {
 					delete MAF2;
 			}
 
+			cout << "done_iteration" << endl;
+
 		}
+		
 /*Joel: Limit starting point*/
 		if(S_LIMIT){
 			scores = vector< pair<Node *,int> >();
