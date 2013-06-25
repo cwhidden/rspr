@@ -2152,12 +2152,17 @@ int main(int argc, char *argv[]) {
 								F1_source->get_edge_pre_end() ) {
 							continue;
 						}
+						
 						// add transfer to list
 						vector<Node *> transfer = vector<Node *>(2);
 						transfer[0] = F1_source;
 						transfer[1] = F1_target;
 						transfers.push_back(transfer);
 
+					}
+					// any valid tranfers?
+					if (transfers.empty()) {
+						continue;
 					}
 					// pick a random transfer
 					int chosen_num = rand() % transfers.size();
@@ -2211,7 +2216,7 @@ int main(int argc, char *argv[]) {
 						else
 							distance = rSPR_total_distance(super_tree, gene_trees);
 					}
-							cout << "\t" << distance << endl;
+							cout << "\t" << distance << "\t" << min_distance << endl;
 
 					//		cout << "After SPR Distance Super Tree: "
 					//		<< super_tree->str_support_subtree(true) << endl;
