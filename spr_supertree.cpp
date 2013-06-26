@@ -443,6 +443,7 @@ void get_transfer_support(Node *super_tree, vector<Node *> *gene_trees);
 void get_transfer_support(Node *n, Node *super_tree, vector<Node *> *gene_trees);
 void get_bipartition_support(Node *super_tree, vector<Node *> *gene_trees,
 		enum RELAXATION relaxed);
+bool supported_spr(Node *source, Node *target);
 
 /*Prototypes of Joel's functions*/
 void find_best_spr_r(Node *super_tree, vector<Node *> &gene_trees, Node *&best_spr_move, Node *&best_sibling, int r);
@@ -1571,7 +1572,7 @@ int main(int argc, char *argv[]) {
 				int end = descendants.size();
 				for(int j = 0; j < end; j++) {
 					if (j > 0)
-						cout << '\r';
+						cout << "\r \r";
 					cout << j << "/" << end << flush;
 					double root_avg_acc = 0;
 					int count = 0;
@@ -1965,7 +1966,7 @@ int main(int argc, char *argv[]) {
 				int end = descendants.size();
 				for(int j = 0; j < end; j++) {
 					if (j > 0)
-						cout << '\r';
+						cout << "\r \r";
 					cout << j << "/" << end - 1 << flush;
 					double root_avg_acc = 0;
 					int count = 0;
@@ -2021,7 +2022,7 @@ int main(int argc, char *argv[]) {
 						}
 					}
 				}
-				cout << "\r";
+				cout << "\r \r";
 				super_tree->reroot(best_root);
 				super_tree->set_depth(0);
 				super_tree->fix_depths();
@@ -2113,13 +2114,15 @@ int main(int argc, char *argv[]) {
 			}
 
 			// for each tree
-			for(int i = 0; i < gene_trees.size(); i++) {
-				cout << "i: " << i << endl;
+			for(int j = 0; j < gene_trees.size(); j++) {
+				if (j != 0)
+					cout << "\r \r" << flush;
+				cout << i+1 << "/" << NUM_ITERATIONS << "\t" << j+1 << "/" << gene_trees.size() << flush;
 				// compute an MAF
 				Forest *MAF1 = NULL;
 				Forest *MAF2 = NULL;
 				Forest F1 = Forest(super_tree);
-				Forest F2 = Forest(gene_trees[i]);
+				Forest F2 = Forest(gene_trees[j]);
 				if (!sync_twins(&F1,&F2)) {
 					continue;
 				}
@@ -2128,7 +2131,7 @@ int main(int argc, char *argv[]) {
 					expand_contracted_nodes(MAF1);
 					expand_contracted_nodes(MAF2);
 					#ifdef DEBUG_ONE_TREE
-						cout << i << ": " << distance << endl;
+						cout << j << ": " << distance << endl;
 						cout << "\tT1: "; F1.print_components();
 						cout << "\tT2: "; F2.print_components();
 						cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
@@ -2139,9 +2142,9 @@ int main(int argc, char *argv[]) {
 					// propose transfers for each component
 					vector<vector<Node *> > transfers =
 						vector<vector<Node *> >();
-					for(int j = 0; j < MAF2->num_components(); j++) {
+					for(int k = 0; k < MAF2->num_components(); k++) {
 						Node *F1_source, *F1_target;
-						if (!map_transfer(MAF2->get_component(j), &F1, MAF2,
+						if (!map_transfer(MAF2->get_component(k), &F1, MAF2,
 								&F1_source, &F1_target)) {
 							continue;
 						}
@@ -2152,6 +2155,10 @@ int main(int argc, char *argv[]) {
 								F1_source->get_edge_pre_end() ) {
 							continue;
 						}
+					if (!supported_spr(super_tree->find_by_prenum(F1_source->get_preorder_number()),super_tree->find_by_prenum(F1_target->get_preorder_number()))) {
+						continue;
+					}
+
 						
 						// add transfer to list
 						vector<Node *> transfer = vector<Node *>(2);
@@ -2169,6 +2176,10 @@ int main(int argc, char *argv[]) {
 					vector<Node *> chosen_transfer = transfers[chosen_num];
 					Node *F1_source = super_tree->find_by_prenum(chosen_transfer[0]->get_preorder_number());
 					Node *F1_target = super_tree->find_by_prenum(chosen_transfer[1]->get_preorder_number());
+
+//					if (!supported_spr(F1_target, F1_source)) {
+//						continue;
+//					}
 
 					#ifdef DEBUG_ONE_TREE
 						 cout << endl;
@@ -2216,14 +2227,14 @@ int main(int argc, char *argv[]) {
 						else
 							distance = rSPR_total_distance(super_tree, gene_trees);
 					}
-							cout << "\t" << distance << "\t" << min_distance << endl;
+							cout << "\t" << distance << "\t" << min_distance << flush;
 
 					//		cout << "After SPR Distance Super Tree: "
 					//		<< super_tree->str_support_subtree(true) << endl;
 					bool good_move = false;
-					if (distance < best_distance) {
+					if (distance < min_distance) {
 						if (!TABOO_SEARCH || !is_taboo(taboo_trees, super_tree)) {
-							best_distance = distance;
+							min_distance = distance;
 							if (RF_TIES)
 								min_tie_distance = rf_total_distance(super_tree, gene_trees);
 							num_ties = 2;
@@ -2252,7 +2263,6 @@ int main(int argc, char *argv[]) {
 							int r = rand();
 							if (r < RAND_MAX/num_ties) {
 								if (!TABOO_SEARCH || !is_taboo(taboo_trees, super_tree)) {
-									min_distance = distance;
 									good_move = true;
 								}
 							}
@@ -2260,7 +2270,12 @@ int main(int argc, char *argv[]) {
 						}
 					}
 					// rollback if worse (or simulated annealing?)
-					if (!good_move) {
+					if (good_move) {
+						get_bipartition_support(super_tree, &gene_trees,
+						RELAXED_BIPARTITION_SUPPORT);
+						super_tree->normalize_support();
+					}
+					else {
 						// restore the previous tree
 						F1_source->spr(undo, which_sibling);
 						super_tree->set_depth(0);
@@ -2281,12 +2296,11 @@ int main(int argc, char *argv[]) {
 					delete MAF2;
 			}
 
-			cout << "done_iteration" << endl;
+			cout << endl;
 
 		}
-		
 /*Joel: Limit starting point*/
-		if(S_LIMIT){
+		else if(!R_LIMIT && S_LIMIT){
 			scores = vector< pair<Node *,int> >();
 			if(current_distance !=0)
 				find_best_distance(super_tree, super_tree, gene_trees, scores, num_zeros, current_distance);
@@ -2304,7 +2318,7 @@ int main(int argc, char *argv[]) {
 //		best_scores.clear();	
 		}
 /*Combining limiting starting point and SPR radius*/
-		if (R_LIMIT && S_LIMIT){
+		else if (R_LIMIT && S_LIMIT){
 			int r = find_r();
 			int min_distance = INT_MAX;
 			int num_ties = 0;
@@ -2485,11 +2499,12 @@ int main(int argc, char *argv[]) {
 			find_best_spr(super_tree, gene_trees, best_subtree_root, best_sibling);
 		}
 		if(!GREEDY && !GREEDY_REFINED) {
-			//&& !ONE_TREE_AT_A_TIME){
-			best_subtree_root->spr(best_sibling);
-			super_tree->set_depth(0);
-			super_tree->fix_depths();
-			super_tree->preorder_number();
+			if (!ONE_TREE_AT_A_TIME){
+				best_subtree_root->spr(best_sibling);
+				super_tree->set_depth(0);
+				super_tree->fix_depths();
+				super_tree->preorder_number();
+			}
 			if (TABOO_SEARCH && !is_taboo(taboo_trees, super_tree))
 				taboo_trees.push_back(Node(*super_tree));
 			super_tree->numbers_to_labels(&reverse_label_map);
@@ -3449,7 +3464,7 @@ void find_best_spr_r_helper(Node *n, Node *super_tree,
 	vector<Node *> *gene_trees_p = &gene_trees;
 	int offset = 0;
 	if (C_SOURCE != 1)
-		cout << '\r';
+		cout << "\r \r";
 	cout << C_SOURCE << "/" << NUM_SOURCE << flush;
 	C_SOURCE++;
 	
@@ -3873,4 +3888,26 @@ int find_r(double probability){
 	return count;
 }
 /*end*/
+
+bool supported_spr(Node *source, Node *target) {
+	while(source != target) {
+		if (source != NULL && (target == NULL ||   source->get_depth() > target->get_depth())) {
+			if (source->parent() != NULL && source->get_support() >= SUPPORT_THRESHOLD) {
+				return false;
+			}
+			else {
+				source = source->parent();
+			}
+		}
+		else {
+			if (target->parent() != NULL && target->get_support() >= SUPPORT_THRESHOLD) {
+				return false;
+			}
+			else {
+				target = target->parent();
+			}
+		}
+	}
+	return true;
+}
 
