@@ -2070,6 +2070,10 @@ void expand_contracted_nodes() {
 	}
 }
 
+int get_name_num() {
+	return atoi(get_name().c_str());
+}
+
 
 };
 

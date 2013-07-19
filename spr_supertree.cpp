@@ -191,6 +191,8 @@ OTHER OPTIONS
 #include "ClusterInstance.h"
 #include "UndoMachine.h"
 #include "lgt.h"
+#include "sparse_counts.h"
+#include "node_glom.h"
 
 using namespace std;
 
@@ -234,6 +236,7 @@ bool RF_TIES = false;
 double SUPPORT_THRESHOLD = 0.5;
 bool TABOO_SEARCH = false;
 bool ONE_TREE_AT_A_TIME = false;
+bool NODE_GLOM_CONSTRUCTION = false;
 
 /*variables Joel aadded*/
 int R_DISTANCE;
@@ -949,6 +952,10 @@ int main(int argc, char *argv[]) {
 				|| (strcmp(arg, "-one_tree") == 0) ) {
 			ONE_TREE_AT_A_TIME = true;
 		}
+		else if (strcmp(arg, "-node_glom_construction") == 0
+				|| (strcmp(arg, "-node_glom") == 0) ) {
+			NODE_GLOM_CONSTRUCTION = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -1238,314 +1245,452 @@ int main(int argc, char *argv[]) {
 	int best_tie_distance = 0;
 	Node *super_tree;
 	multimap<int, int>::reverse_iterator label = labels.rbegin();
-	int leaf_num = 1;
 
-//	for(auto label = labels.rbegin(); label != labels.rend(); label++) {
-//		cout << label->second ;
-//		cout << " (" << reverse_label_map.find(label->second)->second << ") ";
-//		cout << ": " << label->first << endl;
-//	}
-	if (INITIAL_SUPER_TREE != "") {
-		ifstream super_tree_file;
-		super_tree_file.open(INITIAL_SUPER_TREE.c_str());
-		if (super_tree_file.is_open()) {
-			string line;
-			if(super_tree_file.good()) {
-				getline(super_tree_file, line);
-				if (INITIAL_SUPER_TREE_UNROOTED)
-					line = root(line);
-				if (INCLUDE_ONLY != "")
-					super_tree = build_tree(line, &include_only);
-				else
-					super_tree = build_tree(line);
-				super_tree->preorder_number();
-				super_tree->labels_to_numbers(&label_map, &reverse_label_map);
-			}
-			super_tree_file.close();
-		}
-		else
-			INITIAL_SUPER_TREE = "";
-	}
-	if (INITIAL_SUPER_TREE == "") {
-
-		// 4 most common leaves
-		vector<int> l = vector<int>(4);
-		for(int i = 0; i < 4; i++) {
-			l[i] = label->second;
-			label++;
-			//cout << l[i] << endl;
-		}
-	
-	//	cout << endl;
-	//	cout << "Starting Trees:" << endl;
-	
-		// create all trees on the 4 leaves
-		vector<Node *> ST = vector<Node *>();
-		int st_size = 0;
-		stringstream ss;
-		ss << "((" << l[0] << "," << l[1] << "),(" << l[2] << "," << l[3] <<"))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "((" << l[0] << "," << l[2] << "),(" << l[1] << "," << l[3] <<"))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "((" << l[0] << "," << l[3] << "),(" << l[1] << "," << l[2] <<"))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-	
-		// testing other rooted trees
-		ss << "(" << l[0] << "," << "(" << l[3] << ",(" << l[1] << "," << l[2] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "(" << l[0] << "," << "(" << l[1] << ",(" << l[3] << "," << l[2] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "(" << l[0] << "," << "(" << l[2] << ",(" << l[1] << "," << l[3] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		// testing other rooted trees
-		ss << "(" << l[1] << "," << "(" << l[3] << ",(" << l[0] << "," << l[2] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "(" << l[1] << "," << "(" << l[0] << ",(" << l[3] << "," << l[2] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "(" << l[1] << "," << "(" << l[2] << ",(" << l[0] << "," << l[3] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		// testing other rooted trees
-		ss << "(" << l[2] << "," << "(" << l[3] << ",(" << l[1] << "," << l[0] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "(" << l[2] << "," << "(" << l[1] << ",(" << l[3] << "," << l[0] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "(" << l[2] << "," << "(" << l[0] << ",(" << l[1] << "," << l[3] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		// testing other rooted trees
-		ss << "(" << l[3] << "," << "(" << l[0] << ",(" << l[1] << "," << l[2] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "(" << l[3] << "," << "(" << l[1] << ",(" << l[0] << "," << l[2] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-		ss << "(" << l[3] << "," << "(" << l[2] << ",(" << l[1] << "," << l[0] <<")))";
-		ST.push_back(build_tree(ss.str()));
-		ss.str("");
-	
-			vector<Node *> current_gene_trees = vector<Node *>();
-			for(int i = 0; i < gene_trees.size(); i++) {
-				if (gene_trees[i]->contains_leaf(l[0]))
-					current_gene_trees.push_back(gene_trees[i]);
-				else if (gene_trees[i]->contains_leaf(l[1]))
-					current_gene_trees.push_back(gene_trees[i]);
-				else if (gene_trees[i]->contains_leaf(l[2]))
-					current_gene_trees.push_back(gene_trees[i]);
-				else if (gene_trees[i]->contains_leaf(l[3]))
-					current_gene_trees.push_back(gene_trees[i]);
-			}
-	
-	
-		// choose the best starting tree
-/*Joel: Random starting tree*/
-		if (RANDOM_TREE)
-			best_distance = 0;
-		else {
-			if (APPROX)
-				if (UNROOTED)
-					best_distance = rSPR_total_approx_distance_unrooted(ST[0], current_gene_trees); 
-				else
-					best_distance = rSPR_total_approx_distance(ST[0], current_gene_trees); 
-			else 
-				if (UNROOTED)
-					best_distance = rSPR_total_distance_unrooted(ST[0], current_gene_trees); 
-				else
-					best_distance = rSPR_total_distance(ST[0], current_gene_trees); 
-		}
-		int best_tree = 0;
-	//	cout << best_distance <<  ": ";
-	//	cout << ST[0]->str_subtree() << endl;
-		for(int j = 1; j < ST.size(); j++) {
-			//cout << ST[j]->str_subtree() << endl;
-			int distance;
-			if (APPROX)
-				if (UNROOTED)
-					distance = rSPR_total_approx_distance_unrooted(ST[j], current_gene_trees);
-				else
-					distance = rSPR_total_approx_distance(ST[j], current_gene_trees);
-			else
-				if (UNROOTED || SIMPLE_UNROOTED)
-					distance = rSPR_total_distance_unrooted(ST[j], current_gene_trees);
-				else
-					distance = rSPR_total_distance(ST[j], current_gene_trees);
-	//		cout << distance <<  ": ";
-	//		cout << ST[j]->str_subtree() << endl;
-			if (distance < best_distance) {
-				best_distance = distance;
-				best_tree = j;
-			}
-		}
-		super_tree = ST[best_tree];
-	
-		for(int i = 0; i < ST.size(); i++) {
-			if (i != best_tree)
-				ST[i]->delete_tree();
-		}
-		current_gene_trees.clear();
-		leaf_num = 5;
-	}
-
-	cout << endl;
-	cout << "Initial Supertree:  " << super_tree->str_subtree() << endl;
 	double time;
 	double current_time;
 	if (TIMING)
 		time = clock()/(double)CLOCKS_PER_SEC;
 
-	// GREEDY ADDITION
-	int x = 0;
-	for(; label != labels.rend() &&
-			NUM_LEAVES < 0 || leaf_num <= NUM_LEAVES; label++) {
-		if (INITIAL_SUPER_TREE != "" &&
-				super_tree->contains_leaf(label->second)) {
-			leaf_num++;
-			continue;
+	if (NODE_GLOM_CONSTRUCTION) {
+
+		// copy the gene trees
+		vector<Node *> gene_trees_copy = vector<Node *>(gene_trees.size());
+		for (int i = 0; i < gene_trees_copy.size(); i++) {
+			gene_trees_copy[i] = new Node(*gene_trees[i]);
 		}
-		cout << "Adding leaf " << label->second;
-		cout << "\t("<< leaf_num++ << "/" <<  labels.size() << ")";
-		if (TIMING) {
-			current_time = time;
-			time = clock()/(double)CLOCKS_PER_SEC;
-			current_time = time - current_time;
-			cout << "\t" << current_time << "\t" << time;
+
+		// vector of partially joined trees
+		vector<Node *> super_forest = vector<Node *>(label_counts.size());
+		for (int i = 0; i < label_counts.size(); i++) {
+			super_forest[i] = new Node(itos(i));
 		}
-		cout << endl;
-		vector<Node *> current_gene_trees = vector<Node *>();
+
+		// partition neighbour counts as a sparse matrix (vector of maps)
+		// TODO: make this a double and downweight multiple counts from same
+		// tree
+		SparseCounts<int> neighbour_counts =
+				SparseCounts<int>(label_counts.size(), label_counts.size());
+
+		// TODO: do we need a reverse mapping from old numbers to new?
+
+		// glom the components
+		//for(int i = 0; i < label_counts.size(); i++) {
+		// }
+		for(int i = 0; i < label_counts.size()-1; i++) {
+			// count neighbours
+			cout << "Iteration " << i+1 << " / " << label_counts.size()-1 << endl;
+			neighbour_counts.clear();
+			for (int j = 0; j < gene_trees.size(); j++ ) {
+				count_neighbours(gene_trees[j], &neighbour_counts);
+			}
+/*
+			neighbour_counts.sparse_labelled_print(&reverse_label_map);
+			cout << endl;
+*/
+
+			// find the most common pair
+			vector<pair<int, int> > mcp_vector =
+				neighbour_counts.find_most_common_pairs();
+/*			cout << "MCP: ";
+
+			for(int j = 0; j < mcp_vector.size(); j++) {
+			}
+*/
+			// break ties randomly for now
+			pair<int, int> mcp = mcp_vector[rand() % mcp_vector.size()];
+/*
+			cout << "\t" << reverse_label_map.find(mcp.first)->second << ", " << reverse_label_map.find(mcp.second)->second << endl;
+			cout << "\t" << mcp.first << ", " << mcp.second << endl;
+*/
+
+			// join the most common pair in the super_forest
+/*
+			for (int j = 0; j < super_forest.size(); j++) {
+				if (super_forest[j] == NULL) {
+					cout << "*";
+				}
+				else {
+					cout << super_forest[j]->str_subtree();
+				}
+				cout << "   ";
+			}
+			cout << endl;
+*/
+			glom_super_forest(&super_forest, mcp.first, mcp.second);
+/*
+			for (int j = 0; j < super_forest.size(); j++) {
+				if (super_forest[j] == NULL) {
+					cout << "*";
+				}
+				else {
+					cout << super_forest[j]->str_subtree();
+				}
+				cout << "   ";
+			}
+			cout << endl;
+*/
+
+			for (int j = 0; j < gene_trees.size(); j++) {
+/*				cout << "Gene Tree" << j << endl;
+				cout << gene_trees[j]->str_subtree() << endl;
+				cout << endl;
+*/
+				glom_gene_tree(gene_trees[j], mcp.first, mcp.second);
+/*				cout << gene_trees[j]->str_subtree() << endl;
+				cout << endl;
+*/
+				// join the most common pair
+				// give any isolated partition members of either the
+				//	lower number
+			}
+		}
+
+		
+/*
+TODO: 
+				SparseCounts functions
+				process chosen pair in each gene tree
+				super_forest cleanup (should just be one tree)
+				Do we want to double the storage but allow quick looks at
+					one neighbourhood?
+				Store the most common pair in the sparse_counts structure
+					and find it as we go along?
+						* what about tiebreaking? random is fine but what if
+							we want neighbourhood lookups?
+							* we could store the largest X values and only consider
+								those
+				Keep a node to tree mapping and only look at trees that contain
+				mcp.second
+					* add those trees to the mapping for mcp.first
+*/
+
+		// cleanup
+		super_tree = new Node("0");
+		bool found = false;
+		for(int i = 0; i < super_forest.size(); i++) {
+			if (super_forest[i] != NULL) {
+				if (found) {
+					cout << "UH-OH! Some components not glommed together" << endl;
+				}
+				super_tree = super_forest[i];
+				super_forest[i] = NULL;
+				found = true;
+			}
+		}
 		for(int i = 0; i < gene_trees.size(); i++) {
-			if (gene_trees[i]->contains_leaf(label->second))
-				current_gene_trees.push_back(gene_trees[i]);
+			gene_trees[i]->delete_tree();
 		}
-		cout << "gene_trees: " << gene_trees.size() << endl;
-		cout << "current_gene_trees: " << current_gene_trees.size() << endl;
-		if (SIMPLE_UNROOTED) {
-//			if (REROOT && is_pow_2(leaf_num-5)) {
-			if (REROOT) {
-				cout << "rerooting super_tree" << endl;
-				// reroot the supertree based on the balanced accuracy of splits
-				vector<Node *> descendants =
-					super_tree->find_interior();
-					//super_tree->find_descendants();
-				Node *best_root = super_tree->lchild();
-				double best_root_avg_acc = 0;
-				if (APPROX_ROOTING || EXACT_ROOTING || RANDOM_ROOTING)
-					best_root_avg_acc = -INT_MAX;
-				int num_ties = 2;
-				for(int j = 0; j < descendants.size(); j++) {
-					double root_avg_acc = 0;
-					int count = 0;
-					super_tree->reroot(descendants[j]);
+		gene_trees = gene_trees_copy;
+	}
+	else {
+
+		int leaf_num = 1;
+	
+	//	for(auto label = labels.rbegin(); label != labels.rend(); label++) {
+	//		cout << label->second ;
+	//		cout << " (" << reverse_label_map.find(label->second)->second << ") ";
+	//		cout << ": " << label->first << endl;
+	//	}
+		if (INITIAL_SUPER_TREE != "") {
+			ifstream super_tree_file;
+			super_tree_file.open(INITIAL_SUPER_TREE.c_str());
+			if (super_tree_file.is_open()) {
+				string line;
+				if(super_tree_file.good()) {
+					getline(super_tree_file, line);
+					if (INITIAL_SUPER_TREE_UNROOTED)
+						line = root(line);
+					if (INCLUDE_ONLY != "")
+						super_tree = build_tree(line, &include_only);
+					else
+						super_tree = build_tree(line);
+					super_tree->preorder_number();
+					super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+				}
+				super_tree_file.close();
+			}
+			else
+				INITIAL_SUPER_TREE = "";
+		}
+		if (INITIAL_SUPER_TREE == "") {
+	
+			// 4 most common leaves
+			vector<int> l = vector<int>(4);
+			for(int i = 0; i < 4; i++) {
+				l[i] = label->second;
+				label++;
+				//cout << l[i] << endl;
+			}
+		
+		//	cout << endl;
+		//	cout << "Starting Trees:" << endl;
+		
+			// create all trees on the 4 leaves
+			vector<Node *> ST = vector<Node *>();
+			int st_size = 0;
+			stringstream ss;
+			ss << "((" << l[0] << "," << l[1] << "),(" << l[2] << "," << l[3] <<"))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "((" << l[0] << "," << l[2] << "),(" << l[1] << "," << l[3] <<"))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "((" << l[0] << "," << l[3] << "),(" << l[1] << "," << l[2] <<"))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+		
+			// testing other rooted trees
+			ss << "(" << l[0] << "," << "(" << l[3] << ",(" << l[1] << "," << l[2] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "(" << l[0] << "," << "(" << l[1] << ",(" << l[3] << "," << l[2] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "(" << l[0] << "," << "(" << l[2] << ",(" << l[1] << "," << l[3] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			// testing other rooted trees
+			ss << "(" << l[1] << "," << "(" << l[3] << ",(" << l[0] << "," << l[2] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "(" << l[1] << "," << "(" << l[0] << ",(" << l[3] << "," << l[2] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "(" << l[1] << "," << "(" << l[2] << ",(" << l[0] << "," << l[3] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			// testing other rooted trees
+			ss << "(" << l[2] << "," << "(" << l[3] << ",(" << l[1] << "," << l[0] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "(" << l[2] << "," << "(" << l[1] << ",(" << l[3] << "," << l[0] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "(" << l[2] << "," << "(" << l[0] << ",(" << l[1] << "," << l[3] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			// testing other rooted trees
+			ss << "(" << l[3] << "," << "(" << l[0] << ",(" << l[1] << "," << l[2] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "(" << l[3] << "," << "(" << l[1] << ",(" << l[0] << "," << l[2] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+			ss << "(" << l[3] << "," << "(" << l[2] << ",(" << l[1] << "," << l[0] <<")))";
+			ST.push_back(build_tree(ss.str()));
+			ss.str("");
+		
+				vector<Node *> current_gene_trees = vector<Node *>();
+				for(int i = 0; i < gene_trees.size(); i++) {
+					if (gene_trees[i]->contains_leaf(l[0]))
+						current_gene_trees.push_back(gene_trees[i]);
+					else if (gene_trees[i]->contains_leaf(l[1]))
+						current_gene_trees.push_back(gene_trees[i]);
+					else if (gene_trees[i]->contains_leaf(l[2]))
+						current_gene_trees.push_back(gene_trees[i]);
+					else if (gene_trees[i]->contains_leaf(l[3]))
+						current_gene_trees.push_back(gene_trees[i]);
+				}
+		
+		
+			// choose the best starting tree
+	/*Joel: Random starting tree*/
+			if (RANDOM_TREE)
+				best_distance = 0;
+			else {
+				if (APPROX)
+					if (UNROOTED)
+						best_distance = rSPR_total_approx_distance_unrooted(ST[0], current_gene_trees); 
+					else
+						best_distance = rSPR_total_approx_distance(ST[0], current_gene_trees); 
+				else 
+					if (UNROOTED)
+						best_distance = rSPR_total_distance_unrooted(ST[0], current_gene_trees); 
+					else
+						best_distance = rSPR_total_distance(ST[0], current_gene_trees); 
+			}
+			int best_tree = 0;
+		//	cout << best_distance <<  ": ";
+		//	cout << ST[0]->str_subtree() << endl;
+			for(int j = 1; j < ST.size(); j++) {
+				//cout << ST[j]->str_subtree() << endl;
+				int distance;
+				if (APPROX)
+					if (UNROOTED)
+						distance = rSPR_total_approx_distance_unrooted(ST[j], current_gene_trees);
+					else
+						distance = rSPR_total_approx_distance(ST[j], current_gene_trees);
+				else
+					if (UNROOTED || SIMPLE_UNROOTED)
+						distance = rSPR_total_distance_unrooted(ST[j], current_gene_trees);
+					else
+						distance = rSPR_total_distance(ST[j], current_gene_trees);
+		//		cout << distance <<  ": ";
+		//		cout << ST[j]->str_subtree() << endl;
+				if (distance < best_distance) {
+					best_distance = distance;
+					best_tree = j;
+				}
+			}
+			super_tree = ST[best_tree];
+		
+			for(int i = 0; i < ST.size(); i++) {
+				if (i != best_tree)
+					ST[i]->delete_tree();
+			}
+			current_gene_trees.clear();
+			leaf_num = 5;
+		}
+	
+		cout << endl;
+		cout << "Initial Supertree:  " << super_tree->str_subtree() << endl;
+		if (TIMING)
+			time = clock()/(double)CLOCKS_PER_SEC;
+	
+		// GREEDY ADDITION
+		int x = 0;
+		for(; label != labels.rend() &&
+				NUM_LEAVES < 0 || leaf_num <= NUM_LEAVES; label++) {
+			if (INITIAL_SUPER_TREE != "" &&
+					super_tree->contains_leaf(label->second)) {
+				leaf_num++;
+				continue;
+			}
+			cout << "Adding leaf " << label->second;
+			cout << "\t("<< leaf_num++ << "/" <<  labels.size() << ")";
+			if (TIMING) {
+				current_time = time;
+				time = clock()/(double)CLOCKS_PER_SEC;
+				current_time = time - current_time;
+				cout << "\t" << current_time << "\t" << time;
+			}
+			cout << endl;
+			vector<Node *> current_gene_trees = vector<Node *>();
+			for(int i = 0; i < gene_trees.size(); i++) {
+				if (gene_trees[i]->contains_leaf(label->second))
+					current_gene_trees.push_back(gene_trees[i]);
+			}
+			cout << "gene_trees: " << gene_trees.size() << endl;
+			cout << "current_gene_trees: " << current_gene_trees.size() << endl;
+			if (SIMPLE_UNROOTED) {
+				if (REROOT) {
+					cout << "rerooting super_tree" << endl;
+					// reroot the supertree based on the balanced accuracy of splits
+					vector<Node *> descendants =
+						super_tree->find_interior();
+						//super_tree->find_descendants();
+					Node *best_root = super_tree->lchild();
+					double best_root_avg_acc = 0;
+					if (APPROX_ROOTING || EXACT_ROOTING || RANDOM_ROOTING)
+						best_root_avg_acc = -INT_MAX;
+					int num_ties = 2;
+					for(int j = 0; j < descendants.size(); j++) {
+						double root_avg_acc = 0;
+						int count = 0;
+						super_tree->reroot(descendants[j]);
+						super_tree->set_depth(0);
+						super_tree->fix_depths();
+						super_tree->preorder_number();
+						if (APPROX_ROOTING) {
+							root_avg_acc = -rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
+							//root_avg_acc = -rSPR_total_distance_unrooted(super_tree, current_gene_trees);
+						}
+						else if (EXACT_ROOTING) {
+							root_avg_acc = -rSPR_total_distance(super_tree, gene_trees);
+						}
+						else if (RANDOM_ROOTING) {
+							root_avg_acc = 0;
+						}
+						else {
+							int end = current_gene_trees.size();
+							#pragma omp parallel for schedule(static) reduction(+: root_avg_acc) reduction(+: count)
+							for(int i = 0; i < end; i++) {
+								double acc;
+								current_gene_trees[i]->preorder_number();
+								acc = find_best_root_acc(super_tree, current_gene_trees[i]);
+			//					cout <<  j << "\t" << i << "\t" << acc << endl;
+								if (acc > -1) {
+									root_avg_acc += acc;
+									//root_avg_acc += (acc - root_avg_acc) / count;
+									count++;
+								}
+							}
+							if (count > 0)
+								root_avg_acc /= count;
+							int lsize = super_tree->lchild()->size_using_prenum();
+							int rsize = super_tree->rchild()->size_using_prenum();
+							int size = (lsize < rsize) ? lsize : rsize;
+							root_avg_acc *= mylog2(size);
+						}
+						#pragma omp critical
+						{
+							if (root_avg_acc > best_root_avg_acc) {
+								best_root = descendants[j];
+								best_root_avg_acc = root_avg_acc;
+							}
+							else if (root_avg_acc == best_root_avg_acc) {
+								int r = rand();
+								if (r < RAND_MAX/ num_ties) {
+									best_root = descendants[j];
+									best_root_avg_acc = root_avg_acc;
+									num_ties = 2;
+								}
+							}
+						}
+					}
+					super_tree->reroot(best_root);
 					super_tree->set_depth(0);
 					super_tree->fix_depths();
 					super_tree->preorder_number();
-					if (APPROX_ROOTING) {
-						root_avg_acc = -rSPR_total_approx_distance_unrooted(super_tree, gene_trees);
-						//root_avg_acc = -rSPR_total_distance_unrooted(super_tree, current_gene_trees);
-					}
-					else if (EXACT_ROOTING) {
-						root_avg_acc = -rSPR_total_distance(super_tree, gene_trees);
-					}
-					else if (RANDOM_ROOTING) {
-						root_avg_acc = 0;
-					}
-					else {
-						int end = current_gene_trees.size();
-						#pragma omp parallel for schedule(static) reduction(+: root_avg_acc) reduction(+: count)
-						for(int i = 0; i < end; i++) {
-							double acc;
-							current_gene_trees[i]->preorder_number();
-							acc = find_best_root_acc(super_tree, current_gene_trees[i]);
-		//					cout <<  j << "\t" << i << "\t" << acc << endl;
-							if (acc > -1) {
-								root_avg_acc += acc;
-								//root_avg_acc += (acc - root_avg_acc) / count;
-								count++;
-							}
-						}
-						if (count > 0)
-							root_avg_acc /= count;
-						int lsize = super_tree->lchild()->size_using_prenum();
-						int rsize = super_tree->rchild()->size_using_prenum();
-						int size = (lsize < rsize) ? lsize : rsize;
-						root_avg_acc *= mylog2(size);
-					}
-					#pragma omp critical
-					{
-						if (root_avg_acc > best_root_avg_acc) {
-							best_root = descendants[j];
-							best_root_avg_acc = root_avg_acc;
-						}
-						else if (root_avg_acc == best_root_avg_acc) {
-							int r = rand();
-							if (r < RAND_MAX/ num_ties) {
-								best_root = descendants[j];
-								best_root_avg_acc = root_avg_acc;
-								num_ties = 2;
-							}
-						}
-					}
 				}
-				super_tree->reroot(best_root);
-				super_tree->set_depth(0);
-				super_tree->fix_depths();
+	
+				cout << "rerooting gene trees" << endl;
+				// reroot the gene trees based on the balanced accuracy of splits
 				super_tree->preorder_number();
-			}
-
-			cout << "rerooting gene trees" << endl;
-			// reroot the gene trees based on the balanced accuracy of splits
-			super_tree->preorder_number();
-			int end = current_gene_trees.size();
-			#pragma omp parallel for
-			for(int i = 0; i < end; i++) {
-				current_gene_trees[i]->preorder_number();
-				Node *new_root;
-				if (EXACT_ROOTING)
-					new_root = find_best_root_rspr(super_tree, current_gene_trees[i]);
-				else if (RANDOM_ROOTING)
-					new_root = find_random_root(super_tree, current_gene_trees[i]);
-				else
-					new_root = find_best_root(super_tree, current_gene_trees[i]);
-				if (new_root != NULL) {
-					current_gene_trees[i]->reroot(new_root);
-					current_gene_trees[i]->set_depth(0);
-					current_gene_trees[i]->fix_depths();
+				int end = current_gene_trees.size();
+				#pragma omp parallel for
+				for(int i = 0; i < end; i++) {
 					current_gene_trees[i]->preorder_number();
+					Node *new_root;
+					if (EXACT_ROOTING)
+						new_root = find_best_root_rspr(super_tree, current_gene_trees[i]);
+					else if (RANDOM_ROOTING)
+						new_root = find_random_root(super_tree, current_gene_trees[i]);
+					else
+						new_root = find_best_root(super_tree, current_gene_trees[i]);
+					if (new_root != NULL) {
+						current_gene_trees[i]->reroot(new_root);
+						current_gene_trees[i]->set_depth(0);
+						current_gene_trees[i]->fix_depths();
+						current_gene_trees[i]->preorder_number();
+					}
 				}
 			}
-		}
-		Node *best_sibling;
-		if (APPROX_SIBLINGS > 0) {
-			cout << "finding approx best siblings" << endl;
-			vector<Node *> *best_siblings = find_best_siblings(super_tree,
-					current_gene_trees, label->second, APPROX_SIBLINGS);
-			cout << "finding best sibling from " << best_siblings->size() << endl;
-			best_sibling = find_best_sibling(super_tree,
-					current_gene_trees, best_siblings, label->second);
-			delete best_siblings;
-		}
-		else {
-			cout << "finding best sibling" << endl;
-			best_sibling = find_best_sibling(super_tree,
-					current_gene_trees, label->second);
+			Node *best_sibling;
+			if (APPROX_SIBLINGS > 0) {
+				cout << "finding approx best siblings" << endl;
+				vector<Node *> *best_siblings = find_best_siblings(super_tree,
+						current_gene_trees, label->second, APPROX_SIBLINGS);
+				cout << "finding best sibling from " << best_siblings->size() << endl;
+				best_sibling = find_best_sibling(super_tree,
+						current_gene_trees, best_siblings, label->second);
+				delete best_siblings;
+			}
+			else {
+				cout << "finding best sibling" << endl;
+				best_sibling = find_best_sibling(super_tree,
+						current_gene_trees, label->second);
+			}
+	
+	
+			Node *node = best_sibling->expand_parent_edge(best_sibling);
+	
+			node->add_child(new Node(itos(label->second)));
+			super_tree->numbers_to_labels(&reverse_label_map);
+			cout << super_tree->str_subtree() << endl;
+			super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 		}
 
-
-		Node *node = best_sibling->expand_parent_edge(best_sibling);
-
-		node->add_child(new Node(itos(label->second)));
-		super_tree->numbers_to_labels(&reverse_label_map);
-		cout << super_tree->str_subtree() << endl;
-		super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 	}
 
 	cout << endl;
