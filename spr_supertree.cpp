@@ -2143,6 +2143,9 @@ int main(int argc, char *argv[]) {
 					vector<vector<Node *> > transfers =
 						vector<vector<Node *> >();
 					for(int k = 0; k < MAF2->num_components(); k++) {
+						if (k == 0 && !MAF2->contains_rho()) {
+							continue;
+						}
 						Node *F1_source, *F1_target;
 						if (!map_transfer(MAF2->get_component(k), &F1, MAF2,
 								&F1_source, &F1_target)) {
