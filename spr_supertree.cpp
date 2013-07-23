@@ -1288,9 +1288,19 @@ int main(int argc, char *argv[]) {
 			cout << endl;
 */
 
+			// scale the scores by the log of the component size
+			vector<double> component_scale = vector<double>(super_forest.size());
+			for(int j = 0; j < component_scale.size(); j++) {
+				if (super_forest[j] != NULL)
+					component_scale[j] = super_forest[j]->max_depth();
+//					component_scale[j] = log(super_forest[j]->size());
+				else
+					component_scale[j] = 1;
+			}
+
 			// find the most common pair
 			vector<pair<int, int> > mcp_vector =
-				neighbour_counts.find_most_common_pairs();
+				neighbour_counts.find_most_common_pairs_scaled(&component_scale);
 /*			cout << "MCP: ";
 
 			for(int j = 0; j < mcp_vector.size(); j++) {
