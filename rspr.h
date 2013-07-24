@@ -3523,7 +3523,7 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 	int total = 0;
 	MAIN_CALL = false;
 	int end = gene_trees.size();
-	T1->preorder_number();
+//	T1->preorder_number();
 	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
 //	for(int j = 0; j < 10; j++)
 //	cout << "T1: " << T1->str_subtree() << endl;
@@ -3553,6 +3553,38 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 	}
 	return total;
 }
+
+int rSPR_total_distance_precomputed(Node *T1, vector<Node *> &gene_trees,
+		vector<int> *original_scores, vector<int> *new_original_scores, Node *old_T1) {
+	int total = 0;
+	MAIN_CALL = false;
+	int end = gene_trees.size();
+//	T1->preorder_number();
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
+	for(int i = 0; i < end; i++) {
+		// check that the SPR move affects the projection of T1
+		Forest F1 = Forest(T1);
+		Forest F2 = Forest(gene_trees[i]);
+		Forest F1_old = Forest(old_T1);
+		sync_twins(&F1, &F2);
+		sync_twins(&F1, &F1_old);
+		int k = 0;
+		if (original_scores == NULL
+				|| rSPR_worse_3_approx(&F1, &F1_old) > 0) {
+			k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+		}
+		else {
+			k = (*original_scores)[i];
+		}
+		if (new_original_scores != NULL) {
+			(*new_original_scores)[i] = k;
+		}
+
+		total += k;
+	}
+	return total;
+}
+
 int rf_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
 	int end = gene_trees.size();

@@ -237,6 +237,7 @@ double SUPPORT_THRESHOLD = 0.5;
 bool TABOO_SEARCH = false;
 bool ONE_TREE_AT_A_TIME = false;
 bool NODE_GLOM_CONSTRUCTION = false;
+bool USE_PRECOMPUTED_DISTANCES = false;
 
 /*variables Joel aadded*/
 int R_DISTANCE;
@@ -447,6 +448,7 @@ void get_transfer_support(Node *n, Node *super_tree, vector<Node *> *gene_trees)
 void get_bipartition_support(Node *super_tree, vector<Node *> *gene_trees,
 		enum RELAXATION relaxed);
 bool supported_spr(Node *source, Node *target);
+bool pair_comparator (pair<int, int> a, pair<int, int> b);
 
 /*Prototypes of Joel's functions*/
 void find_best_spr_r(Node *super_tree, vector<Node *> &gene_trees, Node *&best_spr_move, Node *&best_sibling, int r);
@@ -955,6 +957,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-node_glom_construction") == 0
 				|| (strcmp(arg, "-node_glom") == 0) ) {
 			NODE_GLOM_CONSTRUCTION = true;
+		}
+		else if (strcmp(arg, "-precompute") == 0 ) {
+			USE_PRECOMPUTED_DISTANCES = true;
 		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
@@ -2249,6 +2254,8 @@ TODO:
 			super_tree->fix_depths();
 			super_tree->preorder_number();
 			super_tree->edge_preorder_interval();
+			vector<int> original_scores = vector<int>(gene_trees.size());
+			vector<int> original_scores_temp = vector<int>(gene_trees.size());
 
 			if (APPROX)
 				if (UNROOTED)
@@ -2258,9 +2265,9 @@ TODO:
 			else
 				if (UNROOTED || RANDOM_ROOTING || (SIMPLE_UNROOTED && !SIMPLE_UNROOTED_FAST) )
 				//if (UNROOTED || RANDOM_ROOTING)
-					min_distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
+					min_distance = rSPR_total_distance_unrooted(super_tree, gene_trees, INT_MAX, &original_scores);
 				else
-					min_distance = rSPR_total_distance(super_tree, gene_trees);
+					min_distance = rSPR_total_distance(super_tree, gene_trees, &original_scores);
 			cout << "Total Distance: " << min_distance << endl;
 			if (RF_TIES) {
 				int current_rf_distance = rf_total_distance(super_tree, gene_trees);
@@ -2268,11 +2275,37 @@ TODO:
 				min_tie_distance = current_rf_distance;
 			}
 
-			// for each tree
+			/*
+			vector<pair<int, int> > sorted_gene_trees = vector<pair<int, int> >(gene_trees.size());
 			for(int j = 0; j < gene_trees.size(); j++) {
-				if (j != 0)
+				sorted_gene_trees[j] = make_pair(gene_trees[j]->size(), j);
+			}
+			sort(sorted_gene_trees.begin(), sorted_gene_trees.end(), pair_comparator);
+
+			int end = (int)sqrt(gene_trees.size());
+
+			vector<int> gene_tree_subset = vector<int>(end);
+			for(int j = 0; j < end; j++) {
+				gene_tree_subset[j] = sorted_gene_trees[j].second;
+//				cout << sorted_gene_trees[j].first << ":" << gene_tree_subset[j] << ", ";
+			}
+//			cout << endl;
+
+*/
+
+
+
+			// for each tree
+			int end = gene_trees.size();
+			for(int k = 0; k < end; k++) {
+//				int j = gene_tree_subset[k];
+				int j = k;
+//			for(int j = 0; j < gene_trees.size(); j++) {
+//			if (gene_trees[j]->size() < 10)
+//				continue;
+				if (k != 0)
 					cout << "\r \r" << flush;
-				cout << i+1 << "/" << NUM_ITERATIONS << "\t" << j+1 << "/" << gene_trees.size() << flush;
+				cout << i+1 << "/" << NUM_ITERATIONS << "\t" << k+1 << "/" << end << flush;
 				// compute an MAF
 				Forest *MAF1 = NULL;
 				Forest *MAF2 = NULL;
@@ -2355,6 +2388,7 @@ TODO:
 					//		<< super_tree->str_support_subtree(true) << endl;
 					
 					// apply the transfer
+					Node old_super_tree = Node(*super_tree);
 					int which_sibling = 0;
 					Node *undo = F1_source->spr(F1_target, which_sibling);
 					super_tree->set_depth(0);
@@ -2382,10 +2416,17 @@ TODO:
 					else {
 						if (UNROOTED)
 							distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
-						else
-							distance = rSPR_total_distance(super_tree, gene_trees);
+						else {
+							if (USE_PRECOMPUTED_DISTANCES) {
+								distance = rSPR_total_distance_precomputed(super_tree, gene_trees, &original_scores, &original_scores_temp, &old_super_tree);
+							}
+							else {
+								distance = rSPR_total_distance(super_tree, gene_trees);
+							}
+						}
 					}
 							cout << "\t" << distance << "\t" << min_distance << flush;
+
 
 					//		cout << "After SPR Distance Super Tree: "
 					//		<< super_tree->str_support_subtree(true) << endl;
@@ -2432,6 +2473,13 @@ TODO:
 						get_bipartition_support(super_tree, &gene_trees,
 						RELAXED_BIPARTITION_SUPPORT);
 						super_tree->normalize_support();
+						cout << endl;
+						super_tree->numbers_to_labels(&reverse_label_map);
+						cout << super_tree->str_subtree() << endl;
+						super_tree->labels_to_numbers(&label_map, &reverse_label_map);
+						for(int i = 0; i < gene_trees.size(); i++) {
+							original_scores[i] = original_scores_temp[i];
+						}
 					}
 					else {
 						// restore the previous tree
@@ -4048,9 +4096,13 @@ int find_r(double probability){
 /*end*/
 
 bool supported_spr(Node *source, Node *target) {
+	// a supported source can still be moved
+	source = source->parent();
+	target = target->parent();
 	while(source != target) {
 		if (source != NULL && (target == NULL ||   source->get_depth() > target->get_depth())) {
-			if (source->parent() != NULL && source->get_support() >= SUPPORT_THRESHOLD) {
+			if (source->parent() != NULL && source->parent()->parent() != NULL
+					&& source->get_support() >= SUPPORT_THRESHOLD) {
 				return false;
 			}
 			else {
@@ -4069,3 +4121,6 @@ bool supported_spr(Node *source, Node *target) {
 	return true;
 }
 
+bool pair_comparator (pair<int, int> a, pair<int, int> b) {
+	return a.first > b.first;
+}
