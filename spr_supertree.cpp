@@ -1303,9 +1303,11 @@ int main(int argc, char *argv[]) {
 					component_scale[j] = 1;
 			}
 
+			// scale the scores by the number of common genes
+			vector<vector<int> > component_trees = find_component_trees(&gene_trees, &super_forest);
 			// find the most common pair
 			vector<pair<int, int> > mcp_vector =
-				neighbour_counts.find_most_common_pairs_scaled(&component_scale);
+				neighbour_counts.find_most_common_pairs_scaled(&component_scale, &component_trees);
 /*			cout << "MCP: ";
 
 			for(int j = 0; j < mcp_vector.size(); j++) {
@@ -1332,18 +1334,20 @@ int main(int argc, char *argv[]) {
 			cout << endl;
 */
 			glom_super_forest(&super_forest, mcp.first, mcp.second);
-/*
+
 			for (int j = 0; j < super_forest.size(); j++) {
 				if (super_forest[j] == NULL) {
 					cout << "*";
 				}
 				else {
+					super_forest[j]->numbers_to_labels(&reverse_label_map);
 					cout << super_forest[j]->str_subtree();
+					super_forest[j]->labels_to_numbers(&label_map, &reverse_label_map);
 				}
 				cout << "   ";
 			}
 			cout << endl;
-*/
+
 
 			for (int j = 0; j < gene_trees.size(); j++) {
 /*				cout << "Gene Tree" << j << endl;
@@ -4110,7 +4114,7 @@ bool supported_spr(Node *source, Node *target) {
 			}
 		}
 		else {
-			if (target->parent() != NULL && target->get_support() >= SUPPORT_THRESHOLD) {
+			if (target->parent() != NULL && target->parent()->parent() != NULL && target->get_support() >= SUPPORT_THRESHOLD) {
 				return false;
 			}
 			else {
