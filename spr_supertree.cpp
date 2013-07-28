@@ -1264,6 +1264,7 @@ int main(int argc, char *argv[]) {
 			gene_trees_copy[i] = new Node(*gene_trees[i]);
 		}
 
+
 		// vector of partially joined trees
 		vector<Node *> super_forest = vector<Node *>(label_counts.size());
 		for (int i = 0; i < label_counts.size(); i++) {
@@ -1303,8 +1304,9 @@ int main(int argc, char *argv[]) {
 					component_scale[j] = 1;
 			}
 
+
 			// scale the scores by the number of common genes
-			vector<vector<int> > component_trees = find_component_trees(&gene_trees, &super_forest);
+			vector<vector<int> > component_trees = find_component_trees(&gene_trees, &super_forest, label_counts.size());
 			// find the most common pair
 			vector<pair<int, int> > mcp_vector =
 				neighbour_counts.find_most_common_pairs_scaled(&component_scale, &component_trees);
@@ -1391,6 +1393,7 @@ TODO:
 				if (found) {
 					cout << "UH-OH! Some components not glommed together" << endl;
 				}
+				delete super_tree;
 				super_tree = super_forest[i];
 				super_forest[i] = NULL;
 				found = true;
@@ -2305,6 +2308,7 @@ TODO:
 //				int j = gene_tree_subset[k];
 				int j = k;
 //			for(int j = 0; j < gene_trees.size(); j++) {
+// }
 //			if (gene_trees[j]->size() < 10)
 //				continue;
 				if (k != 0)
@@ -2364,6 +2368,8 @@ TODO:
 					}
 					// any valid tranfers?
 					if (transfers.empty()) {
+						delete MAF1;
+						delete MAF2;
 						continue;
 					}
 					// pick a random transfer
@@ -2392,7 +2398,7 @@ TODO:
 					//		<< super_tree->str_support_subtree(true) << endl;
 					
 					// apply the transfer
-					Node old_super_tree = Node(*super_tree);
+					Node *old_super_tree = new Node(*super_tree);
 					int which_sibling = 0;
 					Node *undo = F1_source->spr(F1_target, which_sibling);
 					super_tree->set_depth(0);
@@ -2422,13 +2428,14 @@ TODO:
 							distance = rSPR_total_distance_unrooted(super_tree, gene_trees);
 						else {
 							if (USE_PRECOMPUTED_DISTANCES) {
-								distance = rSPR_total_distance_precomputed(super_tree, gene_trees, &original_scores, &original_scores_temp, &old_super_tree);
+								distance = rSPR_total_distance_precomputed(super_tree, gene_trees, &original_scores, &original_scores_temp, old_super_tree);
 							}
 							else {
 								distance = rSPR_total_distance(super_tree, gene_trees);
 							}
 						}
 					}
+					old_super_tree->delete_tree();
 							cout << "\t" << distance << "\t" << min_distance << flush;
 
 
@@ -2500,10 +2507,12 @@ TODO:
 					//		cout << "Reverted Super Tree: "
 					//		<< super_tree->str_subtree() << endl;
 				}
-				if (MAF1 != NULL)
+				if (MAF1 != NULL) {
 					delete MAF1;
-				if (MAF2 != NULL)
+				}
+				if (MAF2 != NULL) {
 					delete MAF2;
+				}
 			}
 
 			cout << endl;

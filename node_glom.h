@@ -52,7 +52,7 @@ void count_neighbours_hlpr(Node *n,
 		SparseCounts<int> *neighbour_counts);
 void glom_gene_tree_bottom_up(Node *n, int a, int b);
 void glom_gene_tree_top_down(Node *n, Node *glom_root, int a, int b);
-vector<vector<int> > find_component_trees(vector<Node *> *gene_trees, vector<Node *> *super_forest);
+vector<vector<int> > find_component_trees(vector<Node *> *gene_trees, vector<Node *> *super_forest, int num_labels);
 void append_component_trees(int tree, Node *n, vector<vector<int > > *component_trees);
 
 
@@ -227,12 +227,13 @@ void glom_gene_tree_top_down(Node *n, Node *glom_root, int a, int b) {
 	}
 }
 
-vector<vector<int> > find_component_trees(vector<Node *> *gene_trees, vector<Node *> *super_forest) {
-	vector<vector<int> > component_trees = vector<vector<int> >(gene_trees->size());
-	for(int i = 0; i < super_forest->size(); i++) {
-		if ((*super_forest)[i] != NULL) {
+vector<vector<int> > find_component_trees(vector<Node *> *gene_trees, vector<Node *> *super_forest, int num_labels) {
+	vector<vector<int> > component_trees = vector<vector<int> >(num_labels);
+	for(int i = 0; i < num_labels; i++) {
+		
+//		if ((*super_forest)[i] != NULL) {
 			component_trees[i] = vector<int>();
-		}
+//		}
 	}
 	for(int i = 0; i < gene_trees->size(); i++) {
 		append_component_trees(i, (*gene_trees)[i],&component_trees);

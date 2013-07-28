@@ -61,7 +61,7 @@ class SparseCounts {
 
 	SparseCounts(int x, int y) {
 		sparse_counts = vector<map<int, T> >(x);
-		for (int i = 0; i < y; i++) {
+		for (int i = 0; i < x; i++) {
 			sparse_counts[i] = map<int, T> ();
 		}
 	}

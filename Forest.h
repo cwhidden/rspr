@@ -129,13 +129,13 @@ class Forest {
 		for(int i = 0; i < components.size(); i++) {
 			//if (components[i] != NULL) {
 				components[i]->delete_tree();
-				//components[i] = NULL;
+				components[i] = NULL;
 			//}
 		}
 		for(int i = 0; i < deleted_nodes.size(); i++) {
 			//if (deleted_nodes[i] != NULL) {
 				deleted_nodes[i]->delete_tree();
-				//deleted_nodes[i] = NULL;
+				deleted_nodes[i] = NULL;
 			//}
 		}
 	} 
