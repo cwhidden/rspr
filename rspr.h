@@ -2856,6 +2856,13 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		return 0;
 	if (F1.get_component(0)->is_leaf())
 		return 0;
+	if (LEAF_REDUCTION2) {
+		reduction_leaf(&F1, &F2);
+		F1.get_component(0)->preorder_number();
+		F2.get_component(0)->preorder_number();
+		F1.get_component(0)->edge_preorder_interval();
+		F2.get_component(0)->edge_preorder_interval();
+	}
 	if (F1.get_component(0)->get_preorder_number() == -1) {
 		F1.get_component(0)->preorder_number();
 		F2.get_component(0)->preorder_number();
@@ -2869,8 +2876,8 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		loss += F1.get_component(0)->count_lost_subtree();
 		loss += F2.get_component(0)->count_lost_subtree();
 	}
-	if (LEAF_REDUCTION2)
-		reduction_leaf(&F1, &F2);
+//F1.print_components();
+//F2.print_components();
 	sync_interior_twins(&F1, &F2);
 	list<Node *> *cluster_points = find_cluster_points(&F1, &F2);
 //	list<Node *> *cluster_points = new list<Node *>();
