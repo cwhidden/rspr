@@ -46,20 +46,22 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 
 // function prototypes
-void count_neighbours(Node *n,
-		SparseCounts<int> *neighbour_counts);
-void count_neighbours_hlpr(Node *n,
-		SparseCounts<int> *neighbour_counts);
+void count_neighbours(Node *n, SparseCounts<double> *neighbour_counts,
+		vector<int> *leaf_counts);
+void count_neighbours_hlpr(Node *n, SparseCounts<double> *neighbour_counts,
+		vector<int> *leaf_counts);
+void count_leaves(Node *n, vector<int> *leaf_counts);
 void glom_gene_tree_bottom_up(Node *n, int a, int b);
 void glom_gene_tree_top_down(Node *n, Node *glom_root, int a, int b);
 vector<vector<int> > find_component_trees(vector<Node *> *gene_trees, vector<Node *> *super_forest, int num_labels);
 void append_component_trees(int tree, Node *n, vector<vector<int > > *component_trees);
+int max(int a, int b);
 
 
 // functions
 
-void count_neighbours(Node *n,
-		SparseCounts<int> *neighbour_counts) {
+void count_neighbours(Node *n, SparseCounts<double> *neighbour_counts,
+		vector<int> *leaf_counts) {
 
 	vector<Node *> leaf_children = vector<Node *>();
 	vector<Node *> leaf_grandchildren = vector<Node *>();
@@ -71,7 +73,7 @@ void count_neighbours(Node *n,
 		}
 		else {
 			// recurse on children
-			count_neighbours_hlpr(*c1, neighbour_counts);
+			count_neighbours_hlpr(*c1, neighbour_counts, leaf_counts);
 
 			if (n->get_children().size() == 2) {
 				// find possible unrooted matches
@@ -89,20 +91,36 @@ void count_neighbours(Node *n,
 	// increment counts for each pair of leaf children
 	for(int i = 0; i < leaf_children.size(); i++) {
 		for(int j = i+1; j < leaf_children.size(); j++) {
-			neighbour_counts->increment(leaf_children[i]->get_name_num(), leaf_children[j]->get_name_num());
+			int num_i = leaf_children[i]->get_name_num();
+			int num_j = leaf_children[j]->get_name_num();
+			if (leaf_counts == NULL ||
+					((*leaf_counts)[num_i] == 1 && (*leaf_counts)[num_j] == 1)) {
+				neighbour_counts->increment(num_i, num_j);
+				}
+//			else {
+//				neighbour_counts->increment(num_i, num_j, 1/max((*leaf_counts)[num_i],(*leaf_counts)[num_j]));
+//			}
 		}
 	}
 
 	// increment count for each pair of unrooted leaf children
 	for(int i = 0; i < leaf_children.size(); i++) {
 		for(int j = 0; j < leaf_grandchildren.size(); j++) {
-			neighbour_counts->increment(leaf_children[i]->get_name_num(), leaf_grandchildren[j]->get_name_num());
+			int num_i = leaf_children[i]->get_name_num();
+			int num_j = leaf_grandchildren[j]->get_name_num();
+			if (leaf_counts == NULL ||
+					((*leaf_counts)[num_i] == 1 && (*leaf_counts)[num_j] == 1)) {
+				neighbour_counts->increment(num_i, num_j);
+				}
+//			else {
+//				neighbour_counts->increment(num_i, num_j, 1/max((*leaf_counts)[num_i],(*leaf_counts)[num_j]));
+//			}
 		}
 	}
 }
 
-void count_neighbours_hlpr(Node *n,
-		SparseCounts<int> *neighbour_counts) {
+void count_neighbours_hlpr(Node *n, SparseCounts<double> *neighbour_counts,
+		vector<int> *leaf_counts) {
 
 	vector<Node *> leaf_children = vector<Node *>();
 
@@ -113,13 +131,34 @@ void count_neighbours_hlpr(Node *n,
 		}
 		else {
 			// recurse on children
-			count_neighbours_hlpr(*c1, neighbour_counts);
+			count_neighbours_hlpr(*c1, neighbour_counts, leaf_counts);
 		}
 	}
 	// increment counts for each pair of leaf children
 	for(int i = 0; i < leaf_children.size(); i++) {
 		for(int j = i+1; j < leaf_children.size(); j++) {
-			neighbour_counts->increment(leaf_children[i]->get_name_num(), leaf_children[j]->get_name_num());
+			int num_i = leaf_children[i]->get_name_num();
+			int num_j = leaf_children[j]->get_name_num();
+			if (leaf_counts == NULL ||
+					((*leaf_counts)[num_i] == 1 && (*leaf_counts)[num_j] == 1)) {
+				neighbour_counts->increment(num_i, num_j);
+				}
+//			else {
+//				neighbour_counts->increment(num_i, num_j, 1/max((*leaf_counts)[num_i],(*leaf_counts)[num_j]));
+//			}
+		}
+	}
+}
+
+void count_leaves(Node *n, vector<int> *leaf_counts) {
+	if (n->is_leaf()) {
+		(*leaf_counts)[n->get_name_num()]++;
+	}
+	else {
+		list<Node *>::const_iterator c1;
+		for(c1 = n->get_children().begin(); c1 != n->get_children().end();
+				c1++) {
+			count_leaves(*c1, leaf_counts);
 		}
 	}
 }
@@ -252,6 +291,12 @@ void append_component_trees(int tree, Node *n, vector<vector<int > > *component_
 			append_component_trees(tree, *c, component_trees);
 		}
 	}
+}
+
+int max(int a, int b) {
+	if (a > b)
+		return a;
+	return b;
 }
 
 #endif
