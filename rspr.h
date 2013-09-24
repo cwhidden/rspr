@@ -2856,13 +2856,6 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		return 0;
 	if (F1.get_component(0)->is_leaf())
 		return 0;
-	if (LEAF_REDUCTION2) {
-		reduction_leaf(&F1, &F2);
-		F1.get_component(0)->preorder_number();
-		F2.get_component(0)->preorder_number();
-		F1.get_component(0)->edge_preorder_interval();
-		F2.get_component(0)->edge_preorder_interval();
-	}
 	if (F1.get_component(0)->get_preorder_number() == -1) {
 		F1.get_component(0)->preorder_number();
 		F2.get_component(0)->preorder_number();
@@ -2870,6 +2863,13 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	if (F1.get_component(0)->get_edge_pre_start() == -1) {
 		F1.get_component(0)->edge_preorder_interval();
 		F2.get_component(0)->edge_preorder_interval();
+	}
+	if (LEAF_REDUCTION2) {
+		reduction_leaf(&F1, &F2);
+//		F1.get_component(0)->preorder_number();
+//		F2.get_component(0)->preorder_number();
+//		F1.get_component(0)->edge_preorder_interval();
+//		F2.get_component(0)->edge_preorder_interval();
 	}
 	int loss = 0;
 	if (COUNT_LOSSES) {
@@ -3414,7 +3414,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest **out_F1,
 	return rSPR_branch_and_bound_simple_clustering(T1,T2, false, NULL, NULL, -1, -1, out_F1, out_F2);
 }
 
-// T1 and T2 are assumed to already by synced
+// T1 and T2 are assumed to already be synced
 
 void reduction_leaf(Forest *T1, Forest *T2) {
 	reduction_leaf(T1, T2, NULL);
