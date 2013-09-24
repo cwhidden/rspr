@@ -138,6 +138,12 @@ bool SIMPLE_UNROOTED_RSPR = false;
 bool LCA_TEST = false;
 bool CLUSTER_TEST = false;
 bool TOTAL = false;
+bool PAIRWISE = false;
+bool PAIRWISE_SYMMETRIC = true;
+int PAIRWISE_START = 0;
+int PAIRWISE_END = INT_MAX;
+int PAIRWISE_COL_START = 0;
+int PAIRWISE_COL_END = INT_MAX;
 bool APPROX = false;
 bool LOWER_BOUND = false;
 bool REDUCE_ONLY = false;
@@ -382,6 +388,37 @@ int main(int argc, char *argv[]) {
 			TOTAL= true;
 			//PREFER_RHO = true;
 		}
+		else if (strcmp(arg, "-pairwise") == 0) {
+			PAIRWISE= true;
+			//PREFER_RHO = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-') {
+					PAIRWISE_START = atoi(arg2);
+					if (max_args > argc+1) {
+						char *arg2 = argv[argc+2];
+						if (arg2[0] != '-') {
+							PAIRWISE_END = atoi(arg2);
+							if (max_args > argc+2) {
+								char *arg2 = argv[argc+3];
+								if (arg2[0] != '-') {
+									PAIRWISE_COL_START = atoi(arg2);
+									if (max_args > argc+3) {
+										char *arg2 = argv[argc+4];
+										if (arg2[0] != '-') {
+											PAIRWISE_COL_END = atoi(arg2);
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+		}
+		else if (strcmp(arg, "-no-symmetric-pairwise") == 0) {
+			PAIRWISE_SYMMETRIC=false;
+		}
 		else if (strcmp(arg, "-v") == 0) {
 			VERBOSE=true;
 		}
@@ -542,7 +579,7 @@ int main(int argc, char *argv[]) {
 	srand(unsigned(time(0)));
 
 	// Normal operation
-	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL) {
+	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL && !PAIRWISE) {
 		string T1_line = "";
 		string T2_line = "";
 		while (getline(cin, T1_line) && getline(cin, T2_line)) {
@@ -721,7 +758,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	// Comparison between a rooted tree and all rootings of an unrooted tree
-	else if (!TOTAL && (UNROOTED || UNROOTED_MIN_APPROX)) {
+	else if (!TOTAL && !PAIRWISE && (UNROOTED || UNROOTED_MIN_APPROX)) {
 		string line = "";
 		vector<Forest> trees = vector<Forest>();
 		if (!getline(cin, line))
@@ -839,6 +876,8 @@ int main(int argc, char *argv[]) {
 		vector<string> names = vector<string>();
 		if (!getline(cin, line))
 			return 0;
+		if (UNROOTED || SIMPLE_UNROOTED)
+			line = root(line);
 		Node *T1 = build_tree(line);
 		if (!QUIET) {
 			cout << "T1: ";
@@ -867,7 +906,9 @@ int main(int argc, char *argv[]) {
 				trees.push_back(T2);
 			}
 		}
-		cout << endl;
+		if (!QUIET) {
+			cout << endl;
+		}
 
 		if (SIMPLE_UNROOTED) {
 			// reroot the gene trees based on the balanced accuracy of splits
@@ -912,8 +953,13 @@ int main(int argc, char *argv[]) {
 			int distance;
 
 			if (RF) {
-				distance = rf_total_distance(T1, trees);
-				cout << "total RF distance=" << distance << endl;
+				if (UNROOTED) {
+					distance = rf_total_distance_unrooted(T1, trees);
+				}
+				else {
+					distance = rf_total_distance(T1, trees);
+				}
+					cout << "total RF distance=" << distance << endl;
 			}
 			else if (APPROX) {
 				if (UNROOTED) {
@@ -937,6 +983,88 @@ int main(int argc, char *argv[]) {
 		if (ALL_UNROOTED)
 			cout << "best distance=" << best_distance << endl;
 		T1->delete_tree();
+		for(vector<Node *>::iterator T2 = trees.begin(); T2 != trees.end(); T2++)
+			(*T2)->delete_tree();
+	}
+	else if (PAIRWISE) {
+		string line = "";
+		vector<Node *> trees = vector<Node *>();
+		vector<string> names = vector<string>();
+//		if (!getline(cin, line))
+//			return 0;
+//		Node *T1 = build_tree(line);
+//		if (!QUIET) {
+//			cout << "T1: ";
+//			T1->print_subtree();
+//		}
+//		T1->labels_to_numbers(&label_map, &reverse_label_map);
+		while (getline(cin, line)) {
+			size_t loc = line.find_first_of("(");
+			if (loc != string::npos) {
+				string name = "";
+				if (loc != 0) {
+					name = line.substr(0,loc);
+					line.erase(0,loc);
+				}
+				if (UNROOTED || SIMPLE_UNROOTED)
+					line = root(line);
+				Node *T2 = build_tree(line);
+//				if (!QUIET) {
+//					cout << "T2: ";
+//					T2->print_subtree();
+//				}
+				T2->labels_to_numbers(&label_map, &reverse_label_map);
+				if (UNROOTED)
+					T2->preorder_number();
+				names.push_back(name);
+				trees.push_back(T2);
+			}
+		}
+//		if (!QUIET) {
+//			cout << endl;
+//		}
+		int start_i = PAIRWISE_START;
+		if (start_i < 0) {
+			start_i = 0;
+		}
+		int end_i = PAIRWISE_END;
+		if (end_i > trees.size()) {
+			end_i = trees.size();
+		}
+		int start_j = PAIRWISE_COL_START;
+		if (start_j < 0) {
+			start_j = 0;
+		}
+		int end_j = PAIRWISE_COL_END;
+		if (end_j > trees.size()) {
+			end_j = trees.size();
+		}
+
+		for(int i = start_i; i < end_i; i++) {
+			int j = start_j;
+			if (PAIRWISE_SYMMETRIC) {
+				for(j = start_j; j < i && j < end_j; j++) {
+					cout << ",";
+				}
+			}
+			if (RF) {
+				if (UNROOTED) {
+					rf_pairwise_distance_unrooted(trees[i], trees, j, end_j);
+				}
+				else {
+					rf_pairwise_distance(trees[i], trees, j, end_j);
+				}
+			}
+			else {
+				if (UNROOTED) {
+					rSPR_pairwise_distance_unrooted(trees[i], trees, j, end_j);
+				}
+				else {
+					rSPR_pairwise_distance(trees[i], trees, j, end_j);
+				}
+			}
+		}
+		// cleanup
 		for(vector<Node *>::iterator T2 = trees.begin(); T2 != trees.end(); T2++)
 			(*T2)->delete_tree();
 	}

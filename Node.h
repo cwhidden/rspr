@@ -2261,6 +2261,8 @@ int stomini(string s) {
 
 // assumes that an unrooted tree is represented with a 3-way multifurcation
 string root(string s) {
+//	cout << "root(string s)" << endl;
+//	cout << s << endl;
 	string r = "";
 	int i = 0;
 	int depth = 0;

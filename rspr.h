@@ -92,7 +92,16 @@ int rSPR_total_approx_distance(Node *T1, vector<Node *> &gene_trees,
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 		vector<int> *original_scores);
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees);
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end);
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees);
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end);
 int rf_total_distance(Node *T1, vector<Node *> &gene_trees);
+int rf_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees);
+void rf_pairwise_distance(Node *T1, vector<Node *> &gene_trees);
+void rf_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end);
+void rf_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees);
+void rf_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold);
 int rSPR_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int threshold, vector<int> *original_scores);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest **out_F1, Forest **out_F2);
@@ -3561,6 +3570,64 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 	return total;
 }
 
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees) {
+	rSPR_pairwise_distance(T1, gene_trees, 0, gene_trees.size());
+}
+
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end) {
+	MAIN_CALL = false;
+//	T1->preorder_number();
+	vector<int> distances = vector<int>(end-start);
+	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
+	for(int i = start; i < end; i++) {
+		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i]);
+		distances[i-start] = k;
+	}
+
+	cout << distances[0];
+	for(int i = 1; i < end-start; i++) {
+		cout << "," << distances[i];
+	}
+	cout << "\n";
+}
+
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
+	rSPR_pairwise_distance_unrooted(T1, gene_trees, 0, gene_trees.size());
+}
+
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end) {
+	MAIN_CALL = false;
+	T1->preorder_number();
+	vector<int> distances = vector<int>(end-start);
+	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
+	for(int i = start; i < end; i++) {
+		int best_k = INT_MAX;
+		Node T2_copy = Node(*(gene_trees[i]));
+		vector<Node *> descendants = 
+				T2_copy.find_descendants();
+		for(int j = 0; j < descendants.size(); j++) {
+			T2_copy.reroot(descendants[j]);
+			T2_copy.set_depth(0);
+			T2_copy.fix_depths();
+			T2_copy.preorder_number();
+	//				cout << i << "," << j << endl;
+	//				cout << T1->str_subtree() << endl;
+	//				cout << gene_trees[i]->str_subtree() << endl;
+			int k = rSPR_branch_and_bound_simple_clustering(T1, &T2_copy, false);
+			if (k < best_k) {
+				best_k = k;
+			}
+		}
+		distances[i-start] = best_k;
+	}
+
+	cout << distances[0];
+	for(int i = 1; i < end-start; i++) {
+		cout << "," << distances[i];
+	}
+	cout << "\n";
+}
+
 int rSPR_total_distance_precomputed(Node *T1, vector<Node *> &gene_trees,
 		vector<int> *original_scores, vector<int> *new_original_scores, Node *old_T1) {
 	int total = 0;
@@ -3592,6 +3659,7 @@ int rSPR_total_distance_precomputed(Node *T1, vector<Node *> &gene_trees,
 	return total;
 }
 
+
 int rf_total_distance(Node *T1, vector<Node *> &gene_trees) {
 	int total = 0;
 	int end = gene_trees.size();
@@ -3602,6 +3670,90 @@ int rf_total_distance(Node *T1, vector<Node *> &gene_trees) {
 		total += k;
 	}
 	return total;
+}
+
+int rf_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
+	int total = 0;
+	int end = gene_trees.size();
+	#pragma omp parallel for reduction(+ : total) firstprivate(PREFER_RHO)  // firstprivate(IN_SPLIT_APPROX)
+	for(int i = 0; i < end; i++) {
+		int best_k = INT_MAX;
+		Node T2_copy = Node(*(gene_trees[i]));
+		vector<Node *> descendants = 
+				T2_copy.find_descendants();
+		for(int j = 0; j < descendants.size(); j++) {
+			T2_copy.reroot(descendants[j]);
+			T2_copy.set_depth(0);
+			T2_copy.fix_depths();
+			T2_copy.preorder_number();
+			int k = rf_distance(T1, &T2_copy);
+			if (k < best_k) {
+				best_k = k;
+			}
+		}
+		total += best_k;
+	}
+	return total;
+}
+
+
+
+void rf_pairwise_distance(Node *T1, vector<Node *> &gene_trees) {
+	rf_pairwise_distance(T1, gene_trees, 0, gene_trees.size());
+}
+
+void rf_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end) {
+	MAIN_CALL = false;
+//	T1->preorder_number();
+	vector<int> distances = vector<int>(end-start);
+	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
+	for(int i = start; i < end; i++) {
+		int k = rf_distance(T1, gene_trees[i]);
+		distances[i-start] = k;
+	}
+
+	cout << distances[0];
+	for(int i = 1; i < end-start; i++) {
+		cout << "," << distances[i];
+	}
+	cout << "\n";
+}
+
+void rf_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
+	rf_pairwise_distance_unrooted(T1, gene_trees, 0, gene_trees.size());
+}
+
+void rf_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end) {
+	MAIN_CALL = false;
+	T1->preorder_number();
+	vector<int> distances = vector<int>(end-start);
+	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
+	for(int i = start; i < end; i++) {
+		int best_k = INT_MAX;
+		Node T2_copy = Node(*(gene_trees[i]));
+		vector<Node *> descendants = 
+				T2_copy.find_descendants();
+		for(int j = 0; j < descendants.size(); j++) {
+			T2_copy.reroot(descendants[j]);
+			T2_copy.set_depth(0);
+			T2_copy.fix_depths();
+			T2_copy.preorder_number();
+	//				cout << i << "," << j << endl;
+	//				cout << T1->str_subtree() << endl;
+	//				cout << gene_trees[i]->str_subtree() << endl;
+			int k = rf_distance(T1, &T2_copy);
+			if (k < best_k) {
+				best_k = k;
+			}
+		}
+		distances[i-start] = best_k;
+	}
+
+	cout << distances[0];
+	for(int i = 1; i < end-start; i++) {
+		cout << "," << distances[i];
+	}
+	cout << "\n";
 }
 
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees, int threshold) {
