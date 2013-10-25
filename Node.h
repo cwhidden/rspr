@@ -867,7 +867,14 @@ class Node {
 		}
 		else {
 			Node *new_child = new Node();
-			new_child->set_preorder_number(pre_num);
+			// buggy
+//			new_child->set_preorder_number(pre_num);
+			if (child1->get_preorder_number() < child2->get_preorder_number()) {
+				new_child->set_preorder_number(child1->get_preorder_number());
+			}
+			else {
+				new_child->set_preorder_number(child2->get_preorder_number());
+			}
 			add_child(new_child);
 			new_child->add_child(child1);
 			new_child->add_child(child2);
