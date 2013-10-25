@@ -144,6 +144,8 @@ int PAIRWISE_START = 0;
 int PAIRWISE_END = INT_MAX;
 int PAIRWISE_COL_START = 0;
 int PAIRWISE_COL_END = INT_MAX;
+bool PAIRWISE_MAX = false;
+int PAIRWISE_MAX_SPR = INT_MAX;
 bool APPROX = false;
 bool LOWER_BOUND = false;
 bool REDUCE_ONLY = false;
@@ -390,6 +392,7 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-pairwise") == 0) {
 			PAIRWISE= true;
+			QUIET=true;
 			//PREFER_RHO = true;
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
@@ -419,6 +422,17 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-no-symmetric-pairwise") == 0) {
 			PAIRWISE_SYMMETRIC=false;
 		}
+		else if (strcmp(arg, "-pairwise_max") == 0) {
+			PAIRWISE=true;
+			PAIRWISE_MAX=true;
+			QUIET=true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-') {
+					PAIRWISE_MAX_SPR = atoi(arg2);
+				}
+			}
+		}
 		else if (strcmp(arg, "-v") == 0) {
 			VERBOSE=true;
 		}
@@ -429,7 +443,8 @@ int main(int argc, char *argv[]) {
 					MAX_SPR = atoi(arg2);
 					CLUSTER_MAX_SPR = MAX_SPR;
 				}
-				cout << "MAX_SPR=" << MAX_SPR << endl;
+				if (!QUIET) 
+					cout << "MAX_SPR=" << MAX_SPR << endl;
 			}
 		}
 		else if (strcmp(arg, "-cmax") == 0) {
@@ -1060,7 +1075,12 @@ int main(int argc, char *argv[]) {
 					rSPR_pairwise_distance_unrooted(trees[i], trees, j, end_j);
 				}
 				else {
-					rSPR_pairwise_distance(trees[i], trees, j, end_j);
+					if (PAIRWISE_MAX) {
+						rSPR_pairwise_distance(trees[i], trees, PAIRWISE_MAX_SPR, j, end_j);
+					}
+					else {
+						rSPR_pairwise_distance(trees[i], trees, j, end_j);
+					}
 				}
 			}
 		}

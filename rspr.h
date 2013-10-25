@@ -94,6 +94,8 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 		vector<int> *original_scores);
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees);
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end);
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr);
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr, int start, int end);
 void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees);
 void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end);
 int rf_total_distance(Node *T1, vector<Node *> &gene_trees);
@@ -3022,6 +3024,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 					if (k > CLUSTER_MAX_SPR) {
 						f1t.swap(&f1a);
 						f2t.swap(&f2a);
+//						cout << "foo" << endl;
 					}
 					if (exact_spr >= 0) {
 						exact_spr += total_split_k;
@@ -3049,17 +3052,15 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 							// TODO: this should be an approx of the remaining forest
 //							total_k += approx_spr;
 						}
-						else if (i == num_clusters - 1) {
-							if (CLAMP) {
-								total_k = max_k;
-							}
-							else {
-								Forest f1a = Forest(f1);
-								Forest f2a = Forest(f2);
-								int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
-									//total_k += min_spr;
-									total_k += approx_spr;
-							}
+						else if (CLAMP) {
+							total_k = max_k;
+						}
+						else {
+							Forest f1a = Forest(f1);
+							Forest f2a = Forest(f2);
+							int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
+								//total_k += min_spr;
+								total_k += approx_spr / 3;
 						}
 					}
 					if ( i < num_clusters - 1) {
@@ -3581,6 +3582,30 @@ void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int
 	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
 	for(int i = start; i < end; i++) {
 		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i]);
+		distances[i-start] = k;
+	}
+
+	cout << distances[0];
+	for(int i = 1; i < end-start; i++) {
+		cout << "," << distances[i];
+	}
+	cout << "\n";
+}
+
+
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr) {
+	rSPR_pairwise_distance(T1, gene_trees, max_spr, 0, gene_trees.size());
+}
+
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr, int start, int end) {
+	MAIN_CALL = false;
+//	T1->preorder_number();
+	vector<int> distances = vector<int>(end-start);
+	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
+	for(int i = start; i < end; i++) {
+		Forest F1 = Forest(T1);
+		Forest F2 = Forest(gene_trees[i]);
+		int k = rSPR_branch_and_bound_range(&F1, &F2, max_spr);
 		distances[i-start] = k;
 	}
 
