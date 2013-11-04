@@ -586,6 +586,11 @@ int main(int argc, char *argv[]) {
 		PREFER_RHO = true;
 	}
 
+	// arguments that imply quiet
+	if (PAIRWISE) {
+		QUIET=true;
+	}
+
 	// Label maps to allow string labels
 	map<string, int> label_map= map<string, int>();
 	map<int, string> reverse_label_map = map<int, string>();

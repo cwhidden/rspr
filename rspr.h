@@ -3605,7 +3605,7 @@ void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr, i
 	for(int i = start; i < end; i++) {
 		Forest F1 = Forest(T1);
 		Forest F2 = Forest(gene_trees[i]);
-		int k = rSPR_branch_and_bound_range(&F1, &F2, max_spr);
+		int k = rSPR_branch_and_bound_range(&F1, &F2, 0, max_spr);
 		distances[i-start] = k;
 	}
 
