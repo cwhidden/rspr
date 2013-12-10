@@ -1077,14 +1077,14 @@ int main(int argc, char *argv[]) {
 			}
 			else {
 				if (UNROOTED) {
-					rSPR_pairwise_distance_unrooted(trees[i], trees, j, end_j);
+					rSPR_pairwise_distance_unrooted(trees[i], trees, j, end_j, APPROX);
 				}
 				else {
 					if (PAIRWISE_MAX) {
 						rSPR_pairwise_distance(trees[i], trees, PAIRWISE_MAX_SPR, j, end_j);
 					}
 					else {
-						rSPR_pairwise_distance(trees[i], trees, j, end_j);
+						rSPR_pairwise_distance(trees[i], trees, j, end_j, APPROX);
 					}
 				}
 			}

@@ -93,11 +93,15 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees);
 int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 		vector<int> *original_scores);
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees);
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, bool approx);
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end);
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end, bool approx);
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr);
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr, int start, int end);
 void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees);
 void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end);
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, bool approx);
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end, bool approx);
 int rf_total_distance(Node *T1, vector<Node *> &gene_trees);
 int rf_total_distance_unrooted(Node *T1, vector<Node *> &gene_trees);
 void rf_pairwise_distance(Node *T1, vector<Node *> &gene_trees);
@@ -3575,13 +3579,29 @@ void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees) {
 	rSPR_pairwise_distance(T1, gene_trees, 0, gene_trees.size());
 }
 
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, bool APPROX) {
+	rSPR_pairwise_distance(T1, gene_trees, 0, gene_trees.size(), APPROX);
+}
+
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end) {
+	rSPR_pairwise_distance(T1, gene_trees, start, end, false);
+}
+
+void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int end, bool approx) {
 	MAIN_CALL = false;
 //	T1->preorder_number();
 	vector<int> distances = vector<int>(end-start);
 	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
 	for(int i = start; i < end; i++) {
-		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i]);
+		int k;
+		if (approx) {
+			Forest F1 = Forest(T1);
+			Forest F2 = Forest(gene_trees[i]);
+			k = rSPR_worse_3_approx(&F1, &F2) / 3;
+		}
+		else {
+			k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i]);
+		}
 		distances[i-start] = k;
 	}
 
@@ -3594,7 +3614,7 @@ void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int
 
 
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr) {
-	rSPR_pairwise_distance(T1, gene_trees, max_spr, 0, gene_trees.size());
+	rSPR_pairwise_distance(T1, gene_trees, max_spr, 0, (int)gene_trees.size());
 }
 
 void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int max_spr, int start, int end) {
@@ -3620,7 +3640,15 @@ void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees) {
 	rSPR_pairwise_distance_unrooted(T1, gene_trees, 0, gene_trees.size());
 }
 
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, bool approx) {
+	rSPR_pairwise_distance_unrooted(T1, gene_trees, 0, gene_trees.size(), approx);
+}
+
 void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end) {
+	rSPR_pairwise_distance_unrooted(T1, gene_trees, 0, gene_trees.size(), false);
+}
+
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int start, int end, bool approx) {
 	MAIN_CALL = false;
 	T1->preorder_number();
 	vector<int> distances = vector<int>(end-start);
@@ -3638,7 +3666,15 @@ void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int s
 	//				cout << i << "," << j << endl;
 	//				cout << T1->str_subtree() << endl;
 	//				cout << gene_trees[i]->str_subtree() << endl;
-			int k = rSPR_branch_and_bound_simple_clustering(T1, &T2_copy, false);
+			int k;
+			if (approx) {
+				Forest F1 = Forest(T1);
+				Forest F2 = Forest(&T2_copy);
+				k = rSPR_worse_3_approx(&F1, &F2) / 3;
+			}
+			else {
+				k = rSPR_branch_and_bound_simple_clustering(T1, &T2_copy, false);
+			}
 			if (k < best_k) {
 				best_k = k;
 			}
