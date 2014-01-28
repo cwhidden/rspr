@@ -2947,6 +2947,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 
 
 	for(int i = 1; i < num_clusters; i++) {
+		if (i == num_clusters - 1) {
+			PREFER_RHO = false;
+		}
 		int exact_spr = -1;
 		//vector<Node *> comps = vector<Node *>();
 		//comps.push_back(F1.get_component(i));

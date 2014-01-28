@@ -226,6 +226,7 @@ bool INVALID_TREES = false;
 bool VALID_TREES = false;
 bool VALID_TREES_ROOTED = false;
 bool LGT_ANALYSIS = false;
+bool LGT_EVALUATION = false;
 bool FIND_MAX_DEGREE = false;
 bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
@@ -800,6 +801,9 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-lgt_analysis") == 0) {
 			LGT_ANALYSIS=true;
+		}
+		else if (strcmp(arg, "-lgt_evaluation") == 0) {
+			LGT_EVALUATION=true;
 		}
 		else if (strcmp(arg, "-lgt_csv") == 0) {
 			LGT_CSV=true;
@@ -1736,7 +1740,7 @@ TODO:
 	super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 	Node *best_supertree = new Node(*super_tree);
 
-	if (!LGT_ANALYSIS) {
+	if (!LGT_ANALYSIS && !LGT_EVALUATION) {
 
 			if (UNROOTED_MIN_APPROX)
 				APPROX_ROOTING=true;
@@ -2097,6 +2101,18 @@ TODO:
 			else
 				LGT_GROUPS = "";
 			}
+			cleanup = true;
+		}
+		else if (LGT_EVALUATION) {
+			cout << "LGT Evaluation" << endl;
+			super_tree->preorder_number();
+			super_tree->edge_preorder_interval();
+			for(int i = 0; i < gene_trees.size(); i++) {
+				gene_trees[i]->preorder_number();
+				gene_trees[i]->edge_preorder_interval();
+			}
+			print_transfers(super_tree, &gene_trees, &gene_tree_names,
+					&reverse_label_map);
 			cleanup = true;
 		}
 

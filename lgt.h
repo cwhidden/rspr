@@ -41,6 +41,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <map>
 #include <set>
 #include <list>
+#include <algorithm>
 #include "Forest.h"
 #include "ClusterForest.h"
 #include "LCA.h"
@@ -55,6 +56,9 @@ void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
 		vector<Node *> *gene_trees);
 void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 		Forest *F2, Forest *MAF1, Forest *MAF2);
+void print_transfers(Node *super_tree, Forest *F1, Forest *F2, Forest *MAF1,
+		Forest *MAF2, map<int, string> *reverse_label_map);
+void print_leaf_list(Node *F1_source, map<int, string> *reverse_label_map);
 bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
 		Node **F1_source_out, Node **F1_target_out);
 Node *find_best_target(Node *source, Forest *AF);
@@ -124,6 +128,78 @@ void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 				// 3 using input groups of interest map highways between those
 				// 4 groups
 
+}
+
+void print_transfers(Node *super_tree, vector<Node *> *gene_trees,
+		vector<string> *gene_tree_names, map<int, string> *reverse_label_map) {
+	#pragma omp parallel for
+	for(int i = 0; i < gene_trees->size(); i++) {
+		Forest *MAF1 = NULL;
+		Forest *MAF2 = NULL;
+		Forest F1 = Forest(super_tree);
+		Forest F2 = Forest((*gene_trees)[i]);
+		cout << (*gene_tree_names)[i] << endl;
+		if (sync_twins(&F1,&F2)) {
+			int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
+			expand_contracted_nodes(MAF1);
+			expand_contracted_nodes(MAF2);
+//			cout << i << ": " << distance << endl;
+//			cout << "\tT1: "; F1.print_components();
+//			cout << "\tT2: "; F2.print_components();
+//			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
+//			cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
+			sync_af_twins(MAF1, MAF2);
+			print_transfers(super_tree, &F1, &F2, MAF1, MAF2, reverse_label_map);
+		}
+		if (MAF1 != NULL)
+			delete MAF1;
+		if (MAF2 != NULL)
+			delete MAF2;
+	}
+}
+
+void print_transfers(Node *super_tree, Forest *F1, Forest *F2, Forest *MAF1, Forest *MAF2,
+		map<int, string> *reverse_label_map) {
+	int start = 1;
+	if (MAF2->contains_rho())
+		start = 0;
+	for(int i = start; i < MAF2->num_components(); i++) {
+		Node *F2_source = MAF2->get_component(i);
+		Node *F1_source;
+		Node *F1_target;
+		if (!map_transfer(F2_source, F1, MAF2, &F1_source,
+					&F1_target)) {
+			continue;
+		}
+
+//		cout << F1_source->str_subtree() << endl;
+//		cout << super_tree->find_by_prenum(F1_source->get_preorder_number())->str_subtree() << endl;
+//		print_leaf_list(F1_source, reverse_label_map);
+		print_leaf_list(super_tree->find_by_prenum(F1_source->get_preorder_number()), reverse_label_map);
+
+	}
+}
+
+void print_leaf_list(Node *T, map<int, string> *reverse_label_map) {
+	vector<Node *> leaves = T->find_leaves();
+	vector<string> leaf_labels = vector<string>();
+	if (!leaves.empty()) {
+		for(int i = 0; i < leaves.size(); i++) {
+			map<int, string>::iterator j = reverse_label_map->find(atoi(leaves[i]->str().c_str()));
+			if (j != reverse_label_map->end()) {
+				stringstream ss;
+				ss << j->second;
+				leaf_labels.push_back(ss.str());
+			}
+		}
+		sort(leaf_labels.begin(), leaf_labels.end());
+		cout << "\t";
+		cout << leaf_labels[0];
+		for(int i = 1; i < leaf_labels.size(); i++) {
+			cout << "," << leaf_labels[i];
+		}
+		cout << endl;
+	}
 }
 
 bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
