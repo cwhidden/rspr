@@ -226,6 +226,7 @@ bool INVALID_TREES = false;
 bool VALID_TREES = false;
 bool VALID_TREES_ROOTED = false;
 bool LGT_ANALYSIS = false;
+bool LGT_EVALUATION = false;
 bool FIND_MAX_DEGREE = false;
 bool MULTI_TREES = false;
 int NUM_LEAVES=-1;
@@ -801,6 +802,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-lgt_analysis") == 0) {
 			LGT_ANALYSIS=true;
 		}
+		else if (strcmp(arg, "-lgt_evaluation") == 0) {
+			LGT_EVALUATION=true;
+		}
 		else if (strcmp(arg, "-lgt_csv") == 0) {
 			LGT_CSV=true;
 		}
@@ -1274,8 +1278,9 @@ int main(int argc, char *argv[]) {
 		// partition neighbour counts as a sparse matrix (vector of maps)
 		// TODO: make this a double and downweight multiple counts from same
 		// tree
-		SparseCounts<int> neighbour_counts =
-				SparseCounts<int>(label_counts.size(), label_counts.size());
+		SparseCounts<double> neighbour_counts =
+				SparseCounts<double>(label_counts.size(), label_counts.size());
+		vector<int> total_leaf_counts = vector<int>(label_counts.size(),0);
 
 		// TODO: do we need a reverse mapping from old numbers to new?
 
@@ -1287,7 +1292,20 @@ int main(int argc, char *argv[]) {
 			cout << "Iteration " << i+1 << " / " << label_counts.size()-1 << endl;
 			neighbour_counts.clear();
 			for (int j = 0; j < gene_trees.size(); j++ ) {
-				count_neighbours(gene_trees[j], &neighbour_counts);
+				vector<int> leaf_counts = vector<int>(label_counts.size(),0);
+				count_leaves(gene_trees[j], &leaf_counts);
+/*				bool tree_agrees = true;
+				for(int k = 0; k < leaf_counts.size(); k++) {
+					if (leaf_counts[k] > 1)
+						tree_agrees = false;
+				}
+				if (tree_agrees)
+*/
+					count_neighbours(gene_trees[j], &neighbour_counts, &leaf_counts);
+				for(int k = 0; k < leaf_counts.size(); k++) {
+					total_leaf_counts[k] += leaf_counts[k];
+				}
+//				count_neighbours(gene_trees[j], &neighbour_counts, NULL);
 			}
 /*
 			neighbour_counts.sparse_labelled_print(&reverse_label_map);
@@ -1299,7 +1317,7 @@ int main(int argc, char *argv[]) {
 			for(int j = 0; j < component_scale.size(); j++) {
 				if (super_forest[j] != NULL)
 					component_scale[j] = super_forest[j]->max_depth();
-//					component_scale[j] = log(super_forest[j]->size());
+//					component_scale[j] = log(super_forest[j]->max_depth() + 1);
 				else
 					component_scale[j] = 1;
 			}
@@ -1309,7 +1327,8 @@ int main(int argc, char *argv[]) {
 			vector<vector<int> > component_trees = find_component_trees(&gene_trees, &super_forest, label_counts.size());
 			// find the most common pair
 			vector<pair<int, int> > mcp_vector =
-				neighbour_counts.find_most_common_pairs_scaled(&component_scale, &component_trees);
+//				neighbour_counts.find_most_common_pairs_scaled(&component_trees);
+				neighbour_counts.find_most_common_pairs_scaled(&component_scale, &component_trees, &total_leaf_counts);
 /*			cout << "MCP: ";
 
 			for(int j = 0; j < mcp_vector.size(); j++) {
@@ -1721,7 +1740,7 @@ TODO:
 	super_tree->labels_to_numbers(&label_map, &reverse_label_map);
 	Node *best_supertree = new Node(*super_tree);
 
-	if (!LGT_ANALYSIS) {
+	if (!LGT_ANALYSIS && !LGT_EVALUATION) {
 
 			if (UNROOTED_MIN_APPROX)
 				APPROX_ROOTING=true;
@@ -2082,6 +2101,18 @@ TODO:
 			else
 				LGT_GROUPS = "";
 			}
+			cleanup = true;
+		}
+		else if (LGT_EVALUATION) {
+			cout << "LGT Evaluation" << endl;
+			super_tree->preorder_number();
+			super_tree->edge_preorder_interval();
+			for(int i = 0; i < gene_trees.size(); i++) {
+				gene_trees[i]->preorder_number();
+				gene_trees[i]->edge_preorder_interval();
+			}
+			print_transfers(super_tree, &gene_trees, &gene_tree_names,
+					&reverse_label_map);
 			cleanup = true;
 		}
 

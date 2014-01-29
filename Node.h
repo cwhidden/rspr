@@ -148,7 +148,7 @@ class Node {
 	// copy constructor
 	Node(const Node &n) {
 		p = NULL;
-		name = n.name;
+		name = n.name.c_str();
 		twin = n.twin;
 		depth = n.depth;
 //		depth = 0;
@@ -195,7 +195,7 @@ class Node {
 
 	Node(const Node &n, Node *parent) {
 		p = parent;
-		name = n.name;
+		name = n.name.c_str();
 		twin = n.twin;
 		if (p != NULL)
 			depth = p->depth+1;
@@ -770,7 +770,7 @@ class Node {
 							set_twin(child->get_twin());
 							child->get_twin()->set_twin(this);
 						}
-						name = child->get_name();
+						name = child->get_name().c_str();
 //						name = child->str();
 					}
 					child->cut_parent();
@@ -867,7 +867,14 @@ class Node {
 		}
 		else {
 			Node *new_child = new Node();
-			new_child->set_preorder_number(pre_num);
+			// buggy
+//			new_child->set_preorder_number(pre_num);
+			if (child1->get_preorder_number() < child2->get_preorder_number()) {
+				new_child->set_preorder_number(child1->get_preorder_number());
+			}
+			else {
+				new_child->set_preorder_number(child2->get_preorder_number());
+			}
 			add_child(new_child);
 			new_child->add_child(child1);
 			new_child->add_child(child2);
@@ -982,7 +989,7 @@ class Node {
 
 	void str_hlpr(string *s) {
 		if (!name.empty())
-			*s += name;
+			*s += name.c_str();
 		if (contracted_lc != NULL || contracted_rc != NULL) {
 			#ifdef DEBUG_CONTRACTED
 				*s += "<";
@@ -1142,7 +1149,7 @@ class Node {
 	}
 
 	void str_subtree_twin_hlpr(string *s) {
-		*s += name;//str_hlpr(s);
+		*s += name.c_str();//str_hlpr(s);
 		if (twin != NULL) {
 			*s += "{";
 				twin->str_subtree_hlpr(s);
@@ -2254,6 +2261,8 @@ int stomini(string s) {
 
 // assumes that an unrooted tree is represented with a 3-way multifurcation
 string root(string s) {
+//	cout << "root(string s)" << endl;
+//	cout << s << endl;
 	string r = "";
 	int i = 0;
 	int depth = 0;

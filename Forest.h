@@ -1038,7 +1038,7 @@ list<Node *> *find_cluster_points(Forest *F1, Forest *F2) {
 // find the cluster points
 void find_cluster_points(Node *n, list<Node *> *cluster_points,
 		vector<int> *leaf_counts_F1, vector<int> *leaf_counts_F2) {
-	//cout << "Start: " << n->str_subtree() << endl;
+//	cout << "Start: " << n->str_subtree() << endl;
 	list<Node *>::iterator c;
 	for(c = n->get_children().begin(); c != n->get_children().end(); c++) {
 		find_cluster_points(*c, cluster_points, leaf_counts_F1,
@@ -1054,24 +1054,6 @@ void find_cluster_points(Node *n, list<Node *> *cluster_points,
 		cout << n->get_twin()->get_twin()->get_depth() << endl;
 	}
 	cout << n->parent() << endl;
-	if (lc != NULL) {
-		cout << "lc= " << lc->str_subtree() << endl;
-		cout << lc->get_depth() << endl;
-		if (lc->get_twin() != NULL) {
-			cout << lc->get_twin()->get_twin()->get_depth() << endl;
-			cout << "lc_twin= " << lc->get_twin()->str_subtree() << endl;
-			cout << "lc_twin_twin= " << lc->get_twin()->get_twin()->str_subtree() << endl;
-		}
-	}
-	if (rc != NULL) {
-		cout << "rc= " << rc->str_subtree() << endl;
-		cout << rc->get_depth() << endl;
-		if (rc->get_twin() != NULL) {
-			cout << "rc_twin= " << rc->get_twin()->str_subtree() << endl;
-			cout << "rc_twin_twin= " << rc->get_twin()->get_twin()->str_subtree() << endl;
-			cout << rc->get_twin()->get_twin()->get_depth() << endl;
-		}
-	}
 	*/
 	bool is_cluster = true;
 	int num_clustered_children = 0;

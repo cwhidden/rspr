@@ -72,6 +72,12 @@ class SparseCounts {
 		sparse_set(x, y, val+1);
 	}
 
+	void increment(int x, int y, T v) {
+		swap_if_larger(&x, &y);
+		T val = sparse_get(x, y);
+		sparse_set(x, y, val+v);
+	}
+
 	T sparse_get(int x, int y) {
 		swap_if_larger(&x, &y);
 		typename map<int, T>::iterator it;
@@ -169,7 +175,7 @@ class SparseCounts {
 		return mcp;
 	}
 
-	vector<pair<int, int>> find_most_common_pairs_scaled(vector<double> *scale, vector<vector<int> > *component_trees) {
+	vector<pair<int, int>> find_most_common_pairs_scaled(vector<vector<int> > *component_trees) {
 		int end1 = sparse_counts.size();
 		vector<pair<int, int>> mcp = vector<pair<int, int> >();
 		double max_count = 0;
@@ -190,10 +196,69 @@ class SparseCounts {
 				int common_trees = count_intersection(&(*component_trees)[i], &(*component_trees)[it->first]);
 				score /= (double)common_trees;
 				score /= (double)common_trees;
-				score /= (*scale)[it->first];
-				score /= (*scale)[i];
 				score = sqrt(score);
 //				cout << i << ", " << it->first << ": " << common_trees << endl;
+				if (score > max_count) {
+					max_count = score;
+					mcp.clear();
+					mcp.push_back(make_pair(i, it->first));
+				}
+				else if (score == max_count) {
+					mcp.push_back(make_pair(i, it->first));
+				}
+			}
+		}
+		return mcp;
+	}
+
+	vector<pair<int, int>> find_most_common_pairs_scaled(vector<double> *scale, vector<vector<int> > *component_trees, vector<int> *tree_counts) {
+		int end1 = sparse_counts.size();
+		vector<pair<int, int>> mcp = vector<pair<int, int> >();
+		double max_count = 0;
+		typename map<int, T>::iterator it;
+		int end2 = component_trees->size();
+		int max_trees = 0;
+		for(int i = 0; i < end2; i++) {
+			int count = (*component_trees)[i].size();
+			if (count > max_trees) {
+				max_trees = count;
+			}
+		}
+//		cout << "max: " << max_trees << endl;
+		for(int i = 0; i < end1; i++) {
+			int total = 0;
+			for(it = sparse_counts[i].begin(); it != sparse_counts[i].end();
+					it++) {
+				total += it->second;
+			}
+//			cout << i << ", " << total << endl;
+			for(it = sparse_counts[i].begin(); it != sparse_counts[i].end();
+					it++) {
+				double score = it->second;
+//				cout << "\t" << it->first << ": " << score << endl;
+//				double score = it->second * it->second;
+				int common_trees = count_intersection(&(*component_trees)[i], &(*component_trees)[it->first]);
+//				cout << "common: " << common_trees << endl;
+//				cout << "total_i: " << (*tree_counts)[i] << endl;
+//				cout << "total_j: " << (*tree_counts)[it->first] << endl;
+//				score /= (double)((*tree_counts)[i] + (*tree_counts)[it->first]
+//						- common_trees);
+				score /= (double)common_trees;
+//				score *= common_trees / ((*tree_counts)[i] + (*tree_counts)[it->first]);
+//						- common_trees);
+//				score /= (double)common_trees;
+//				score /= (*scale)[i] + (*scale)[it->first];
+//				if ((*scale)[it->first] > (*scale)[i]) {
+//					score /= log((*scale)[i]+1)/log(2);
+					score /= sqrt((*scale)[i]);
+//				}
+//				else {
+//					score /= log((*scale)[it->first]+1)/log(2);
+					score /= sqrt((*scale)[it->first]);
+//				}
+//				score = sqrt(score);
+//				cout << i << ", " << it->first << ": " << common_trees << endl;
+				cout << "\t" << it->first << ": " << score << endl;
 				if (score > max_count) {
 					max_count = score;
 					mcp.clear();
