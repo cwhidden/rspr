@@ -962,7 +962,7 @@ int main(int argc, char *argv[]) {
 			rootings = vector<Node *>();
 			rootings.push_back(T1->lchild());
 		}
-		int best_distance;
+		int best_distance = INT_MAX;
 		for(int i = 0; i < rootings.size(); i++) {
 			if (rootings[i] != T1)
 				T1->reroot(rootings[i]);
@@ -971,6 +971,12 @@ int main(int argc, char *argv[]) {
 			T1->preorder_number();
 
 			int distance;
+
+			if (VERBOSE) {
+				T1->numbers_to_labels(&reverse_label_map);
+				cout << "T1: " <<  T1->str_subtree() << endl;
+				T1->labels_to_numbers(&label_map, &reverse_label_map);
+			}
 
 			if (RF) {
 				if (UNROOTED) {
