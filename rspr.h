@@ -199,6 +199,7 @@ bool CUT_LOST = false;
 bool CHECK_MERGE_DEPTH = false;
 bool check_all_pairs = true;
 bool PREFER_NONBRANCHING = false;
+int CLUSTER_TUNE = -1;
 
 class ProblemSolution {
 public:
@@ -2828,6 +2829,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 }
 
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest **out_F1, Forest **out_F2) {
+	bool do_cluster = true;
 	if (max_k > MAX_SPR)
 		max_k = MAX_SPR;
 	else if (max_k == -1)
@@ -2848,6 +2850,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	}
 
 	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	if (full_approx_spr <= CLUSTER_TUNE) {
+		do_cluster = false;
+	}
 	if (verbose) {
 
 		cout << "approx F1: ";
@@ -2874,7 +2879,10 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	if (F1.get_component(0)->get_preorder_number() == -1) {
 		F1.get_component(0)->preorder_number();
 		F2.get_component(0)->preorder_number();
-}
+	}
+	int loss = 0;
+	list<Node *> *cluster_points;
+	if (do_cluster) {
 	if (F1.get_component(0)->get_edge_pre_start() == -1) {
 		F1.get_component(0)->edge_preorder_interval();
 		F2.get_component(0)->edge_preorder_interval();
@@ -2886,60 +2894,61 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 //		F1.get_component(0)->edge_preorder_interval();
 //		F2.get_component(0)->edge_preorder_interval();
 	}
-	int loss = 0;
 	if (COUNT_LOSSES) {
 		loss += F1.get_component(0)->count_lost_subtree();
 		loss += F2.get_component(0)->count_lost_subtree();
 	}
-//F1.print_components();
-//F2.print_components();
-	sync_interior_twins(&F1, &F2);
-	list<Node *> *cluster_points = find_cluster_points(&F1, &F2);
-//	list<Node *> *cluster_points = new list<Node *>();
-	for(list<Node *>::iterator i = cluster_points->begin();
-			i != cluster_points->end(); i++) {
-		string cluster_name = "X";
-		/*
-		if (verbose) {
-				stringstream ss;
-				ss << F1.size();
-				cluster_name += ss.str();
-				//int num_labels = label_map.size();
-				//label_map.insert(make_pair(cluster_name,num_labels));
-				//reverse_label_map.insert(
-				//		make_pair(num_labels,cluster_name));
-				//ss.str("");
-				//ss << num_labels;
-				//cluster_name = ss.str();
+		//F1.print_components();
+		//F2.print_components();
+		sync_interior_twins(&F1, &F2);
+		list<Node *> *cluster_points = find_cluster_points(&F1, &F2);
+		//	list<Node *> *cluster_points = new list<Node *>();
+		for(list<Node *>::iterator i = cluster_points->begin();
+				i != cluster_points->end(); i++) {
+			string cluster_name = "X";
+			/*
+			if (verbose) {
+					stringstream ss;
+					ss << F1.size();
+					cluster_name += ss.str();
+					//int num_labels = label_map.size();
+					//label_map.insert(make_pair(cluster_name,num_labels));
+					//reverse_label_map.insert(
+					//		make_pair(num_labels,cluster_name));
+					//ss.str("");
+					//ss << num_labels;
+					//cluster_name = ss.str();
+			}
+			*/
+	
+			Node *n = *i;
+			if (n->parent()->parent() == NULL
+					&& n->get_sibling() != NULL &&
+					n->get_sibling()->get_name() == "X")
+				continue;
+			Node *n_parent = n->parent();
+			Node *twin = n->get_twin();
+			Node *twin_parent = twin->parent();
+	
+			if (twin_parent == NULL)
+				continue;
+	
+			F1.add_cluster(n,cluster_name);
+	
+			F2.add_cluster(twin,cluster_name);
+	
+			Node *n_cluster =
+					F1.get_cluster_node(F1.num_clusters()-1);
+			Node *twin_cluster =
+					F2.get_cluster_node(F2.num_clusters()-1);
+			n_cluster->set_twin(twin_cluster);
+			twin_cluster->set_twin(n_cluster);
+	
 		}
-		*/
-
-		Node *n = *i;
-		if (n->parent()->parent() == NULL
-				&& n->get_sibling() != NULL &&
-				n->get_sibling()->get_name() == "X")
-			continue;
-		Node *n_parent = n->parent();
-		Node *twin = n->get_twin();
-		Node *twin_parent = twin->parent();
-
-		if (twin_parent == NULL)
-			continue;
-
-		F1.add_cluster(n,cluster_name);
-
-		F2.add_cluster(twin,cluster_name);
-
-		Node *n_cluster =
-				F1.get_cluster_node(F1.num_clusters()-1);
-		Node *twin_cluster =
-				F2.get_cluster_node(F2.num_clusters()-1);
-		n_cluster->set_twin(twin_cluster);
-		twin_cluster->set_twin(n_cluster);
+		if (verbose)
+			cout << endl << "CLUSTERS" << endl;
 
 	}
-	if (verbose)
-		cout << endl << "CLUSTERS" << endl;
 
 	// component 0 needs to be done last
 	F1.add_component(F1.get_component(0));
@@ -3216,7 +3225,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	//		sync_interior_twins_real(out_F1, out_F2);
 		}
 
-	delete cluster_points;
+	if (do_cluster) {
+		delete cluster_points;
+	}
 //	PREFER_RHO = old_rho;
 	total_k += loss;
 /*	cout << "F1: ";
@@ -3600,7 +3611,7 @@ void rSPR_pairwise_distance(Node *T1, vector<Node *> &gene_trees, int start, int
 		if (approx) {
 			Forest F1 = Forest(T1);
 			Forest F2 = Forest(gene_trees[i]);
-			k = rSPR_worse_3_approx(&F1, &F2) / 3;
+			k = rSPR_worse_3_approx_distance_only(&F1, &F2)/3;
 		}
 		else {
 			k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i]);

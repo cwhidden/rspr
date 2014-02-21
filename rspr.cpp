@@ -433,6 +433,14 @@ int main(int argc, char *argv[]) {
 				}
 			}
 		}
+		else if (strcmp(arg, "-cluster_tune") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-') {
+					CLUSTER_TUNE = atoi(arg2);
+				}
+			}
+		}
 		else if (strcmp(arg, "-v") == 0) {
 			VERBOSE=true;
 		}
@@ -578,6 +586,9 @@ int main(int argc, char *argv[]) {
 //		APPROX_EDGE_PROTECTION = true;
 			DEEPEST_PROTECTED_ORDER = true;
 			DEEPEST_ORDER = true;
+		if (CLUSTER_TUNE == -1) {
+			CLUSTER_TUNE = 30;
+		}
 	}
 	PREORDER_SIBLING_PAIRS = true;
 	if (DEFAULT_ALGORITHM) {
@@ -962,7 +973,7 @@ int main(int argc, char *argv[]) {
 			rootings = vector<Node *>();
 			rootings.push_back(T1->lchild());
 		}
-		int best_distance;
+		int best_distance = INT_MAX;
 		for(int i = 0; i < rootings.size(); i++) {
 			if (rootings[i] != T1)
 				T1->reroot(rootings[i]);

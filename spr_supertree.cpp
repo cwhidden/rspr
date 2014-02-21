@@ -965,6 +965,14 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-precompute") == 0 ) {
 			USE_PRECOMPUTED_DISTANCES = true;
 		}
+		else if (strcmp(arg, "-cluster_tune") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-') {
+					CLUSTER_TUNE = atoi(arg2);
+				}
+			}
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -1002,6 +1010,9 @@ int main(int argc, char *argv[]) {
 //		APPROX_EDGE_PROTECTION = true;
 		DEEPEST_PROTECTED_ORDER = true;
 		DEEPEST_ORDER = true;
+		if (CLUSTER_TUNE == -1) {
+			CLUSTER_TUNE = 30;
+		}
 	}
 	if (DEFAULT_SEARCH_OPTIMIZATIONS) {
 		if (BIPARTITION_CLUSTER == false) {
