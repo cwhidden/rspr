@@ -2850,9 +2850,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	}
 
 	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
-	if (full_approx_spr <= CLUSTER_TUNE) {
-		do_cluster = false;
-	}
+//	if (full_approx_spr <= CLUSTER_TUNE) {
+//		do_cluster = false;
+//	}
 	if (verbose) {
 
 		cout << "approx F1: ";
@@ -2882,7 +2882,6 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	}
 	int loss = 0;
 	list<Node *> *cluster_points;
-	if (do_cluster) {
 	if (F1.get_component(0)->get_edge_pre_start() == -1) {
 		F1.get_component(0)->edge_preorder_interval();
 		F2.get_component(0)->edge_preorder_interval();
@@ -2900,8 +2899,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	}
 		//F1.print_components();
 		//F2.print_components();
+	if (do_cluster) {
 		sync_interior_twins(&F1, &F2);
-		list<Node *> *cluster_points = find_cluster_points(&F1, &F2);
+		cluster_points = find_cluster_points(&F1, &F2);
 		//	list<Node *> *cluster_points = new list<Node *>();
 		for(list<Node *>::iterator i = cluster_points->begin();
 				i != cluster_points->end(); i++) {
@@ -3256,6 +3256,7 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 	Forest F3 = Forest(F1);
 	Forest F4 = Forest(F2);
 
+	bool do_cluster = true;
 
 //	bool old_rho = PREFER_RHO;
 	PREFER_RHO = true;
@@ -3267,6 +3268,9 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 	}
 
 	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	if (full_approx_spr <= CLUSTER_TUNE) {
+		do_cluster = false;
+	}
 	if (verbose) {
 
 		cout << "approx F1: ";
@@ -3286,18 +3290,21 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		return 0;
 	if (F1.get_component(0)->is_leaf())
 		return 0;
+	list<Node *> *cluster_points;
 	sync_interior_twins_real(&F1, &F2);
-	list<Node *> *cluster_points = find_cluster_points(&F1, &F2);
+	if (do_cluster) {
+		cluster_points = find_cluster_points(&F1, &F2);
+	}
 
-	int total_k = 0;
+		int total_k = 0;
 
-	if (!cluster_points->empty()) {
+		if (do_cluster && !cluster_points->empty()) {
 	
-		list<ClusterInstance> clusters =
-			cluster_reduction(&F1, &F2, cluster_points);
+			list<ClusterInstance> clusters =
+				cluster_reduction(&F1, &F2, cluster_points);
 	
-		F1.unsync_interior();
-		F2.unsync_interior();
+			F1.unsync_interior();
+			F2.unsync_interior();
 		int k = 0;
 		int i = 0;
 		while(!clusters.empty()) {
@@ -3392,7 +3399,9 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		delete cluster_points;
 	}
 	else {
-		delete cluster_points;
+		if (do_cluster) {
+			delete cluster_points;
+		}
 		full_approx_spr /= 3;
 		total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
 		int i = 1;
