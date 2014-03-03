@@ -1,10 +1,11 @@
 /*******************************************************************************
 spr_supertree.cpp
 
-Copyright 2013 Chris Whidden
+Copyright 2013-2014 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/SPR_Supertrees
-April 26, 2013
+March 3, 2014
+Version 1.2.1
 
 This file is part of spr_supertrees.
 
@@ -240,7 +241,7 @@ bool ONE_TREE_AT_A_TIME = false;
 bool NODE_GLOM_CONSTRUCTION = false;
 bool USE_PRECOMPUTED_DISTANCES = false;
 
-/*variables Joel aadded*/
+/*variables Joel added*/
 int R_DISTANCE;
 bool R_VARIABLE = false;
 bool R_LIMIT = false;
@@ -257,7 +258,7 @@ bool GREEDY = false;
 bool GREEDY_REFINED = false;
 
 string USAGE =
-"spr_supertrees, version 1.2.0\n"
+"spr_supertrees, version 1.2.1\n"
 "\n"
 "usage: spr_supertrees [OPTIONS]\n"
 "Calculate binary rooted supertrees that minimize the Subtree Prune and\n"
@@ -265,11 +266,11 @@ string USAGE =
 "multifurcating trees from STDIN in newick format. Supports arbitrary\n"
 "leaf labels. See the README for more information.\n"
 "\n"
-"Copyright 2011-13 Chris Whidden\n"
+"Copyright 2011-14 Chris Whidden\n"
 "whidden@cs.dal.ca\n"
 "http://kiwi.cs.dal.ca/Software/SPR_Supertrees\n"
-"April 26, 2013\n"
-"Version 1.2.0\n"
+"March 3, 2014\n"
+"Version 1.2.1\n"
 "\n"
 "This program comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it\n"

@@ -4,11 +4,11 @@ Node.h
 Data structure for a node of a binary tree
 Contains methods to recursively work on a node's subtree
 
-Copyright 2009-2012 Chris Whidden
+Copyright 2009-2014 Chris Whidden
 cwhidden@dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-July 6, 2012
-Version 1.01
+March 3, 2014
+Version 1.2.1
 
 This file is part of rspr.
 

@@ -3,11 +3,11 @@ node_glom.h
 
 Functions for Node Glom greedy supertre construction
 
-Copyright 2013 Chris Whidden
-cwhidden@dal.ca
+Copyright 2013-2014 Chris Whidden
+whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-July 19, 2013
-Version 1.2
+March 3, 2014
+Version 1.2.1
 
 This file is part of rspr.
 

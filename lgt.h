@@ -3,10 +3,11 @@ lgt.h
 
 Utilities for inferring LGT events.
 
-Copyright 2012 Chris Whidden
+Copyright 2013-2014 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-Dec 14, 2012
+March 3, 2014
+Version 1.2.1
 
 This file is part of rspr.
 

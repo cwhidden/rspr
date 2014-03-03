@@ -7,11 +7,11 @@ distances and the associated maximum agreement forests (MAFs) between pairs
 of rooted binary trees from STDIN in newick format.
 Supports arbitrary labels. See the README for more information.
 
-Copyright 2009-2012 Chris Whidden
+Copyright 2009-2014 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-May 3, 2012
-Version 1.03
+March 3, 2014
+Version 1.2.1
 
 This file is part of rspr.
 
@@ -153,7 +153,7 @@ bool PRINT_ROOTED_TREES = false;
 int MULTI_TEST = 0;
 
 string USAGE =
-"rspr, version 1.02\n"
+"rspr, version 1.2.1\n"
 "\n"
 "usage: rspr [OPTIONS]\n"
 "Calculate approximate and exact Subtree Prune and Regraft (rSPR)\n"
@@ -161,11 +161,11 @@ string USAGE =
 "of rooted binary trees from STDIN in newick format.\n"
 "Supports arbitrary labels. See the README for more information.\n"
 "\n"
-"Copyright 2009-2011 Chris Whidden\n"
+"Copyright 2009-2014 Chris Whidden\n"
 "whidden@cs.dal.ca\n"
 "http://kiwi.cs.dal.ca/Software/RSPR\n"
-"November 2, 2011\n"
-"Version 1.02\n"
+"March 3, 2014\n"
+"Version 1.2.1\n"
 "\n"
 "This program comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it\n"
