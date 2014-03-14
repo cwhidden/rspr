@@ -49,7 +49,7 @@ using namespace std;
 // TODO: doesn't allow insertion with larger x than initially allocated
 
 void swap_if_larger(int *x, int *y);
-	vector<pair<int, int>> find_most_common_pairs_scaled(vector<double> *scale);
+	vector<pair<int, int> > find_most_common_pairs_scaled(vector<double> *scale);
 int count_intersection(vector<int> *A, vector<int> *B);
 
 template <class T>
@@ -129,9 +129,9 @@ class SparseCounts {
 	}
 
 	// return a vector of the most common pairs
-	vector<pair<int, int>> find_most_common_pairs() {
+	vector<pair<int, int> > find_most_common_pairs() {
 		int end1 = sparse_counts.size();
-		vector<pair<int, int>> mcp = vector<pair<int, int> >();
+		vector<pair<int, int> > mcp = vector<pair<int, int> >();
 		int max_count = 0;
 		typename map<int, T>::iterator it;
 		for(int i = 0; i < end1; i++) {
@@ -150,9 +150,9 @@ class SparseCounts {
 		return mcp;
 	}
 
-	vector<pair<int, int>> find_most_common_pairs_scaled(vector<double> *scale) {
+	vector<pair<int, int> > find_most_common_pairs_scaled(vector<double> *scale) {
 		int end1 = sparse_counts.size();
-		vector<pair<int, int>> mcp = vector<pair<int, int> >();
+		vector<pair<int, int> > mcp = vector<pair<int, int> >();
 		double max_count = 0;
 		typename map<int, T>::iterator it;
 		for(int i = 0; i < end1; i++) {
@@ -175,9 +175,9 @@ class SparseCounts {
 		return mcp;
 	}
 
-	vector<pair<int, int>> find_most_common_pairs_scaled(vector<vector<int> > *component_trees) {
+	vector<pair<int, int> > find_most_common_pairs_scaled(vector<vector<int> > *component_trees) {
 		int end1 = sparse_counts.size();
-		vector<pair<int, int>> mcp = vector<pair<int, int> >();
+		vector<pair<int, int> > mcp = vector<pair<int, int> >();
 		double max_count = 0;
 		typename map<int, T>::iterator it;
 		int end2 = component_trees->size();
@@ -211,9 +211,9 @@ class SparseCounts {
 		return mcp;
 	}
 
-	vector<pair<int, int>> find_most_common_pairs_scaled(vector<double> *scale, vector<vector<int> > *component_trees, vector<int> *tree_counts) {
+	vector<pair<int, int> > find_most_common_pairs_scaled(vector<double> *scale, vector<vector<int> > *component_trees, vector<int> *tree_counts) {
 		int end1 = sparse_counts.size();
-		vector<pair<int, int>> mcp = vector<pair<int, int> >();
+		vector<pair<int, int> > mcp = vector<pair<int, int> >();
 		double max_count = 0;
 		typename map<int, T>::iterator it;
 		int end2 = component_trees->size();

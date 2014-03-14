@@ -3713,6 +3713,45 @@ void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int s
 	cout << "\n";
 }
 
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int max_spr) {
+	rSPR_pairwise_distance_unrooted(T1, gene_trees, max_spr, 0, (int)gene_trees.size());
+}
+
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int max_spr, int start, int end) {
+	MAIN_CALL = false;
+	T1->preorder_number();
+	vector<int> distances = vector<int>(end-start);
+	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
+	for(int i = start; i < end; i++) {
+		int best_k = -1;
+		Node T2_copy = Node(*(gene_trees[i]));
+		vector<Node *> descendants = 
+				T2_copy.find_descendants();
+		for(int j = 0; j < descendants.size(); j++) {
+			T2_copy.reroot(descendants[j]);
+			T2_copy.set_depth(0);
+			T2_copy.fix_depths();
+			T2_copy.preorder_number();
+	//				cout << i << "," << j << endl;
+	//				cout << T1->str_subtree() << endl;
+	//				cout << gene_trees[i]->str_subtree() << endl;
+			Forest F1 = Forest(T1);
+			Forest F2 = Forest(&T2_copy);
+			int k = rSPR_branch_and_bound_range(&F1, &F2, 0, max_spr);
+			if ((best_k == -1) || (k < best_k && k >= 0)) {
+				best_k = k;
+			}
+		}
+		distances[i-start] = best_k;
+	}
+
+	cout << distances[0];
+	for(int i = 1; i < end-start; i++) {
+		cout << "," << distances[i];
+	}
+	cout << "\n";
+}
+
 int rSPR_total_distance_precomputed(Node *T1, vector<Node *> &gene_trees,
 		vector<int> *original_scores, vector<int> *new_original_scores, Node *old_T1) {
 	int total = 0;
