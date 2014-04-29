@@ -8,14 +8,15 @@ BOOST_ANY=-L/lib/libboost*
 LFLAGS=#$(BOOST_GRAPH) $(BOOST_ANY)
 DEBUGFLAGS=-g -O0 -std=c++0x
 PROFILEFLAGS=-pg
-OBJS=rspr spr_supertree
+OBJS=rspr spr_supertree fill_matrix
 all: $(OBJS)
 
 rspr: rspr.cpp *.h
 	$(CC) $(CFLAGS) -o rspr rspr.cpp
 spr_supertree: spr_supertree.cpp *.h
 	$(CC) $(CFLAGS) -o spr_supertree spr_supertree.cpp
-
+fill_matrix: fill_matrix.cpp
+	$(CC) $(CFLAGS) -o fill_matrix fill_matrix.cpp
 
 .PHONY: test
 .PHONY: debug

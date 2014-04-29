@@ -7,8 +7,8 @@ Data structure for a sparse matrix of counts
 Copyright 2013-2014 Chris Whidden
 cwhidden@dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-March 3, 2014
-Version 1.2.1
+April 29, 2014
+Version 1.2.2
 
 This file is part of rspr.
 

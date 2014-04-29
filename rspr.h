@@ -10,8 +10,8 @@ README for more information.
 Copyright 2009-2014 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-March 3, 2014
-Version 1.2.1
+April 29, 2014
+Version 1.2.2
 
 This file is part of rspr.
 
@@ -201,6 +201,7 @@ bool CHECK_MERGE_DEPTH = false;
 bool check_all_pairs = true;
 bool PREFER_NONBRANCHING = false;
 int CLUSTER_TUNE = -1;
+int SIMPLE_UNROOTED_LEAF = 0;
 
 class ProblemSolution {
 public:
@@ -3679,31 +3680,32 @@ void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int s
 	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
 	for(int i = start; i < end; i++) {
 		int best_k = INT_MAX;
-		Node T2_copy = Node(*(gene_trees[i]));
+		Node *T2_copy = new Node(*(gene_trees[i]));
 		vector<Node *> descendants = 
-				T2_copy.find_descendants();
+				T2_copy->find_descendants();
 		for(int j = 0; j < descendants.size(); j++) {
-			T2_copy.reroot(descendants[j]);
-			T2_copy.set_depth(0);
-			T2_copy.fix_depths();
-			T2_copy.preorder_number();
+			T2_copy->reroot(descendants[j]);
+			T2_copy->set_depth(0);
+			T2_copy->fix_depths();
+			T2_copy->preorder_number();
 	//				cout << i << "," << j << endl;
 	//				cout << T1->str_subtree() << endl;
 	//				cout << gene_trees[i]->str_subtree() << endl;
 			int k;
 			if (approx) {
 				Forest F1 = Forest(T1);
-				Forest F2 = Forest(&T2_copy);
+				Forest F2 = Forest(T2_copy);
 				k = rSPR_worse_3_approx(&F1, &F2) / 3;
 			}
 			else {
-				k = rSPR_branch_and_bound_simple_clustering(T1, &T2_copy, false);
+				k = rSPR_branch_and_bound_simple_clustering(T1, T2_copy, false);
 			}
 			if (k < best_k) {
 				best_k = k;
 			}
 		}
 		distances[i-start] = best_k;
+		T2_copy->delete_tree();
 	}
 
 	cout << distances[0];
@@ -3724,25 +3726,26 @@ void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int m
 	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
 	for(int i = start; i < end; i++) {
 		int best_k = -1;
-		Node T2_copy = Node(*(gene_trees[i]));
+		Node *T2_copy = new Node(*(gene_trees[i]));
 		vector<Node *> descendants = 
-				T2_copy.find_descendants();
+				T2_copy->find_descendants();
 		for(int j = 0; j < descendants.size(); j++) {
-			T2_copy.reroot(descendants[j]);
-			T2_copy.set_depth(0);
-			T2_copy.fix_depths();
-			T2_copy.preorder_number();
+			T2_copy->reroot(descendants[j]);
+			T2_copy->set_depth(0);
+			T2_copy->fix_depths();
+			T2_copy->preorder_number();
 	//				cout << i << "," << j << endl;
 	//				cout << T1->str_subtree() << endl;
 	//				cout << gene_trees[i]->str_subtree() << endl;
 			Forest F1 = Forest(T1);
-			Forest F2 = Forest(&T2_copy);
+			Forest F2 = Forest(T2_copy);
 			int k = rSPR_branch_and_bound_range(&F1, &F2, 0, max_spr);
 			if ((best_k == -1) || (k < best_k && k >= 0)) {
 				best_k = k;
 			}
 		}
 		distances[i-start] = best_k;
+		T2_copy->delete_tree();
 	}
 
 	cout << distances[0];

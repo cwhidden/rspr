@@ -10,8 +10,8 @@ Supports arbitrary labels. See the README for more information.
 Copyright 2009-2014 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-March 3, 2014
-Version 1.2.1
+April 29, 2014
+Version 1.2.2
 
 This file is part of rspr.
 
@@ -75,6 +75,27 @@ UNROOTED COMPARISON OPTIONS
 -unrooted_min_approx    Compare the first input tree to each other input tree.
                         Run the exact algorithms on the pair with the
                         minimum approximate rspr distance
+
+*******************************************************************************
+PAIRWISE COMPARISON OPTIONS
+*******************************************************************************
+
+-pairwise
+-pairwise a b
+-pairwise a b c d        Compare each input tree to each other tree and output
+                         the resulting SPR distance matrix. If -unrooted is
+                         enabled this will compute the "best rooting" SPR
+                         distance by testing each rooting of the trees. The
+                         optional arguments a b c d compute only rows a-b and/or
+                         columns c-d of the matrix.
+
+-no-symmetric-pairwise   By default, -pairwise will ignore the symmetric lower
+                         left triangle of the matrix. With this option the
+                         lower triangle is filled in.
+
+-pairwise_max x          Use with -pairwise to only compute distances at most x.
+                         Larger values are output as -1. Very efficient for
+                         small distances (e.g. 1-10).
 
 *******************************************************************************
 OTHER OPTIONS
@@ -153,7 +174,7 @@ bool PRINT_ROOTED_TREES = false;
 int MULTI_TEST = 0;
 
 string USAGE =
-"rspr, version 1.2.1\n"
+"rspr, version 1.2.2\n"
 "\n"
 "usage: rspr [OPTIONS]\n"
 "Calculate approximate and exact Subtree Prune and Regraft (rSPR)\n"
@@ -164,8 +185,8 @@ string USAGE =
 "Copyright 2009-2014 Chris Whidden\n"
 "whidden@cs.dal.ca\n"
 "http://kiwi.cs.dal.ca/Software/RSPR\n"
-"March 3, 2014\n"
-"Version 1.2.1\n"
+"April 29, 2014\n"
+"Version 1.2.2\n"
 "\n"
 "This program comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it\n"
@@ -220,6 +241,28 @@ string USAGE =
 "            Compare the first input tree to each other input tree.\n"
 "            Run the exact algorithms on the pair with the\n"
 "            minimum approximate rspr distance\n"
+"\n"
+"*******************************************************************************\n"
+"PAIRWISE COMPARISON OPTIONS\n"
+"*******************************************************************************\n"
+"\n"
+"-pairwise\n"
+"-pairwise a b\n"
+"-pairwise a b c d        Compare each input tree to each other tree and output\n"
+"                         the resulting SPR distance matrix. If -unrooted is\n"
+"                         enabled this will compute the \"best rooting\" SPR\n"
+"                         distance by testing each rooting of the trees. The\n"
+"                         optional arguments a b c d compute only rows a-b and/or\n"
+"                         columns c-d of the matrix.\n"
+"\n"
+"-no-symmetric-pairwise   By default, -pairwise will ignore the symmetric lower\n"
+"                         left triangle of the matrix. With this option the\n"
+"                         lower triangle is filled in.\n"
+"\n"
+"-pairwise_max x          Use with -pairwise to only compute distances at most x.\n"
+"                         Larger values are output as -1. Very efficient for\n"
+"                         small distances (e.g. 1-10).\n"
+"\n"
 "\n"
 "*******************************************************************************\n"
 "OTHER OPTIONS\n"
@@ -294,6 +337,15 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-simple_unrooted_rspr") == 0) {
 			SIMPLE_UNROOTED = true;
 			SIMPLE_UNROOTED_RSPR = true;
+		}
+		else if (strcmp(arg, "-simple_unrooted_leaf") == 0) {
+			SIMPLE_UNROOTED = true;
+			SIMPLE_UNROOTED_LEAF = 1;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					SIMPLE_UNROOTED_LEAF = atoi(arg2);
+			}
 		}
 		else if (strcmp(arg, "-unrooted_min_approx") == 0)
 			UNROOTED_MIN_APPROX = true;
@@ -547,7 +599,7 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-multi_cluster") == 0) {
 			MULTI_CLUSTER = true;
 		}
-		else if (strcmp(arg, "--help") == 0) {
+		else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-help") == 0) {
 			cout << USAGE;
 			return 0;
 		}
