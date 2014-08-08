@@ -197,7 +197,7 @@ void add_transfers(list<transfer> *transfer_list, Forest *F1,
 		Forest *F2, Forest *MAF1, Forest *MAF2);
 
 bool transfer_compare (const transfer &a, const transfer &b) {
-	return a.final_source_depth > b.final_source_depth;
+	return a.source_pre > b.source_pre;
 }
 
 void list_transfers(list<transfer> *transfer_list, Node *super_tree,
@@ -211,7 +211,6 @@ void list_transfers(list<transfer> *transfer_list, Node *super_tree,
 			expand_contracted_nodes(MAF1);
 			expand_contracted_nodes(MAF2);
 #ifdef DEBUG_LGT			
-			cout << i << ": " << distance << endl;
 			cout << "\tT1: "; F1.print_components();
 			cout << "\tT2: "; F2.print_components();
 			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
