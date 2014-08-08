@@ -119,6 +119,7 @@ exact BB drSPR=4
 #include "LCA.h"
 #include "ClusterInstance.h"
 #include "UndoMachine.h"
+#include "lgt.h"
 
 using namespace std;
 
@@ -150,6 +151,7 @@ bool APPROX = false;
 bool LOWER_BOUND = false;
 bool REDUCE_ONLY = false;
 bool PRINT_ROOTED_TREES = false;
+bool SHOW_MOVES = false;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -547,6 +549,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-multi_cluster") == 0) {
 			MULTI_CLUSTER = true;
 		}
+		else if (strcmp(arg, "-show_moves") == 0) {
+			SHOW_MOVES = true;
+		}
 		else if (strcmp(arg, "--help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -659,11 +664,128 @@ int main(int argc, char *argv[]) {
 						lca->print_subtree();
 					}
 				}
+				T1->delete_tree();
+				T2->delete_tree();
 				return 0;
 			}
 
+
 			T1->labels_to_numbers(&label_map, &reverse_label_map);
 			T2->labels_to_numbers(&label_map, &reverse_label_map);
+
+
+			if (SHOW_MOVES) {
+				T1->preorder_number();
+				T2->preorder_number();
+				T1->edge_preorder_interval();
+				T2->edge_preorder_interval();
+				int num_nodes = T1->size();
+				// note: array is an unnecessary waste
+				list<transfer> transfer_list = list<transfer>();
+				list_transfers(&transfer_list, T1, T2);
+/*				for(int i = 0; i < num_nodes; i++) {
+					for(int j = 0; j < num_nodes; j++) {
+						if (j > 0)
+							cout << " ";
+						cout << transfer_counts[i][j];
+					}
+					cout << endl;
+				}
+				cout << endl;
+*/
+
+				// loop over moves in decreasing T1 preorder
+				T1->numbers_to_labels(&reverse_label_map);
+				cout << T1->str_subtree() << endl;
+				set<int> merged = set<int>();
+//				for(int i = 0; i < num_nodes; i++) {
+				while (!transfer_list.empty()) {
+				// find valid transfer
+				list<transfer>::iterator l;
+				Node *s;
+				Node *t;
+				int old_root = 0;
+				for(l = transfer_list.begin(); l != transfer_list.end(); l++) {
+					transfer trans = *l;
+
+					// find source of transfer
+//					transfer trans = transfer_list.front();
+//					transfer_list.pop_front();
+					cout << trans.source_pre << endl;
+					cout << trans.target_pre << endl;
+					int source_pre = trans.source_pre;
+					if (source_pre == 0) {
+						source_pre = old_root;
+					}
+					s = T1->find_by_prenum_full(source_pre);
+//					while(merged.find(s->get_preorder_number()) != merged.end()) {
+//						s = s->parent();
+//					}
+					// move up to move a merged component
+					//
+					int target_pre = trans.target_pre;
+					if (target_pre == 0) {
+						target_pre = old_root;
+					}
+					t = T1->find_by_prenum_full(target_pre);
+
+					// check that t is not a descendant of s
+					Node *check = t;
+					while (check != NULL && check != s) {
+						cout << check->str_subtree() << endl;
+						check = check->parent();
+					}
+					// invalid
+					if (check == s) {
+						s = NULL;
+						t = NULL;
+						continue;
+					}
+					else {
+						transfer_list.erase(l);
+						break;
+					}
+				}
+
+					if (!s || !t) {
+						cout << "error with an SPR. Check results carefully" << endl;
+						continue;
+					}
+					print_leaf_list(s);
+					cout << " : ";
+					print_leaf_list(t);
+					cout << endl;
+					int which_child = 0;
+
+					s->spr(t, which_child);
+
+					// hack - make new parent preorder match new sibling's so moving the "new sibling" moves the whole component
+					if (s->parent()->parent() != NULL) {
+						s->parent()->set_preorder_number(t->get_preorder_number());
+					}
+					else {
+						s->parent()->set_preorder_number(s->get_preorder_number());
+						old_root = s->get_sibling()->get_preorder_number();
+					}
+					cout << T1->str_subtree() << endl;
+					merged.insert(t->get_preorder_number());
+				}
+				T1->labels_to_numbers(&label_map, &reverse_label_map);
+
+				Forest F1 = Forest(T1);
+				Forest F2 = Forest(T2);
+
+				int approx_spr = rSPR_worse_3_approx(&F1, &F2);
+				if (approx_spr > 0) {
+					cout << "WARNING: final tree does not match T2" << endl;
+				}
+
+
+				T1->delete_tree();
+				T2->delete_tree();
+				return 0;
+			}
+
 	
 //			ClusterForest F1 = ClusterForest(T1);
 //			ClusterForest F2 = ClusterForest(T2);

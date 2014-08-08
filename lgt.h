@@ -52,6 +52,19 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 using namespace std;
 
+class transfer {
+	public:
+	int source_pre;
+	int target_pre;
+	int final_source_depth;
+
+	transfer(int s, int t, int f_d) {
+		source_pre = s;
+		target_pre = t;
+		final_source_depth = f_d;
+	}
+};
+
 void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
 		vector<Node *> *gene_trees);
 void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
@@ -179,6 +192,59 @@ void print_transfers(Node *super_tree, Forest *F1, Forest *F2, Forest *MAF1, For
 
 	}
 }
+void add_transfers(list<transfer> *transfer_list, Forest *F1,
+		Forest *F2, Forest *MAF1, Forest *MAF2);
+
+bool transfer_compare (const transfer &a, const transfer &b) {
+	return a.final_source_depth > b.final_source_depth;
+}
+
+void list_transfers(list<transfer> *transfer_list, Node *super_tree,
+		Node *gene_tree) {
+		Forest *MAF1 = NULL;
+		Forest *MAF2 = NULL;
+		Forest F1 = Forest(super_tree);
+		Forest F2 = Forest(gene_tree);
+		if (sync_twins(&F1,&F2)) {
+			int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
+			expand_contracted_nodes(MAF1);
+			expand_contracted_nodes(MAF2);
+#ifdef DEBUG_LGT			
+			cout << i << ": " << distance << endl;
+			cout << "\tT1: "; F1.print_components();
+			cout << "\tT2: "; F2.print_components();
+			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
+			cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
+#endif
+			sync_af_twins(MAF1, MAF2);
+			add_transfers(transfer_list, &F1, &F2, MAF1, MAF2);
+			transfer_list->sort(transfer_compare);
+		}
+		if (MAF1 != NULL)
+			delete MAF1;
+		if (MAF2 != NULL)
+			delete MAF2;
+}
+
+void add_transfers(list<transfer> *transfer_list, Forest *F1,
+		Forest *F2, Forest *MAF1, Forest *MAF2) {
+	int start = 1;
+	if (MAF2->contains_rho())
+		start = 0;
+	for(int i = start; i < MAF2->num_components(); i++) {
+		Node *F2_source = MAF2->get_component(i);
+		Node *F1_source;
+		Node *F1_target;
+		if (!map_transfer(F2_source, F1, MAF2, &F1_source,
+					&F1_target)) {
+			continue;
+		}
+
+		transfer_list->push_back(transfer(F1_source->get_preorder_number(),
+					F1_target->get_preorder_number(),
+					F2_source->get_depth()));
+	}
+}
 
 void print_leaf_list(Node *T, map<int, string> *reverse_label_map) {
 	vector<Node *> leaves = T->find_leaves();
@@ -199,6 +265,21 @@ void print_leaf_list(Node *T, map<int, string> *reverse_label_map) {
 			cout << "," << leaf_labels[i];
 		}
 		cout << endl;
+	}
+}
+
+void print_leaf_list(Node *T) {
+	vector<Node *> leaves = T->find_leaves();
+	vector<string> leaf_labels = vector<string>();
+	if (!leaves.empty()) {
+		for(int i = 0; i < leaves.size(); i++) {
+			leaf_labels.push_back(leaves[i]->str());
+		}
+		sort(leaf_labels.begin(), leaf_labels.end());
+		cout << leaf_labels[0];
+		for(int i = 1; i < leaf_labels.size(); i++) {
+			cout << "," << leaf_labels[i];
+		}
 	}
 }
 

@@ -2850,7 +2850,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	}
 
 	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
-	if (full_approx_spr <= CLUSTER_TUNE) {
+	if (full_approx_spr < CLUSTER_TUNE) {
 		do_cluster = false;
 	}
 	if (verbose) {
