@@ -7,10 +7,11 @@ of rooted binary trees.
 Supports arbitrary labels. See the
 README for more information.
 
-Copyright 2009-2012 Chris Whidden
+Copyright 2009-2014 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-July 6, 2012
+March 3, 2014
+Version 1.2.1
 
 This file is part of rspr.
 
@@ -2882,7 +2883,6 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	}
 	int loss = 0;
 	list<Node *> *cluster_points;
-	if (do_cluster) {
 	if (F1.get_component(0)->get_edge_pre_start() == -1) {
 		F1.get_component(0)->edge_preorder_interval();
 		F2.get_component(0)->edge_preorder_interval();
@@ -2900,8 +2900,9 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	}
 		//F1.print_components();
 		//F2.print_components();
+	if (do_cluster) {
 		sync_interior_twins(&F1, &F2);
-		list<Node *> *cluster_points = find_cluster_points(&F1, &F2);
+		cluster_points = find_cluster_points(&F1, &F2);
 		//	list<Node *> *cluster_points = new list<Node *>();
 		for(list<Node *>::iterator i = cluster_points->begin();
 				i != cluster_points->end(); i++) {
@@ -3256,6 +3257,7 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 	Forest F3 = Forest(F1);
 	Forest F4 = Forest(F2);
 
+	bool do_cluster = true;
 
 //	bool old_rho = PREFER_RHO;
 	PREFER_RHO = true;
@@ -3267,6 +3269,9 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 	}
 
 	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	if (full_approx_spr <= CLUSTER_TUNE) {
+		do_cluster = false;
+	}
 	if (verbose) {
 
 		cout << "approx F1: ";
@@ -3286,18 +3291,21 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		return 0;
 	if (F1.get_component(0)->is_leaf())
 		return 0;
+	list<Node *> *cluster_points;
 	sync_interior_twins_real(&F1, &F2);
-	list<Node *> *cluster_points = find_cluster_points(&F1, &F2);
+	if (do_cluster) {
+		cluster_points = find_cluster_points(&F1, &F2);
+	}
 
-	int total_k = 0;
+		int total_k = 0;
 
-	if (!cluster_points->empty()) {
+		if (do_cluster && !cluster_points->empty()) {
 	
-		list<ClusterInstance> clusters =
-			cluster_reduction(&F1, &F2, cluster_points);
+			list<ClusterInstance> clusters =
+				cluster_reduction(&F1, &F2, cluster_points);
 	
-		F1.unsync_interior();
-		F2.unsync_interior();
+			F1.unsync_interior();
+			F2.unsync_interior();
 		int k = 0;
 		int i = 0;
 		while(!clusters.empty()) {
@@ -3392,7 +3400,9 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		delete cluster_points;
 	}
 	else {
-		delete cluster_points;
+		if (do_cluster) {
+			delete cluster_points;
+		}
 		full_approx_spr /= 3;
 		total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
 		int i = 1;
@@ -3690,6 +3700,45 @@ void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int s
 				k = rSPR_branch_and_bound_simple_clustering(T1, &T2_copy, false);
 			}
 			if (k < best_k) {
+				best_k = k;
+			}
+		}
+		distances[i-start] = best_k;
+	}
+
+	cout << distances[0];
+	for(int i = 1; i < end-start; i++) {
+		cout << "," << distances[i];
+	}
+	cout << "\n";
+}
+
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int max_spr) {
+	rSPR_pairwise_distance_unrooted(T1, gene_trees, max_spr, 0, (int)gene_trees.size());
+}
+
+void rSPR_pairwise_distance_unrooted(Node *T1, vector<Node *> &gene_trees, int max_spr, int start, int end) {
+	MAIN_CALL = false;
+	T1->preorder_number();
+	vector<int> distances = vector<int>(end-start);
+	#pragma omp parallel for shared(distances) firstprivate(PREFER_RHO)
+	for(int i = start; i < end; i++) {
+		int best_k = -1;
+		Node T2_copy = Node(*(gene_trees[i]));
+		vector<Node *> descendants = 
+				T2_copy.find_descendants();
+		for(int j = 0; j < descendants.size(); j++) {
+			T2_copy.reroot(descendants[j]);
+			T2_copy.set_depth(0);
+			T2_copy.fix_depths();
+			T2_copy.preorder_number();
+	//				cout << i << "," << j << endl;
+	//				cout << T1->str_subtree() << endl;
+	//				cout << gene_trees[i]->str_subtree() << endl;
+			Forest F1 = Forest(T1);
+			Forest F2 = Forest(&T2_copy);
+			int k = rSPR_branch_and_bound_range(&F1, &F2, 0, max_spr);
+			if ((best_k == -1) || (k < best_k && k >= 0)) {
 				best_k = k;
 			}
 		}

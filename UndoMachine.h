@@ -3,11 +3,11 @@ UndoMachine.h
 
 Data structure for recording and undoing tree alterations
 
-Copyright 2012 Chris Whidden
-cwhidden@dal.ca
+Copyright 2012-2014 Chris Whidden
+whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-July 6, 2012
-Version 1.04
+March 3, 2014
+Version 1.2.1
 
 This file is part of rspr.
 

@@ -3,11 +3,11 @@ SiblingPair.h
 
 Data structure for a sibling pair of a binary tree
 
-Copyright 2012 Chris Whidden
+Copyright 2012-2014 Chris Whidden
 cwhidden@dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-July 6, 2012
-Version 1.04
+March 3, 2014
+Version 1.2.1
 
 This file is part of rspr.
 

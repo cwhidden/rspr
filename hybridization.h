@@ -4,11 +4,11 @@ hybridization.h
 Data structure for hybridization
 Contains methods to detect agreement forest cycles
 
-Copyright 2010-2012 Chris Whidden
+Copyright 2010-2014 Chris Whidden
 cwhidden@dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-July 6, 2012
-Version 1.01
+March 3, 2014
+Version 1.2.1
 
 This file is part of rspr.
 
