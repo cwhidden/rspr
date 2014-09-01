@@ -140,6 +140,7 @@ exact BB drSPR=4
 #include "LCA.h"
 #include "ClusterInstance.h"
 #include "UndoMachine.h"
+#include "lgt.h"
 
 using namespace std;
 
@@ -171,6 +172,7 @@ bool APPROX = false;
 bool LOWER_BOUND = false;
 bool REDUCE_ONLY = false;
 bool PRINT_ROOTED_TREES = false;
+bool SHOW_MOVES = false;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -599,6 +601,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-multi_cluster") == 0) {
 			MULTI_CLUSTER = true;
 		}
+		else if (strcmp(arg, "-show_moves") == 0) {
+			SHOW_MOVES = true;
+		}
 		else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -711,11 +716,71 @@ int main(int argc, char *argv[]) {
 						lca->print_subtree();
 					}
 				}
+				T1->delete_tree();
+				T2->delete_tree();
 				return 0;
 			}
 
+
 			T1->labels_to_numbers(&label_map, &reverse_label_map);
 			T2->labels_to_numbers(&label_map, &reverse_label_map);
+
+
+			if (SHOW_MOVES) {
+				T1->preorder_number();
+				T2->preorder_number();
+				T1->edge_preorder_interval();
+				T2->edge_preorder_interval();
+				int num_nodes = T1->size();
+				int distance = rSPR_branch_and_bound_simple_clustering(T1, T2);
+				int current_distance = distance;
+				T1->numbers_to_labels(&reverse_label_map);
+				cout << T1->str_subtree() << endl;
+				T1->labels_to_numbers(&label_map, &reverse_label_map);
+				while (current_distance > 0) {
+					list<transfer> transfer_list = list<transfer>();
+					list_transfers(&transfer_list, T1, T2);
+					T1->numbers_to_labels(&reverse_label_map);
+					transfer trans = transfer_list.front();
+					transfer_list.pop_front();
+					Node *s = T1->find_by_prenum_full(trans.source_pre);
+					Node *t = T1->find_by_prenum_full(trans.target_pre);
+//					cout << trans.source_pre << endl;
+//					cout << trans.target_pre << endl;
+					s->spr(t);
+
+					print_leaf_list(s);
+					cout << " : ";
+					print_leaf_list(t);
+					cout << endl;
+					cout << T1->str_subtree() << endl;
+					T1->labels_to_numbers(&label_map, &reverse_label_map);
+
+					// cleanup T1
+					// TODO: the SPR does something odd to the tree
+					// find a way to remove this hack of creating a new tree each time
+					string str = T1->str_subtree();
+					T1 = build_tree(str);
+					T1->preorder_number();
+					T1->edge_preorder_interval();
+
+					current_distance--;
+					int distance = rSPR_branch_and_bound_simple_clustering(T1, T2);
+
+				}
+
+				Forest F1 = Forest(T1);
+				Forest F2 = Forest(T2);
+				int approx_spr = rSPR_worse_3_approx(&F1, &F2);
+				if (approx_spr > 0) {
+					cout << "WARNING: final tree does not match T2" << endl;
+				}
+
+				T1->delete_tree();
+				T2->delete_tree();
+				return 0;
+			}
+
 	
 //			ClusterForest F1 = ClusterForest(T1);
 //			ClusterForest F2 = ClusterForest(T2);
@@ -1034,6 +1099,12 @@ int main(int argc, char *argv[]) {
 			T1->preorder_number();
 
 			int distance;
+
+			if (VERBOSE) {
+				T1->numbers_to_labels(&reverse_label_map);
+				cout << "T1: " <<  T1->str_subtree() << endl;
+				T1->labels_to_numbers(&label_map, &reverse_label_map);
+			}
 
 			if (RF) {
 				if (UNROOTED) {

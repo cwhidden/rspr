@@ -971,6 +971,7 @@ int main(int argc, char *argv[]) {
 				char *arg2 = argv[argc+1];
 				if (arg2[0] != '-') {
 					CLUSTER_TUNE = atoi(arg2);
+					cout << "CLUSTER_TUNE=" << CLUSTER_TUNE << endl;
 				}
 			}
 		}

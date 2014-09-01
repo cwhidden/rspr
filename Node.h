@@ -2059,6 +2059,18 @@ Node *find_by_prenum(int prenum) {
 		return NULL;
 }
 
+Node *find_by_prenum_full(int prenum) {
+	if (prenum == get_preorder_number())
+		return this;
+	list<Node *>::iterator c;
+	for(c = children.begin(); c != children.end(); c++) {
+		Node *test = (*c)->find_by_prenum_full(prenum);
+		if (test != NULL)
+			return test;
+	}
+	return NULL;
+}
+
 // expand all contracted nodes of a subtree starting at n
 void expand_contracted_nodes() {
 	if (is_leaf()) {
