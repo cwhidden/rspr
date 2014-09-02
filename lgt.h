@@ -77,6 +77,8 @@ bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
 		Node **F1_source_out, Node **F1_target_out);
 Node *find_best_target(Node *source, Forest *AF);
 Node *find_best_target(Node *source, Node *target, Node **best_target);
+void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
+		map<int, string> *reverse_label_map);
 
 
 void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
@@ -362,6 +364,59 @@ void add_lcas_to_groups(vector<int> *pre_to_group, Node *subtree) {
 	}
 	if (group >= 0)
 		(*pre_to_group)[subtree->get_preorder_number()] = group;
+}
+
+void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
+		map<int, string> *reverse_label_map) {
+	T1->preorder_number();
+	T2->preorder_number();
+	T1->edge_preorder_interval();
+	T2->edge_preorder_interval();
+	int num_nodes = T1->size();
+	int distance = rSPR_branch_and_bound_simple_clustering(T1, T2);
+	int current_distance = distance;
+	T1->numbers_to_labels(reverse_label_map);
+	cout << T1->str_subtree() << endl;
+	T1->labels_to_numbers(label_map, reverse_label_map);
+	while (current_distance > 0) {
+		list<transfer> transfer_list = list<transfer>();
+		list_transfers(&transfer_list, T1, T2);
+		T1->numbers_to_labels(reverse_label_map);
+		transfer trans = transfer_list.front();
+		transfer_list.pop_front();
+		Node *s = T1->find_by_prenum_full(trans.source_pre);
+		Node *t = T1->find_by_prenum_full(trans.target_pre);
+//					cout << trans.source_pre << endl;
+//					cout << trans.target_pre << endl;
+		s->spr(t);
+
+		print_leaf_list(s);
+		cout << " : ";
+		print_leaf_list(t);
+		cout << endl;
+		cout << T1->str_subtree() << endl;
+		T1->labels_to_numbers(label_map, reverse_label_map);
+
+		// cleanup T1
+		// TODO: the SPR does something odd to the tree
+		// find a way to remove this hack of creating a new tree each time
+		string str = T1->str_subtree();
+		T1 = build_tree(str);
+		T1->preorder_number();
+		T1->edge_preorder_interval();
+
+		current_distance--;
+		int distance = rSPR_branch_and_bound_simple_clustering(T1, T2);
+
+	}
+
+	Forest F1 = Forest(T1);
+	Forest F2 = Forest(T2);
+	int approx_spr = rSPR_worse_3_approx(&F1, &F2);
+	if (approx_spr > 0) {
+		cout << "WARNING: final tree does not match T2" << endl;
+	}
+	return;
 }
 
 #endif

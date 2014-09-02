@@ -1752,6 +1752,14 @@ void reroot(Node *new_lc) {
 	root->add_child(new_rc);
 }
 
+void reroot_clean(Node *new_lc) {
+	this->reroot(new_lc);
+	this->set_depth(0);
+	this->fix_depths();
+	this->preorder_number();
+	this->edge_preorder_interval();
+}
+
 // make the root binay again
 void fixroot() {
 	if (get_children().size() > 2) {
@@ -2105,6 +2113,7 @@ int build_tree_helper(int start, const string& s, Node *parent,
 		bool &valid, set<string, StringCompare> *include_only);
 //void preorder_number(Node *node);
 //int preorder_number(Node *node, int next);
+string strip_newick_name(string &T);
 
 
 // build a tree from a newick string
@@ -2331,6 +2340,35 @@ template <typename T> void print_vector(vector <T> V) {
 	}
 	cout << endl;
 }
+
+string strip_newick_name(string &line) {
+	string name;
+	size_t loc = line.find_first_of("(");
+	if (loc != string::npos) {
+		name = "";
+		if (loc != 0) {
+			name = line.substr(0,loc);
+			line.erase(0,loc);
+		}
+	}
+	return name;
+}
+
+void reroot_safe(Node **n, Node *new_lc) {
+	(*n)->reroot(new_lc);
+	(*n)->set_depth(0);
+	(*n)->fix_depths();
+	(*n)->preorder_number();
+	(*n)->edge_preorder_interval();
+	// hack TODO fix
+	string str = (*n)->str_subtree();
+	(*n)->delete_tree();
+	(*n) = build_tree(str);
+	(*n)->preorder_number();
+	(*n)->edge_preorder_interval();
+}
+
+
 
 
 

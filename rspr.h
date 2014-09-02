@@ -4782,3 +4782,4 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 	}
 	return false;
 }
+

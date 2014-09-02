@@ -173,6 +173,7 @@ bool LOWER_BOUND = false;
 bool REDUCE_ONLY = false;
 bool PRINT_ROOTED_TREES = false;
 bool SHOW_MOVES = false;
+bool SEQUENCE = false;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -604,6 +605,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-show_moves") == 0) {
 			SHOW_MOVES = true;
 		}
+		else if (strcmp(arg, "-sequence") == 0) {
+			SEQUENCE = true;
+		}
 		else if (strcmp(arg, "--help") == 0 || strcmp(arg, "-help") == 0) {
 			cout << USAGE;
 			return 0;
@@ -667,7 +671,7 @@ int main(int argc, char *argv[]) {
 	srand(unsigned(time(0)));
 
 	// Normal operation
-	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL && !PAIRWISE) {
+	if (!UNROOTED && !UNROOTED_MIN_APPROX && !TOTAL && !PAIRWISE && !SEQUENCE) {
 		string T1_line = "";
 		string T2_line = "";
 		while (getline(cin, T1_line) && getline(cin, T2_line)) {
@@ -719,7 +723,7 @@ int main(int argc, char *argv[]) {
 				T1->delete_tree();
 				T2->delete_tree();
 				return 0;
-			}
+		}
 
 
 			T1->labels_to_numbers(&label_map, &reverse_label_map);
@@ -727,55 +731,7 @@ int main(int argc, char *argv[]) {
 
 
 			if (SHOW_MOVES) {
-				T1->preorder_number();
-				T2->preorder_number();
-				T1->edge_preorder_interval();
-				T2->edge_preorder_interval();
-				int num_nodes = T1->size();
-				int distance = rSPR_branch_and_bound_simple_clustering(T1, T2);
-				int current_distance = distance;
-				T1->numbers_to_labels(&reverse_label_map);
-				cout << T1->str_subtree() << endl;
-				T1->labels_to_numbers(&label_map, &reverse_label_map);
-				while (current_distance > 0) {
-					list<transfer> transfer_list = list<transfer>();
-					list_transfers(&transfer_list, T1, T2);
-					T1->numbers_to_labels(&reverse_label_map);
-					transfer trans = transfer_list.front();
-					transfer_list.pop_front();
-					Node *s = T1->find_by_prenum_full(trans.source_pre);
-					Node *t = T1->find_by_prenum_full(trans.target_pre);
-//					cout << trans.source_pre << endl;
-//					cout << trans.target_pre << endl;
-					s->spr(t);
-
-					print_leaf_list(s);
-					cout << " : ";
-					print_leaf_list(t);
-					cout << endl;
-					cout << T1->str_subtree() << endl;
-					T1->labels_to_numbers(&label_map, &reverse_label_map);
-
-					// cleanup T1
-					// TODO: the SPR does something odd to the tree
-					// find a way to remove this hack of creating a new tree each time
-					string str = T1->str_subtree();
-					T1 = build_tree(str);
-					T1->preorder_number();
-					T1->edge_preorder_interval();
-
-					current_distance--;
-					int distance = rSPR_branch_and_bound_simple_clustering(T1, T2);
-
-				}
-
-				Forest F1 = Forest(T1);
-				Forest F2 = Forest(T2);
-				int approx_spr = rSPR_worse_3_approx(&F1, &F2);
-				if (approx_spr > 0) {
-					cout << "WARNING: final tree does not match T2" << endl;
-				}
-
+				show_moves(T1, T2, &label_map, &reverse_label_map);
 				T1->delete_tree();
 				T2->delete_tree();
 				return 0;
@@ -906,7 +862,7 @@ int main(int argc, char *argv[]) {
 		}
 	}
 	// Comparison between a rooted tree and all rootings of an unrooted tree
-	else if (!TOTAL && !PAIRWISE && (UNROOTED || UNROOTED_MIN_APPROX)) {
+	else if (!TOTAL && !PAIRWISE && !SEQUENCE && (UNROOTED || UNROOTED_MIN_APPROX)) {
 		string line = "";
 		vector<Forest> trees = vector<Forest>();
 		if (!getline(cin, line))
@@ -1232,5 +1188,165 @@ int main(int argc, char *argv[]) {
 		for(vector<Node *>::iterator T2 = trees.begin(); T2 != trees.end(); T2++)
 			(*T2)->delete_tree();
 	}
+	else if (SEQUENCE) {
+
+		Node *T1 = NULL;
+		Node *T2 = NULL;
+		Node *T1_best_root;
+		Node *T2_best_root;
+		vector<Node *> T1_rootings = vector<Node *>();
+		vector<Node *> T2_rootings = vector<Node *>();
+		string line = "";
+		string T1_name = "";
+		string T2_name = "";
+		int n = 0;
+
+		// get first tree
+		if (!getline(cin, line))
+			return 0;
+		T1_name = strip_newick_name(line);
+		if (UNROOTED || SIMPLE_UNROOTED)
+			line = root(line);
+		T1 = build_tree(line);
+		n++;
+		T1->preorder_number();
+		T1->edge_preorder_interval();
+		if (!QUIET) {
+			cout << "T" << n << ": ";
+			T1->print_subtree();
+		}
+		T1->labels_to_numbers(&label_map, &reverse_label_map);
+
+		// get each next tree
+		while (getline(cin, line)) {
+			// get next tree
+			T2_name = strip_newick_name(line);
+			if (UNROOTED || SIMPLE_UNROOTED)
+				line = root(line);
+			T2 = build_tree(line);
+			n++;
+			T2->labels_to_numbers(&label_map, &reverse_label_map);
+			T2->preorder_number();
+			T2->edge_preorder_interval();
+
+			// list of current tree rootings (ALL_UNROOTED)
+			T1_best_root = T1;
+			if (ALL_UNROOTED) {
+				T1_rootings = T1->find_descendants();
+			}
+			else {
+				T1_rootings.clear();
+				T1_rootings.push_back(T1);
+			}
+
+			// list of next_tree rootings (UNROOTED)
+			T2_best_root = T2;
+			if (UNROOTED) {
+				T2_rootings = T2->find_descendants();
+			}
+			else {
+				T2_rootings.clear();
+				T2_rootings.push_back(T2);
+			}
+
+			Node *T1_original_root = T1->lchild();
+			Node *T2_original_root = T2->lchild();
+
+			int best_distance = INT_MAX;
+
+			// compare each T1 rooting to T2 rooting
+			for(int i = 0; i < T1_rootings.size(); i++) {
+				if (T1_rootings[i] != T1 && T1_rootings[i] != T1->lchild() && T1_rootings[i] != T1->rchild()) {
+					T1->reroot_clean(T1_rootings[i]);
+//					string str = T1->str_subtree();
+//					T1->delete_tree();
+//					T1 = build_tree(str);
+//					T1->preorder_number();
+//					T1->edge_preorder_interval();
+				}
+				for(int j = 0; j < T2_rootings.size(); j++) {
+					if (T2_rootings[j] != T2 && T2_rootings[j] != T2->lchild() && T2_rootings[j] != T2->rchild()) {
+//						cout << T2->str_subtree() << endl;
+//						cout << T2_rootings[j]->str_subtree() << endl;
+						T2->reroot_clean(T2_rootings[j]);
+//						string str = T2->str_subtree();
+//						T2->delete_tree();
+//						T2 = build_tree(str);
+//						T2->preorder_number();
+//						T2->edge_preorder_interval();
+						}
+					int k = rSPR_branch_and_bound_simple_clustering(T1, T2);
+					if (k < best_distance) {
+						best_distance = k;
+						T1_best_root = T1_rootings[i];
+						T2_best_root = T2_rootings[j];
+						T1->numbers_to_labels(&reverse_label_map);
+						T2->numbers_to_labels(&reverse_label_map);
+//						cout << i << "," << j << endl;
+//						cout << T1->str_subtree() << endl;
+//						cout << T2->str_subtree() << endl;
+						T1->labels_to_numbers(&label_map, &reverse_label_map);
+						T2->labels_to_numbers(&label_map, &reverse_label_map);
+//						cout << "d=" << k << endl;
+//						cout << "new best" << endl;
+//						cout << endl;
+					}
+
+					T2->reroot_clean(T2_original_root);
+				}
+				T1->reroot_clean(T1_original_root);
+			}
+			if (T1_best_root != T1 && T1_best_root->parent() != T1) {
+				T1->reroot_clean(T1_best_root);
+			}
+			// hack TODO fix
+			string str = T1->str_subtree();
+			T1->delete_tree();
+			T1 = build_tree(str);
+			T1->preorder_number();
+			T1->edge_preorder_interval();
+
+			if (T2_best_root != T2 && T2_best_root->parent() != T2) {
+				T2->reroot_clean(T2_best_root);
+			}
+			// hack TODO fix
+			str = T2->str_subtree();
+			T2->delete_tree();
+			T2 = build_tree(str);
+			T2->preorder_number();
+			T2->edge_preorder_interval();
+
+			// show_moves on best rooting pair
+			if (SHOW_MOVES) {
+				show_moves(T1, T2, &label_map, &reverse_label_map);
+			}
+
+			// print tree
+			if (!QUIET) {
+				T2->numbers_to_labels(&reverse_label_map);
+				cout << "T" << n << ": ";
+				T2->print_subtree();
+				T2->labels_to_numbers(&label_map, &reverse_label_map);
+				cout << endl;
+			}
+
+			// new tree becomes old tree 
+			T1->delete_tree();
+			T1 = T2;
+			T1_name = T2_name;
+			T2 = NULL;
+			T2_name = "";
+			T1_rootings.clear();
+			T1_rootings.clear();
+		}
+
+
+		// cleanup
+		if (T1 != NULL) {
+			T1->delete_tree();
+		}
+
+	}
 	return 0;
 }
+
