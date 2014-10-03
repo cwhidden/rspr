@@ -6,14 +6,17 @@ rspr
 Usage: rspr [OPTIONS]
 Calculate approximate and exact Subtree Prune and Regraft (rSPR)
 distances and the associated maximum agreement forests (MAFs) between pairs
-of rooted binary trees from STDIN in newick format. By default, computes a
-3-approximation of the rSPR distance. Supports arbitrary labels.
+of rooted binary trees from STDIN in newick format. Supports arbitrary labels.
+The second tree may be multifurcating. 
 
-Copyright 2009-2010 Chris Whidden
+Can also compare the first input tree to each other tree with -total or
+compute a pairwise distance matrix with -pairwise.
+
+Copyright 2009-2014 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-March 22, 2010
-Version 1.01
+April 29, 2014
+Version 1.3.0
 
 This file is part of rspr.
 
@@ -21,7 +24,6 @@ rspr is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-
 rspr is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -41,14 +43,18 @@ These options control what algorithm is used
 -bb         Calculate the exact rSPR distance with a branch-and-bound
             FPT algorithm. This is enabled by default.
 
--approx         Calculate just a linear -time 3-approximation of the rSPR distance
+-approx     Calculate just a linear-time 3-approximation of the rSPR distance
+
+-split_approx
+-split_approx x  Calculate the exact rSPR distance if it is k or less and
+                 otherwise use the exponential-time approximation
 
 -cluster_test   Use the cluster reduction to speed up the exact algorithm.
                 This is enabled by default.
 
 -total          Find the total SPR distance from the first input tree to
                 the rest of the list of trees. Uses the other algorithm
-								options as specified (including unrooted options).
+                options as specified (including unrooted options).
 
 *******************************************************************************
 OPTIMIZATIONS
@@ -58,26 +64,66 @@ These options control the use of optimized branching. All optimizations are
 enabled by default. Specifying any subset of -cob, -cab, and -sc will use
 just that subset of optimizations.
 
--allopt		Use -cob -cab -sc. This is the default option
+-allopt    Use -cob -cab -sc and a new set of improvements. This is the
+           default
+option
 
--noopt		Use 3-way branching for all FPT algorithms
+-noopt     Use 3-way branching for all FPT algorithms
 
--cob		Use "cut one b" improved branching
+-cob       Use "cut one b" improved branching
 
--cab		Use "cut all b" improved branching
+-cab       Use "cut all b" improved branching
 
--sc			Use "separate components" improved branching
+-sc        Use "separate components" improved branching
+
+*******************************************************************************
+MULTIFURCATING COMPARISON OPTIONS
+*******************************************************************************
+
+-support x     Collapse bipartitions with less than x support
 
 *******************************************************************************
 UNROOTED COMPARISON OPTIONS
 *******************************************************************************
 
 -unrooted   Compare the first input tree to each other input tree.
-            Output the best found distance and agreement forest
+            Output the best found distance and agreement forest.
+            This option can be used with gen_rooted_trees.pl to provide
+            the rootings.
+            Note that this option is a bit unintuitive to maintain
+            compatibility with previous versions of rSPR.
+            If -total or -pairwise analysis is used then there is no need
+            to specify rootings.
 
 -unrooted_min_approx    Compare the first input tree to each other input tree.
                         Run the exact algorithms on the pair with the
                         minimum approximate rspr distance
+
+-simple_unrooted        Root the gene trees using
+                        a bipartition balanced accuracy measure
+                        (fast but potentially less accurate). Only
+                        used with -total.
+
+*******************************************************************************
+PAIRWISE COMPARISON OPTIONS
+*******************************************************************************
+
+-pairwise
+-pairwise a b
+-pairwise a b c d        Compare each input tree to each other tree and output
+                         the resulting SPR distance matrix. If -unrooted is
+                         enabled this will compute the "best rooting" SPR
+                         distance by testing each rooting of the trees. The
+                         optional arguments a b c d compute only rows a-b and/or
+                         columns c-d of the matrix.
+
+-no-symmetric-pairwise   By default, -pairwise will ignore the symmetric lower
+                         left triangle of the matrix. With this option the
+                         lower triangle is filled in.
+
+-pairwise_max x          Use with -pairwise to only compute distances at most x.
+                         Larger values are output as -1. Very efficient for
+                         small distances (e.g. 1-10).
 
 *******************************************************************************
 OTHER OPTIONS
@@ -89,7 +135,7 @@ OTHER OPTIONS
 *******************************************************************************
 
 Example:
-$ ./rspr.exe -fpt <test_trees/trees2.txt
+$ ./rspr -fpt <test_trees/trees2.txt
 T1: ((((1,2),(3,4)),((5,6),(7,8))),(((9,10),(11,12)),((13,14),(15,16))))
 T2: (((7,8),((1,(2,(14,5))),(3,4))),(((11,(6,12)),10),((13,(15,16)),9)))
 
@@ -114,25 +160,19 @@ http://kiwi.cs.dal.ca/Software/RSPR
 
 FILES
 
-Forest.h				Forest data structure
-gen_rooted_trees.pl		Generate all rootings of an unrooted binary tree
-gpl.txt					The GPL license
-Makefile				Makefile
-Node.h					Node data structure
-README.txt				This README
-test_trees/				Folder of test tree pairs
 
 ClusterForest.h   Cluster Decomposition
-Forest.h			  	Forest data structure
-gen_rooted_trees.pl		Generate all rootings of an unrooted binary tree
-gpl.txt				  	The GPL license
+Forest.h          Forest data structure
+gen_rooted_trees.pl    Generate all rootings of an unrooted binary tree
+gpl.txt           The GPL license
 LCA.h             Compute LCAs of tree leaves
-Makefile			  	Makefile
-Node.h				  	Node data structure
-README.txt				This README
-rspr.h			    	Library to calculate rSPR distances between pairs of trees
-rspr.cpp					Calculate rSPR distances between pairs or sets of trees
-spr_supertrees    Compute supertrees that minimize spr distance
+Makefile          Makefile
+Node.h            Node data structure
+README.txt        This README
+rspr.h            Library to calculate rSPR distances between pairs of trees
+rspr.cpp          Calculate rSPR distances between pairs or sets of trees
+test_trees/       Folder of test tree pairs
+SiblingPair.h     Sibling Pair class
 
 ################################################################################
 
@@ -147,8 +187,9 @@ compile rspr; simply run `make'.
 
 INPUT
 
-rSPR requires pairs of Newick format binary rooted trees with arbitrary labels
-as input.  A sample Newick tree is shown below:
+rSPR requires pairs of Newick format trees with arbitrary labels
+as input. The first tree must be binary and rooted. The second tree
+may be multifurcating and rooted. A sample Newick tree is shown below:
 
 ((1,2),(3,4),(5,6));
 
@@ -160,7 +201,22 @@ rooting of the test tree with the -unrooted option and guess the best
 rooting based on the approximation algorithm with the
 -unrooted_min_approx option. Alternatively, the -total option with
 the -unrooted or -unrooted_min_approx options will provide just the
-distance.
+distance. The -total option with -simple_unrooted will use a faster
+biparition based measure to approximate the optimal rooting.
+
+The -support x option can be used to collapse poorly supported branches
+of the second tree.
+
+With the -pairwise option, rSPR will compare each pair of input trees
+and output the results as a distance matrix. To save time, only the
+upper right triangle is output as the lower left triangle is symmetric.
+Use the included fill_matrix program to fill in missing values or the
+-no-symmetric-pairwise option to explicitly compute these values.
+Optional arguments to -pairwise can be used to compute subsets of the
+matrix (e.g. for partitioning computation over multiple processes).
+The -pairwise_max x option can be used to quickly find trees with
+SPR distance at most x when x is small (e.g. 1-10).
+
 
 ################################################################################
 
@@ -208,7 +264,7 @@ OUTPUT WITH CLUSTERING
 
 /////////////////////
 
-$ rspr < test_trees/cluster_test 
+$ ./rspr < test_trees/cluster_test 
 T1: (((x,((b1,b3),b2)),y),(f,(a,c)))
 T2: (((x,y),f),((a,((b1,b2),b3)),c))
 
@@ -250,6 +306,22 @@ are output last.
 
 ################################################################################
 
+OUTPUT WITH PAIRWISE
+
+$ cat test_trees/big_test* | ./rspr -pairwise
+0,46,0,46
+,0,46,50
+,,0,46
+,,,0
+
+$ cat test_trees/big_test* | ./rspr -pairwise | ./fill_matrix
+0,46,0,46
+46,0,46,50
+0,46,0,46
+46,50,46,0
+
+################################################################################
+
 EFFICIENCY
 
 The 3-approximation algorithm runs in O(n) time, where n is the number of
@@ -263,16 +335,31 @@ Using all 3 of the -cob -cab and -sc optimizations improves the running times of
 the algorithms to O(2.42^k n) time. This provides a significant improvement in
 practice and is provably correct, thus this is the default.
 
-When using the -unrooted option, the exact algorithms run in O(3^k n^2) time.
+In addition, this version contains new improvements that
+give a bound of O(2^k n). This provides another significant improvement
+and is provably correct so these options are also enabled by default.
 
-The new cluster reduction implementation improves the running time of
-the
-algorithm to O(2.42^k n) time where k is the largest rSPR distance of
-any cluster. This provides a large speedup when the trees are clusterable.
+For much larger trees, the -split_approx option will compute an
+exponential time approximation of the distance that is exact for
+small distances and generally within a few percent of the optimal 
+distance otherwise.
+
+When using the -unrooted option, the exact algorithms run in O(2^k n^2) time.
+
+The cluster reduction improves the running time of the
+algorithm to O(2^k n) time where k is the largest rSPR distance of
+any cluster (as opposed to the full rSPR distance). This provides a large
+speedup when the trees are clusterable.
+
+With the -pairwise option on m rooted trees, the program takes O(m^2
+2^k n) time, where k is the largest SPR distance computed. With -unrooted
+this becomes O(m^2 2^k n^3). The -pairwise_max x option limits k to x, 
+but does not use clustering and is slow for large distances.
+-
 
 NOTE: This is an exponential algorithm that exactly solves an NP-hard problem.
 Thus the algorithms may not finish in a reasonable amount of time for large
-rSPR distances (> 20 without optimizations and > 50 with optimizations).
+rSPR distances (> 20 without optimizations and > 70 with optimizations).
 
 ################################################################################
 
@@ -280,12 +367,28 @@ REFERENCES
 
 For more information on the algorithms see:
 
-Whidden, C., Zeh, N., Beiko, R.G.  Subtree Prune-and-Regraft Supertrees.
-(In Press). 2011.
+Whidden, C., Zeh, N., Beiko, R.G.  Fixed-Parameter and Approximation
+Algorithms for Maximum Agreement Forests of Multifurcating Trees.
+(Submitted). 2013. Preprint available at
+http://arxiv.org/abs/1305.0512
+
+Whidden, C., Zeh, N., Beiko, R.G.  Supertrees based on the subtree
+prune-and-regraft distance. Syst. Biol. 63 (4): 566-581. 2014.
+doi:10.1093/sysbio/syu023.
+
+Whidden, C., Beiko, R.G., Zeh, N. Fixed-Parameter Algorithms for Maximum
+Agreement Forests. SIAM Journal on Computing 42.4 (2013), pp. 1431-1466.
+Available at http://epubs.siam.org/doi/abs/10.1137/110845045
+
+Whidden, C. Efficient Computation of Maximum Agreement Forests and their
+Applications. PhD Thesis. Dalhousie University, Canada. 2013. Available at
+www.cs.dal.ca/~whidden
 
 Whidden, C., Beiko, R.G., Zeh, N. Fast FPT Algorithms for Computing
-Rooted Agreement Forests: Theory and Experiments (Extended Abstract)
-Accepted to SEA 2010.
+Rooted Agreement Forests: Theory and Experiments. Experimental Algorithms.
+Ed. by P. Festa. Vol. 6049. Lecture Notes in Computer Science. Springer
+Berlin Heidelberg, 2010, pp. 141-153. Available at
+http://link.springer.com/chapter/10.1007/978-3-642-13193-6_13
 
 Whidden, C., Zeh, N. A Unifying View on Approximation and FPT of
 Agreement Forests. In: WABI 2009. LNCS, vol. 5724, pp. 390.401.
@@ -302,15 +405,30 @@ CITING rSPR
 
 If you use rSPR in your research, please cite:
 
-Whidden, C., Zeh, N., Beiko, R.G.  Subtree Prune-and-Regraft Supertrees.
-(In Press). 2011.
+Whidden, C., Beiko, R.G., Zeh, N.  Computing the SPR Distance of Binary
+Rooted Trees in O(2^k n) Time. (In Preparation). 2013.
+
+Whidden, C., Beiko, R.G. Zeh, N.  Fixed-Parameter and Approximation
+Algorithms for Maximum Agreement Forests of Multifurcating Trees.
+(Submitted). 2013.
+
+Whidden, C., Zeh, N., Beiko, R.G.  Supertrees based on the subtree
+prune-and-regraft distance. Syst. Biol. 63 (4): 566-581. 2014.
+doi:10.1093/sysbio/syu023.
+
+Whidden, C., Beiko, R.G., Zeh, N. Fixed-Parameter Algorithms for Maximum
+Agreement Forests. SIAM Journal on Computing 42.4 (2013), pp. 1431-1466.
+Available at http://epubs.siam.org/doi/abs/10.1137/110845045
 
 Whidden, C., Beiko, R.G., Zeh, N. Fast FPT Algorithms for Computing
-Rooted Agreement Forests: Theory and Experiments (Extended Abstract)
-Accepted to SEA 2010.
+Rooted Agreement Forests: Theory and Experiments. Experimental Algorithms.
+Ed. by P. Festa. Vol. 6049. Lecture Notes in Computer Science. Springer
+Berlin Heidelberg, 2010, pp. 141-153. Available at
+http://link.springer.com/chapter/10.1007/978-3-642-13193-6_13
 
 Whidden, C., Zeh, N. A Unifying View on Approximation and FPT of
 Agreement Forests. In: WABI 2009. LNCS, vol. 5724, pp. 390.401.
 Springer-Verlag (2009).
 
 ################################################################################
+
