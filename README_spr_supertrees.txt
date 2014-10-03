@@ -12,11 +12,11 @@ tree is built by greedily adding taxa in decreasing order of
 ocurrence. The tree is then improved by SPR rearrangements.
 Additional options allow for unrooted and/or multifurcating input trees.
 
-Copyright 2013 Chris Whidden
+Copyright 2013-2014 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/SPR_Supertrees
-April 26, 2013
-Version 1.1.1
+March 3, 2014
+Version 1.2.1
 
 This file is part of spr_supertrees.
 
@@ -153,6 +153,9 @@ LGT ANALYSIS
 
 -lgt_analysis          Conduct an LGT analysis with the initial user-specified
                        or greedy addition tree
+
+-lgt_evaluate          Print inferred transfers for each tree with the initial
+                       user-specified or greedy addition tree
 
 -lgt_csv               Output the LGT analysis seperated by commas rather than
                        spaces.
@@ -368,11 +371,24 @@ REFERENCES
 
 For more information on the algorithms see:
 
-Whidden, C., Zeh, N., Beiko, R. G. Subtree Prune-and-Regraft Supertrees.
-(In preparation)
+Whidden, C., Zeh, N., Beiko, R.G.  Fixed-Parameter and Approximation
+Algorithms for Maximum Agreement Forests of Multifurcating Trees.
+(In Preparation). 2013. Preprint available at
+http://arxiv.org/abs/1305.0512
 
-Whidden, C., Beiko, R. G., Zeh, N. Rooted Agreement Forests: Theory and
-Experiments (Extended Abstract). Accepted to SEA 2010.
+Whidden, C., Beiko, R.G., Zeh, N. Fixed-Parameter Algorithms for Maximum
+Agreement Forests. SIAM Journal on Computing 42.4 (2013), pp. 1431-1466.
+Available at http://epubs.siam.org/doi/abs/10.1137/110845045
+
+Whidden, C., Zeh, N., Beiko, R.G.  Supertrees based on the subtree
+prune-and-regraft distance. Syst. Biol. 63 (4): 566-581. 2014.
+doi:10.1093/sysbio/syu023.
+
+Whidden, C., Beiko, R.G., Zeh, N. Fast FPT Algorithms for Computing
+Rooted Agreement Forests: Theory and Experiments. Experimental Algorithms.
+Ed. by P. Festa. Vol. 6049. Lecture Notes in Computer Science. Springer
+Berlin Heidelberg, 2010, pp. 141-153. Available at
+http://link.springer.com/chapter/10.1007/978-3-642-13193-6_13
 
 Whidden, C., Zeh, N. A Unifying View on Approximation and FPT of
 Agreement Forests. In: WABI 2009. LNCS, vol. 5724, pp. 390.401.
@@ -388,7 +404,8 @@ www.cs.dal.ca/~whidden
 CITING SPR Supertrees
 
 If you use SPR Supertrees in your research, please cite:
-Whidden, C., Zeh, N., Beiko R. G. Subtree Prune-and-Regraft Supertrees.
-(In Preparation).
+Whidden, C., Zeh, N., Beiko, R.G.  Supertrees based on the subtree
+prune-and-regraft distance.  Syst. Biol. 63 (4): 566-581. 2014.
+doi:10.1093/sysbio/syu023.
 
 ################################################################################
