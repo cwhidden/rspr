@@ -51,6 +51,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include <map>
 #include <set>
 #include <list>
+#include <algorithm>
 #include "Forest.h"
 #include "ClusterForest.h"
 #include "LCA.h"
@@ -61,6 +62,8 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 using namespace std;
 
 enum RELAXATION {STRICT, NEGATIVE_RELAXED, ALL_RELAXED};
+
+const string whitespaces = " \t\f\v\n\r";
 
 // note: not using undo
 int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
@@ -4781,5 +4784,17 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 			return true;
 	}
 	return false;
+}
+
+void strip_whitespace(string &str) {
+	std::string::iterator end_pos = std::remove_if(str.begin(), str.end(), ::isspace);
+	str.erase(end_pos, str.end());
+}
+
+void strip_trailing_whitespace(string &str) {
+	size_t start_pos = str.find_first_not_of(whitespaces);
+	str.erase(0, start_pos);
+	size_t end_pos = str.find_last_not_of(whitespaces)+1;
+	str.erase(end_pos, str.size()-end_pos);
 }
 

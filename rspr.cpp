@@ -1200,20 +1200,28 @@ int main(int argc, char *argv[]) {
 		string T1_name = "";
 		string T2_name = "";
 		int n = 0;
+		stringstream ss_n; 
 
 		// get first tree
 		if (!getline(cin, line))
 			return 0;
+		n++;
 		T1_name = strip_newick_name(line);
+		strip_trailing_whitespace(T1_name);
+		if (T1_name == "") {
+			stringstream ss;
+			ss << n;
+			T1_name = "T" + ss.str();
+		}
 		if (UNROOTED || SIMPLE_UNROOTED)
 			line = root(line);
 		T1 = build_tree(line);
-		n++;
 		T1->preorder_number();
 		T1->edge_preorder_interval();
 		if (!QUIET) {
-			cout << "T" << n << ": ";
+			cout << T1_name << ": ";
 			T1->print_subtree();
+			cout << endl;
 		}
 		T1->labels_to_numbers(&label_map, &reverse_label_map);
 
@@ -1221,10 +1229,16 @@ int main(int argc, char *argv[]) {
 		while (getline(cin, line)) {
 			// get next tree
 			T2_name = strip_newick_name(line);
+			n++;
+			strip_trailing_whitespace(T2_name);
+			if (T2_name == "") {
+				stringstream ss;
+				ss << n;
+				T2_name = "T" + ss.str();
+			}
 			if (UNROOTED || SIMPLE_UNROOTED)
 				line = root(line);
 			T2 = build_tree(line);
-			n++;
 			T2->labels_to_numbers(&label_map, &reverse_label_map);
 			T2->preorder_number();
 			T2->edge_preorder_interval();
@@ -1323,8 +1337,9 @@ int main(int argc, char *argv[]) {
 
 			// print tree
 			if (!QUIET) {
+				cout << endl;
 				T2->numbers_to_labels(&reverse_label_map);
-				cout << "T" << n << ": ";
+				cout << T2_name << ": ";
 				T2->print_subtree();
 				T2->labels_to_numbers(&label_map, &reverse_label_map);
 				cout << endl;
