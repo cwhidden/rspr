@@ -20,27 +20,21 @@ fill_matrix: fill_matrix.cpp
 
 .PHONY: test
 .PHONY: debug
-.PHONY: hyb
 .PHONY: profile
 
-test: test.cpp *.h
-	$(CC) $(lFLAGS) $(DEBUGFLAGS) -o test test.cpp
+test:
+	./rspr < test_trees/trees2.txt
+	@echo ""
+	./rspr < test_trees/cluster_test 
+	@echo ""
+	cat test_trees/big_test* | ./rspr -pairwise | ./fill_matrix
 
-bb-test:
-	./rspr.exe -bb <test_trees/trees1.txt;
-	./rspr.exe -bb <test_trees/trees2.txt;
-	./rspr.exe -bb <test_trees/trees3.txt;
-	./rspr.exe -bb <test_trees/trees4.txt;
-	./rspr.exe -bb <test_trees/trees5.txt;
-	./rspr.exe -bb <test_trees/trees6.txt;
 debug:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o rspr rspr.cpp
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o spr_supertree spr_supertree.cpp
 profile:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o rspr rspr.cpp
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) $(PROFILEFLAGS) -o spr_supertree spr_supertree.cpp
-hyb:
-	$(CC64) $(LFLAGS) $(C64FLAGS) -o hyb hyb.cpp
 w32:
 	$(CC) $(LFLAGS) $(CFLAGS) -o rspr rspr.cpp
 w64:
