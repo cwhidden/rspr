@@ -23,11 +23,26 @@ fill_matrix: fill_matrix.cpp
 .PHONY: profile
 
 test: rspr fill_matrix
+	@mkdir -p _test
 	./rspr < test_trees/trees2.txt
+	@val=`./rspr < test_trees/trees2.txt | grep 'total exact' | grep -o '[0-9]\+$$'`; \
+	if [ $$val -ne "4" ]; then \
+		echo FAILED: $$val != 4; \
+		return 1; \
+	fi
 	@echo ""
 	./rspr < test_trees/cluster_test
+	@val=`./rspr < test_trees/cluster_test | grep 'total exact' | grep -o '[0-9]\+$$'`; \
+	if [ $$val -ne "3" ]; then \
+		echo FAILED: $$val != 3; \
+		return 1; \
+	fi
 	@echo ""
 	cat test_trees/big_test* | ./rspr -pairwise | ./fill_matrix
+	@cat test_trees/big_test* | ./rspr -pairwise | ./fill_matrix > _test/pairwise_new; \
+	diff _test/pairwise_new tests/pairwise || (echo FAILED -pairwise test >&2; return 1)
+	@echo ""
+	@echo SUCCESS: all tests passed
 
 debug:
 	$(CC) $(LFLAGS) $(DEBUGFLAGS) -o rspr rspr.cpp
