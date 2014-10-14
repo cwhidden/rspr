@@ -22,10 +22,10 @@ fill_matrix: fill_matrix.cpp
 .PHONY: debug
 .PHONY: profile
 
-test:
+test: rspr fill_matrix
 	./rspr < test_trees/trees2.txt
 	@echo ""
-	./rspr < test_trees/cluster_test 
+	./rspr < test_trees/cluster_test
 	@echo ""
 	cat test_trees/big_test* | ./rspr -pairwise | ./fill_matrix
 
