@@ -15,4 +15,4 @@ The function will
 + compute the set of SPR distances from the first tree (type = "onerow") or
 + compute the full matrix (type = "full"). Fun for small data sets, may be impractical for large ones.
 
-See []() for examples
+See [rspR_examples](https://github.com/maxbiostat/rspr/blob/master/R/rspR_examples.r) for usage examples.
