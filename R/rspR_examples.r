@@ -21,6 +21,6 @@ isSymmetric(radius)
 
 ### Big matrix test
 ## Warning: this takes a long time. Don't run unless you really want to see if the code can handle big matrices ;0)
-big.trees <- rmtree(N = 4096, n = 20)
-( big.test <- rspr.matrix(big.trees, type = "restricted") )
-isSymmetric(big.test)
+#big.trees <- rmtree(N = 4096, n = 20)
+#( big.test <- rspr.matrix(big.trees, type = "restricted") )
+#isSymmetric(big.test)
