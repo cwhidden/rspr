@@ -8,7 +8,7 @@ rspr(tree1, tree2, exact = TRUE)
 rspr.matrix() computes the matrix of distances in a list of trees (of class "multiPhylo").
 
 ```R
-rspr(treelist, type = c("restricted", "onerow", "full"), maxdist = 1) 
+rspr.matrix(treelist, type = c("restricted", "onerow", "full"), maxdist = 1) 
 ```
 The function will
 + Compute censored SPR distances, i.e., maxdist if dij <= maxdist and -1 if dij> maxdist (type = "restricted"), or
