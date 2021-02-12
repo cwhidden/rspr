@@ -45,6 +45,7 @@ using namespace std;
 
 bool IGNORE_MULTI = false;
 double REQUIRED_SUPPORT = 0.0;
+double MIN_LENGTH = -1.0;
 
 struct StringCompare {
 	bool operator() (const string &a, const string &b) const {
@@ -2201,12 +2202,24 @@ int build_tree_helper(int start, const string& s, Node *parent,
 				bool contracted = false;
 				int next = s.find_first_of(",)", loc);
 				if (next != string::npos) {
-					if (next > loc && REQUIRED_SUPPORT > 0) {
+					if (next > loc && (REQUIRED_SUPPORT > 0 || MIN_LENGTH >= 0)) {
 						string info = s.substr(loc, next - loc);
 						if (info[0] != ':') {
 							double support = atof(info.c_str());
 //							cout << "support=" << support << endl;
-							if (support < REQUIRED_SUPPORT && numc > 0) {
+							if (REQUIRED_SUPPORT > 0 && support < REQUIRED_SUPPORT && numc > 0) {
+//								cout << "contracting (support)" << endl;
+								node->contract_node();
+								contracted = true;
+							}
+						}
+						int next_colon = info.find_first_of(":");
+						if (next_colon != string::npos) {
+							string length_str = info.substr(next_colon+1);
+							double length = atof(length_str.c_str());
+//							cout << "length=" << length << endl;
+							if (MIN_LENGTH >= 0 && !contracted && length <= MIN_LENGTH && numc > 0) {
+//								cout << "contracting (length)" << endl;
 								node->contract_node();
 								contracted = true;
 							}

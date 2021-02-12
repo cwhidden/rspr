@@ -4,14 +4,17 @@ rspr.cpp
 Usage: rspr [OPTIONS]
 Calculate approximate and exact Subtree Prune and Regraft (rSPR)
 distances and the associated maximum agreement forests (MAFs) between pairs
-of rooted binary trees from STDIN in newick format.
-Supports arbitrary labels. See the README for more information.
+of rooted binary trees from STDIN in newick format. Supports arbitrary labels.
+The second tree may be multifurcating.
 
-Copyright 2009-2014 Chris Whidden
+Can also compare the first input tree to each other tree with -total or
+compute a pairwise distance matrix with -pairwise.
+
+Copyright 2009-2021 Chris Whidden
 whidden@cs.dal.ca
 http://kiwi.cs.dal.ca/Software/RSPR
-April 29, 2014
-Version 1.2.2
+February 12, 2021
+Version 1.3.1
 
 This file is part of rspr.
 
@@ -19,7 +22,6 @@ rspr is free software: you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by
 the Free Software Foundation, either version 3 of the License, or
 (at your option) any later version.
-
 rspr is distributed in the hope that it will be useful,
 but WITHOUT ANY WARRANTY; without even the implied warranty of
 MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
@@ -37,16 +39,20 @@ These options control what algorithm is used
 -fpt        Calculate the exact rSPR distance with an FPT algorithm
 
 -bb         Calculate the exact rSPR distance with a branch-and-bound
-            FPT algorithm. This is the default option.
+            FPT algorithm. This is enabled by default.
 
--approx		Calculate just a linear -time 3-approximation of the rSPR distance
+-approx     Calculate just a linear-time 3-approximation of the rSPR distance
+
+-split_approx
+-split_approx x  Calculate the exact rSPR distance if it is k or less and
+                 otherwise use the exponential-time approximation
 
 -cluster_test   Use the cluster reduction to speed up the exact algorithm.
                 This is enabled by default.
 
 -total          Find the total SPR distance from the first input tree to
                 the rest of the list of trees. Uses the other algorithm
-								options as specified (including unrooted options).
+                options as specified (including unrooted options).
 
 *******************************************************************************
 OPTIMIZATIONS
@@ -54,27 +60,49 @@ OPTIMIZATIONS
 
 These options control the use of optimized branching. All optimizations are
 enabled by default. Specifying any subset of -cob, -cab, and -sc will use
-just that subset of optimizations. See the README for more information.
+just that subset of optimizations.
 
--allopt		Use -cob -cab -sc. This is the default option
+-allopt    Use -cob -cab -sc and a new set of improvements. This is the
+           default
+option
 
--noopt		Use 3-way branching for all FPT algorithms
+-noopt     Use 3-way branching for all FPT algorithms
 
--cob		Use "cut one b" improved branching
+-cob       Use "cut one b" improved branching
 
--cab		Use "cut all b" improved branching
+-cab       Use "cut all b" improved branching
 
--sc			Use "separate components" improved branching
+-sc        Use "separate components" improved branching
+
+*******************************************************************************
+MULTIFURCATING COMPARISON OPTIONS
+*******************************************************************************
+
+-support x     Collapse bipartitions with less than x support
+-length x      Collapse bipartitions with branch lengths less than or
+                equal to x
 
 *******************************************************************************
 UNROOTED COMPARISON OPTIONS
 *******************************************************************************
 
 -unrooted   Compare the first input tree to each other input tree.
-            Output the best found distance and agreement forest
+            Output the best found distance and agreement forest.
+            This option can be used with gen_rooted_trees.pl to provide
+            the rootings.
+            Note that this option is a bit unintuitive to maintain
+            compatibility with previous versions of rSPR.
+            If -total or -pairwise analysis is used then there is no need
+            to specify rootings.
+
 -unrooted_min_approx    Compare the first input tree to each other input tree.
                         Run the exact algorithms on the pair with the
                         minimum approximate rspr distance
+
+-simple_unrooted        Root the gene trees using
+                        a bipartition balanced accuracy measure
+                        (fast but potentially less accurate). Only
+                        used with -total.
 
 *******************************************************************************
 PAIRWISE COMPARISON OPTIONS
@@ -109,16 +137,26 @@ OTHER OPTIONS
 Example:
 $ ./rspr < test_trees/trees2.txt
 T1: ((((1,2),(3,4)),((5,6),(7,8))),(((9,10),(11,12)),((13,14),(15,16))))
-T2: ((((3,4),(8,(2,((11,12),1)))),((15,16),(7,(6,5)))),(14,((10,13),9)))
+T2: (((7,8),((1,(2,(14,5))),(3,4))),(((11,(6,12)),10),((13,(15,16)),9)))
 
-F1: ((3,4),(5,6)) 13 14 10 (11,12) 9 1 8 7 2 (15,16)
-F2: ((3,4),(6,5)) 13 10 14 (11,12) 1 9 8 2 7 (15,16)
-approx drSPR=12
+T1: ((((0,1),(2,3)),((4,5),(6,7))),(((8,9),(10,11)),((12,13),(14,15))))
+T2: (((6,7),((0,(1,(13,4))),(2,3))),(((10,(5,11)),9),((12,(14,15)),8)))
+approx F1: ((0,(2,3)),((9,(10,11)),(12,(14,15)))) 13 5 8 4 (6,7) 1
+approx F2: ((0,(2,3)),(((10,11),9),(12,(14,15)))) 13 5 8 4 1 (6,7)
+approx drSPR=6
+
+C1_1: ((((0,1),(2,3)),((4,5),(6,7))),(((8,9),(10,11)),((12,13),(14,15))))
+C1_2: (((6,7),((0,(1,(13,4))),(2,3))),(((10,(5,11)),9),((12,(14,15)),8)))
+cluster approx drSPR=4
 
 4
-F1: ((((1,2),(3,4)),((5,6),7)),((9,10),14)) 13 (11,12) 8 (15,16)
-F2: ((((3,4),(2,1)),(7,(6,5))),(14,(10,9))) 13 (11,12) 8 (15,16)
-exact BB drSPR=4
+F1_1: ((((0,1),(2,3)),(6,7)),((9,(10,11)),(12,(14,15)))) 5 4 13 8
+F1_2: (((6,7),((0,1),(2,3))),(((10,11),9),(12,(14,15)))) 13 5 4 8
+cluster exact drSPR=4
+
+F1: ((((1,2),(3,4)),(7,8)),((10,(11,12)),(13,(15,16)))) 6 5 14 9
+F2: (((7,8),((1,2),(3,4))),(((11,12),10),(13,(15,16)))) 14 6 5 9
+total exact drSPR=4
 
 *******************************************************************************/
 
@@ -177,7 +215,7 @@ bool SEQUENCE = false;
 int MULTI_TEST = 0;
 
 string USAGE =
-"rspr, version 1.2.2\n"
+"rspr, version 1.3.1\n"
 "\n"
 "usage: rspr [OPTIONS]\n"
 "Calculate approximate and exact Subtree Prune and Regraft (rSPR)\n"
@@ -185,11 +223,11 @@ string USAGE =
 "of rooted binary trees from STDIN in newick format.\n"
 "Supports arbitrary labels. See the README for more information.\n"
 "\n"
-"Copyright 2009-2014 Chris Whidden\n"
+"Copyright 2009-2021 Chris Whidden\n"
 "whidden@cs.dal.ca\n"
-"http://kiwi.cs.dal.ca/Software/RSPR\n"
-"April 29, 2014\n"
-"Version 1.2.2\n"
+"github.com/cwhidden/rspr\n"
+"February 12, 2021\n"
+"Version 1.3.1\n"
 "\n"
 "This program comes with ABSOLUTELY NO WARRANTY.\n"
 "This is free software, and you are welcome to redistribute it\n"
@@ -204,11 +242,13 @@ string USAGE =
 "-fpt        Calculate the exact rSPR distance with an FPT algorithm\n"
 "\n"
 "-bb         Calculate the exact rSPR distance with a branch-and-bound\n"
-"            FPT algorithm. This is the default option.\n"
+"            FPT algorithm. This is enabled by default.\n"
 "\n"
-"-approx     Calculate just a linear -time 3-approximation of the\n"
-"            rSPR distance\n"
+"-approx     Calculate just a linear-time 3-approximation of the rSPR distance\n"
 "\n"
+"-split_approx\n"
+"-split_approx x  Calculate the exact rSPR distance if it is k or less and\n"
+"                 otherwise use the exponential-time approximation\n"
 "\n"
 "-cluster_test   Use the cluster reduction to speed up the exact algorithm.\n"
 "                This is enabled by default.\n"
@@ -216,34 +256,56 @@ string USAGE =
 "-total          Find the total SPR distance from the first input tree to\n"
 "                the rest of the list of trees. Uses the other algorithm\n"
 "                options as specified (including unrooted options).\n"
+"\n"
 "*******************************************************************************\n"
 "OPTIMIZATIONS\n"
 "*******************************************************************************\n"
 "\n"
 "These options control the use of optimized branching. All optimizations are\n"
 "enabled by default. Specifying any subset of -cob, -cab, and -sc will use\n"
-"just that subset of optimizations. See the README for more information.\n"
+"just that subset of optimizations.\n"
 "\n"
-"-allopt     Use -cob -cab -sc. This is the default option\n"
+"-allopt    Use -cob -cab -sc and a new set of improvements. This is the\n"
+"           default\n"
+"option\n"
 "\n"
-"-noopt      Use 3-way branching for all FPT algorithms\n"
+"-noopt     Use 3-way branching for all FPT algorithms\n"
 "\n"
-"-cob        Use \"cut one b\" improved branching\n"
+"-cob       Use \"cut one b\" improved branching\n"
 "\n"
-"-cab        Use \"cut all b\" improved branching\n"
+"-cab       Use \"cut all b\" improved branching\n"
 "\n"
-"-sc         Use \"separate components\" improved branching\n"
+"-sc        Use \"separate components\" improved branching\n"
+"\n"
+"*******************************************************************************\n"
+"MULTIFURCATING COMPARISON OPTIONS\n"
+"*******************************************************************************\n"
+"\n"
+"-support x     Collapse bipartitions with less than x support\n"
+"-length x      Collapse bipartitions with branch lengths less than or\n"
+"                equal to x\n"
 "\n"
 "*******************************************************************************\n"
 "UNROOTED COMPARISON OPTIONS\n"
 "*******************************************************************************\n"
 "\n"
 "-unrooted   Compare the first input tree to each other input tree.\n"
-"            Output the best found distance and agreement forest\n"
-"-unrooted_min_approx\n"
-"            Compare the first input tree to each other input tree.\n"
-"            Run the exact algorithms on the pair with the\n"
-"            minimum approximate rspr distance\n"
+"            Output the best found distance and agreement forest.\n"
+"            This option can be used with gen_rooted_trees.pl to provide\n"
+"            the rootings.\n"
+"            Note that this option is a bit unintuitive to maintain\n"
+"            compatibility with previous versions of rSPR.\n"
+"            If -total or -pairwise analysis is used then there is no need\n"
+"            to specify rootings.\n"
+"\n"
+"-unrooted_min_approx    Compare the first input tree to each other input tree.\n"
+"                        Run the exact algorithms on the pair with the\n"
+"                        minimum approximate rspr distance\n"
+"\n"
+"-simple_unrooted        Root the gene trees using\n"
+"                        a bipartition balanced accuracy measure\n"
+"                        (fast but potentially less accurate). Only\n"
+"                        used with -total.\n"
 "\n"
 "*******************************************************************************\n"
 "PAIRWISE COMPARISON OPTIONS\n"
@@ -266,15 +328,40 @@ string USAGE =
 "                         Larger values are output as -1. Very efficient for\n"
 "                         small distances (e.g. 1-10).\n"
 "\n"
-"\n"
 "*******************************************************************************\n"
 "OTHER OPTIONS\n"
 "*******************************************************************************\n"
-"-cc         Calculate a potentially better approximation with a quadratic\n"
-"            time algorithm\n"
+"-cc         Calculate a potentially better approximation with a quadratic time\n"
+"            algorithm\n"
 "\n"
 "-q          Quiet; Do not output the input trees or approximation\n"
-"*******************************************************************************\n";
+"*******************************************************************************\n"
+"\n"
+"Example:\n"
+"$ ./rspr < test_trees/trees2.txt\n"
+"T1: ((((1,2),(3,4)),((5,6),(7,8))),(((9,10),(11,12)),((13,14),(15,16))))\n"
+"T2: (((7,8),((1,(2,(14,5))),(3,4))),(((11,(6,12)),10),((13,(15,16)),9)))\n"
+"\n"
+"T1: ((((0,1),(2,3)),((4,5),(6,7))),(((8,9),(10,11)),((12,13),(14,15))))\n"
+"T2: (((6,7),((0,(1,(13,4))),(2,3))),(((10,(5,11)),9),((12,(14,15)),8)))\n"
+"approx F1: ((0,(2,3)),((9,(10,11)),(12,(14,15)))) 13 5 8 4 (6,7) 1\n"
+"approx F2: ((0,(2,3)),(((10,11),9),(12,(14,15)))) 13 5 8 4 1 (6,7)\n"
+"approx drSPR=6\n"
+"\n"
+"C1_1: ((((0,1),(2,3)),((4,5),(6,7))),(((8,9),(10,11)),((12,13),(14,15))))\n"
+"C1_2: (((6,7),((0,(1,(13,4))),(2,3))),(((10,(5,11)),9),((12,(14,15)),8)))\n"
+"cluster approx drSPR=4\n"
+"\n"
+"4\n"
+"F1_1: ((((0,1),(2,3)),(6,7)),((9,(10,11)),(12,(14,15)))) 5 4 13 8\n"
+"F1_2: (((6,7),((0,1),(2,3))),(((10,11),9),(12,(14,15)))) 13 5 4 8\n"
+"cluster exact drSPR=4\n"
+"\n"
+"F1: ((((1,2),(3,4)),(7,8)),((10,(11,12)),(13,(15,16)))) 6 5 14 9\n"
+"F2: (((7,8),((1,2),(3,4))),(((11,12),10),(13,(15,16)))) 14 6 5 9\n"
+"total exact drSPR=4\n"
+
+"*******************************************************************************/\n";
 
 int main(int argc, char *argv[]) {
 	int max_args = argc-1;
@@ -506,7 +593,7 @@ int main(int argc, char *argv[]) {
 					MAX_SPR = atoi(arg2);
 					CLUSTER_MAX_SPR = MAX_SPR;
 				}
-				if (!QUIET) 
+				if (!QUIET)
 					cout << "MAX_SPR=" << MAX_SPR << endl;
 			}
 		}
@@ -580,6 +667,15 @@ int main(int argc, char *argv[]) {
 				if (arg2[0] != '-')
 					REQUIRED_SUPPORT = atof(arg2);
 				cout << "REQUIRED_SUPPORT=" << REQUIRED_SUPPORT
+						<< endl;
+			}
+		}
+		else if (strcmp(arg, "-min_length") == 0) {
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					MIN_LENGTH = atof(arg2);
+				cout << "MIN_LENGTH=" << MIN_LENGTH
 						<< endl;
 			}
 		}
@@ -1200,7 +1296,7 @@ int main(int argc, char *argv[]) {
 		string T1_name = "";
 		string T2_name = "";
 		int n = 0;
-		stringstream ss_n; 
+		stringstream ss_n;
 
 		// get first tree
 		if (!getline(cin, line))
@@ -1345,7 +1441,7 @@ int main(int argc, char *argv[]) {
 				cout << endl;
 			}
 
-			// new tree becomes old tree 
+			// new tree becomes old tree
 			T1->delete_tree();
 			T1 = T2;
 			T1_name = T2_name;
