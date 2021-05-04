@@ -100,6 +100,8 @@ class Node {
 	double support;
 	double support_normalization;
 
+    int non_leaf_children;
+
 	public:
 	Node() {
 		init(NULL, NULL, NULL, "", 0);
@@ -1236,7 +1238,7 @@ class Node {
 		find_sibling_pairs_hlpr(sibling_pairs);
 		return sibling_pairs;
 	}
-	
+  
 	void find_leaves_hlpr(vector<Node *> &leaves) {
 		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
@@ -1247,7 +1249,31 @@ class Node {
 		}
 
 	}
-	
+      // finds the parents of the sibling groups in this node's subtree
+    void *append_sibling_groups(list<Node *> *sibling_groups) {
+	  find_sibling_groups_hlpr(sibling_groups);	
+    }
+
+    // finds the parents of the sibling groups in this node's subtree
+    list<Node *> *find_sibling_groups() {
+	    list<Node *> *sibling_groups = new list<Node *>();
+		find_sibling_groups_hlpr(sibling_groups);
+		return sibling_groups;
+    }
+    void find_sibling_groups_hlpr(list<Node*> *sibling_groups) {
+	    list<Node *>::iterator c;
+		int total_non_leaves = 0;
+		for (c = children.begin(); c != children.end(); c++) {
+		  if (!(*c)->is_leaf()) {
+			total_non_leaves++;
+		    (*c)->find_sibling_groups_hlpr(sibling_groups);
+		  }
+		}
+		non_leaf_children = total_non_leaves;
+		if (total_non_leaves == 0)
+		  sibling_groups->push_back(this);		
+    }
+  
 	// find the leaves in this node's subtree
 	vector<Node *> find_leaves() {
 		vector<Node *> leaves = vector<Node *>();

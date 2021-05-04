@@ -72,8 +72,6 @@ int rSPR_4_approx_mult(Forest *T1, Forest *T2);
 int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
 int rSPR_worse_4_approx(Forest *T1, Forest *T2);
 int rSPR_worse_4_approx(Forest *T1, Forest *T2, bool sync);
-int rSPR_worse_4_approx(Node *subtree, Forest *T1, Forest *T2);
-int rSPR_worse_4_approx(Node *subtree, Forest *T1, Forest *T2, bool sync);
 
 
 int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
@@ -254,55 +252,18 @@ if (!sync_twins(T1, T2))
 //	cout << "T1: "; T1->print_components();
 //	cout << "T2: "; T2->print_components();
 	// find sibling pairs of T1
-	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
-	// find singletons of T2
-	list<Node *> singletons = T2->find_singletons();
-	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
-
-	Forest *F1;
-	Forest *F2;
-
-	int ans = rSPR_worse_4_approx_hlpr(T1, T2, &singletons, sibling_pairs, &F1, &F2, true);
-
-	F1->swap(T1);
-	F2->swap(T2);
-	sync_twins(T1,T2);
-
-
-	delete sibling_pairs;
-	delete F1;
-	delete F2;
-	return ans;
-}
-
-int rSPR_worse_4_approx_distance_only(Forest *T1, Forest *T2) {
-if (!sync_twins(T1, T2))
-	return 0;
-	list<Node *> *sibling_pairs = T1->find_sibling_pairs();
-	list<Node *> singletons = T2->find_singletons();
-	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
-
-	int ans = rSPR_worse_4_approx_hlpr(T1, T2, &singletons, sibling_pairs, NULL, NULL, false);
-
-	delete sibling_pairs;
-	return ans;
-}
-
-int rSPR_worse_4_approx(Node *subtree, Forest *T1, Forest *T2) {
-	return rSPR_worse_4_approx(subtree, T1, T2, true);
-}
-
-
-int rSPR_worse_4_approx(Node *subtree, Forest *T1, Forest *T2, bool sync) {
-	// match up nodes of T1 and T2
-	if (sync) {
-if (!sync_twins(T1, T2))
-	return 0;
+	list<Node *> *sibling_groups = T1->find_sibling_groups();
+	list<Node *>::iterator c;
+	list<Node *>::iterator ch;
+	
+	for (c = sibling_groups->begin(); c != sibling_groups->end(); c++) {
+	    cout << "Sibling group parent: " << (*c)->get_name() << endl;
+		list<Node *> children = (*c)->get_children();
+		for (ch = children.begin(); ch != children.end(); ch++) {
+		  cout << "\tChild: " << (*ch)->get_name() <<endl;
+		}
 	}
-//	cout << "T1: "; T1->print_components();
-//	cout << "T2: "; T2->print_components();
-	// find sibling pairs of T1
-	list<Node *> *sibling_pairs = subtree->find_sibling_pairs();
+	return 0;
 	// find singletons of T2
 	list<Node *> singletons = T2->find_singletons();
 	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
@@ -310,18 +271,19 @@ if (!sync_twins(T1, T2))
 	Forest *F1;
 	Forest *F2;
 
-	int ans = rSPR_worse_4_approx_hlpr(T1, T2, &singletons, sibling_pairs, &F1, &F2, true);
+	int ans = rSPR_worse_4_approx_hlpr(T1, T2, &singletons, sibling_groups, &F1, &F2, true);
 
 	F1->swap(T1);
 	F2->swap(T2);
 	sync_twins(T1,T2);
 
 
-	delete sibling_pairs;
+	delete sibling_groups;
 	delete F1;
 	delete F2;
 	return ans;
 }
+
 
 // rSPR_worse_4_approx recursive helper function
 int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests) {

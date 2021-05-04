@@ -288,6 +288,18 @@ class Forest {
 		return sibling_pairs;
 	}
 
+  	// return a list of the sibling groups
+	list<Node *> *find_sibling_groups() {
+		list<Node *> *sibling_groups = new list<Node *>();
+		vector<Node *>::iterator i;
+		for(i = components.begin(); i != components.end(); i++) {
+			Node *component = *i;
+			component->append_sibling_groups(sibling_groups);
+		}
+		return sibling_groups;
+	}
+
+  
 	// return a deque of the singleton leaves
 	list<Node *> find_singletons() {
 		list<Node *> singletons = list<Node *>();
