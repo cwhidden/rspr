@@ -2208,7 +2208,7 @@ int build_tree_helper(int start, const string& s, Node *parent,
 							double support = atof(info.c_str());
 //							cout << "support=" << support << endl;
 							if (REQUIRED_SUPPORT > 0 && support < REQUIRED_SUPPORT && numc > 0) {
-//								cout << "contracting (support)" << endl;
+ //								cout << "contracting (support)" << endl;
 								node->contract_node();
 								contracted = true;
 							}

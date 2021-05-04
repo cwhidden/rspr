@@ -188,6 +188,7 @@ bool DEFAULT_ALGORITHM=true;
 bool DEFAULT_OPTIMIZATIONS=true;
 
 
+bool MULTI_APPROX = false;
 bool FPT = false;
 bool RF = false;
 bool QUIET = false;
@@ -394,6 +395,13 @@ int main(int argc, char *argv[]) {
 			APPROX_REVERSE_CUT_ONE_B = true;
 //			APPROX_EDGE_PROTECTION = true;
 		}
+		else if (strcmp(arg, "-multi_approx") == 0) {
+		    DEFAULT_ALGORITHM = false;
+			BB = true;
+			MULTI_APPROX = true;
+			DEFAULT_OPTIMIZATIONS = false;
+		}
+
 		else if (strcmp(arg, "-a_cob") == 0) {
 			APPROX_CUT_ONE_B = true;
 		}
@@ -837,7 +845,7 @@ int main(int argc, char *argv[]) {
 //			ClusterForest F1 = ClusterForest(T1);
 //			ClusterForest F2 = ClusterForest(T2);
 //			ClusterForest F3 = ClusterForest(T1);
-//			ClusterForest F4 = ClusterForest(T2);
+//			ClusterForest F4 = ClusterForest(T2);			
 			ClusterForest F1 = ClusterForest(T1);
 			ClusterForest F2 = ClusterForest(T2);
 			Forest F3 = Forest(T1);
@@ -864,8 +872,20 @@ int main(int argc, char *argv[]) {
 			}
 	
 			// APPROX ALGORITHM
-			int approx_spr = rSPR_worse_3_approx(&F1, &F2);
-			int min_spr = approx_spr / 3;
+			int approx_spr;
+			int min_spr;
+			if (MULTI_APPROX)
+			{
+			    cout << "Running multi_approx" << endl;
+			    approx_spr = rSPR_worse_4_approx(&F1, &F2);
+				min_spr = approx_spr / 3;
+			}
+			else
+			{
+			    cout << "Not running multi approx" <<endl;
+			    approx_spr = rSPR_worse_3_approx(&F1, &F2);
+				min_spr = approx_spr / 3;
+			}
 			if (!(QUIET && (BB || FPT))) {
 				F1.numbers_to_labels(&reverse_label_map);
 				F2.numbers_to_labels(&reverse_label_map);
