@@ -99,8 +99,8 @@ class Node {
 	int lost_children;
 	double support;
 	double support_normalization;
-
-    int non_leaf_children;
+    // TODO (Ben): put initialization in correct constructor
+    int non_leaf_children = 0;
 
 	public:
 	Node() {
@@ -897,7 +897,18 @@ class Node {
 		contracted_lc = NULL;
 		contracted_rc = NULL;
 	}
-
+  /*
+    Node *contract_sibling_group(list<Node *> *nodes) {
+	    //check to make sure all nodes are siblings
+	    list<Node *>::iterator i;
+	    for (i = nodes->begin; i != nodes->end(); i++) {
+		    if ((*i)->parent() != this) {
+			    return NULL;
+			}
+		}
+		
+	}
+  */
 	void fix_contracted_order() {
 		if (twin != NULL && twin->contracted_lc->twin != contracted_lc) {
 			Node *swap = contracted_lc;
@@ -1197,6 +1208,10 @@ class Node {
 				&& rchild() != NULL && rchild()->is_leaf());
 	}
 
+    bool is_sibling_group() {
+	  return non_leaf_children == 0 && !is_leaf();
+    }
+
 	bool is_singleton() {
 		return (parent() == NULL && is_leaf());
 	}
@@ -1272,6 +1287,40 @@ class Node {
 		non_leaf_children = total_non_leaves;
 		if (total_non_leaves == 0)
 		  sibling_groups->push_back(this);		
+    }
+
+    // Assumes this is the parent of the sibling group in T1
+    //outputs a list of list of nodes of siblings in T2 that have the same parents in T2
+    list<list<Node *>> *find_identical_sibling_groups() {	  
+	    list<list<Node *>> *identical_sibling_groups = new list<list<Node *>>();
+		list<Node *>::iterator c;
+		//way to allocate on stack? is that a good idea?
+		map<Node *, list<Node*>> *parent_to_children = new map<Node *, list<Node *>>();
+		for (c = children.begin(); c != children.end(); c++) {
+		  Node *T1_a = *c;
+		  Node *T2_a = T1_a->get_twin();
+		  if (T2_a->parent() == NULL)	{
+			continue;
+		  }
+		  auto search = parent_to_children->find(T2_a->parent());
+		  //if it does not equal the end, then we already have this parent in the map
+		  if (search != parent_to_children->end()) {
+			search->second.push_back(T2_a);
+		  }
+		  //otherwise we add it
+		  else {
+			parent_to_children->insert({T2_a->parent(), {T2_a}});
+		  }
+		}
+		//Check which parents have more than one identical sibling
+		map<Node *, list<Node*>>::iterator parents;
+		for (parents = parent_to_children->begin(); parents != parent_to_children->end(); parents++) {
+		  if (parents->second.size() > 1) {
+			identical_sibling_groups->push_back(parents->second);
+		  }
+		}
+		delete parent_to_children;
+		return identical_sibling_groups;
     }
   
 	// find the leaves in this node's subtree
