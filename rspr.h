@@ -254,7 +254,7 @@ if (!sync_twins(T1, T2))
 	// find sibling pairs of T1
 	list<Node *> *sibling_groups = T1->find_sibling_groups();
 
-	
+	/*
 	list<Node *>::iterator c;
 	list<Node *>::iterator ch;
 	
@@ -279,7 +279,7 @@ if (!sync_twins(T1, T2))
 		}
 	}	
 	return 0;
-	
+	*/
 	
 	// find singletons of T2
 	list<Node *> singletons = T2->find_singletons();
@@ -348,6 +348,7 @@ while(!singletons->empty()) {
  
 if(!sibling_groups->empty()) {
 	Node *T1_sibling_group = sibling_groups->back();
+	
 	//will have to conditionally pop, we might not be done with this sibling group
 	/*
 	sibling_groups->pop_back();
@@ -377,7 +378,7 @@ if(!sibling_groups->empty()) {
 	*/
 
 	list<list<Node *>> *identical_sibling_groups = T1_sibling_group->find_identical_sibling_groups();
-		#if 0
+	cout << "next round..." << endl;
 	// Case 2 - Contract identical sibling pair
 	if (identical_sibling_groups->size() > 0) {	  		
 		list<list<Node *>>::iterator i;
@@ -386,40 +387,70 @@ if(!sibling_groups->empty()) {
 		    //Contract those specifically
 		    //T1_p->contract_siblings(subset of siblings) create new node for this? Yes.
 		    list<Node *> T2_group = (*i);
-			Node *T2_p = T2_group[0]->parent();
+			Node *T2_p = T2_group.front()->parent();
 		    //um.add_event(new ContractSiblingPair(T1_ac));
-		    T1_ac->contract_sibling_pair_undoable();
+		    //T1_ac->contract_sibling_pair_undoable();
 			//um.add_event(new ContractSiblingPair(T2_ac, T2_a, T2_c, &um));
-			Node *T2_ac_new = T2_ac->contract_sibling_pair_undoable(T2_a, T2_c);
+			//Node *T2_ac_new = T2_ac->contract_sibling_pair_undoable(T2_a, T2_c);
+			cout << "Contracting T1... " << endl;
+			Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
+			cout << "Contracting T2... " << endl;
+			Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
+
+			/*
+			// Case of contracting all of them
+			if (T2_group_new == T2_p) {
+			  
+			}			
+			// case of contracting some of them
+			else {
+			  
+			}
 			if (T2_ac_new != NULL && T2_ac_new != T2_ac) {
 			  T2_ac = T2_ac_new;
 			  //um.add_event(new CreateNode(T2_ac));
 			  //um.add_event(new ContractSiblingPair(T2_ac));
 			  T2_ac->contract_sibling_pair_undoable();
 			}
+			*/
 			//um.add_event(new SetTwin(T1_ac));
 			//um.add_event(new SetTwin(T2_ac));
-			T1_ac->set_twin(T2_ac);
-			T2_ac->set_twin(T1_ac);
+			//T1_ac->set_twin(T2_ac);
+			//T2_ac->set_twin(T1_ac);
 
+			T1_group_new->set_twin(T2_group_new);
+			T2_group_new->set_twin(T1_group_new);
+			
+			
 			// check if T2_ac is a singleton
-			if (T2_ac->is_singleton() && T1_ac != T1->get_component(0) && T2_ac != T2->get_component(0))
-			  singletons->push_back(T2_ac);
+			if (T2_p->is_singleton() && T1_sibling_group != T1->get_component(0) && T2_p != T2->get_component(0))
+			  singletons->push_back(T2_p);
 			/*
 			  This changes a bit, we'd only need to check this if 
 			  all the nodes got contracted into the parent, 
 			  Then check if it is part of a sibling group. Then we'd add it to
 			  the data structure to be processed
 			*/
-
-			// check if T1_ac is part of a sibling pair
-			if (T1_ac->parent() != NULL && T1_ac->parent()->is_sibling_pair()) {
-			  //um.add_event(new AddToSiblingPairs(sibling_groups));
-			  sibling_groups->push_back(T1_ac->parent()->lchild());
-			  sibling_groups->push_back(T1_ac->parent()->rchild());
-		  }
+			
+			if (T1_sibling_group->parent() != NULL) {
+			  
+			  T1_sibling_group->parent()->recalculate_non_leaf_children();
+			  // check if T1_ac is part of a sibling pair
+			  if (T1_sibling_group->parent() != NULL && T1_sibling_group->parent()->is_sibling_group()) {
+				//um.add_event(new AddToSiblingPairs(sibling_groups));
+				//sibling_groups->push_back(T1_ac->parent()->lchild());
+				//sibling_groups->push_back(T1_ac->parent()->rchild());
+				cout << "Added new group" << endl;
+				sibling_groups->push_back(T1_sibling_group->parent());
+			  }
+			}
+			if (!T1_sibling_group->is_sibling_group()) {
+			  sibling_groups->remove(T1_sibling_group);
+			}
 		}
 	}
+	delete identical_sibling_groups;
+	#if 0
 
 	/*
 	  4 branching case

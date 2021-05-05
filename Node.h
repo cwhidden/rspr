@@ -400,11 +400,26 @@ class Node {
 	}
 */
 	// potentially dangerous
-/*	Node *set_parent(Node *n) {
+	Node *set_parent(Node *n) {
 		p = n;
 		return p;
 	}
-*/
+    void add_children(list<Node *> *nodes) {
+	    list<Node *>::iterator i;
+		for (i = nodes->begin(); i != nodes->end(); i++) {
+		  children.push_back((*i));
+		}
+	}
+    static list<Node *> *get_combined_children(list<Node *> *nodes) {
+    	list<Node *> *combined = new list<Node *>();
+		list<Node *>::iterator i;
+		for (i = nodes->begin(); i != nodes->end(); i++) {
+		  list<Node *> children = (*i)->get_children();
+		  combined->insert(combined->end(), children.begin(), children.end());
+		}
+		return combined;
+  }
+
 
 	Node *set_twin(Node *n) {
 		twin = n;
@@ -897,18 +912,79 @@ class Node {
 		contracted_lc = NULL;
 		contracted_rc = NULL;
 	}
-  /*
+
+    void append_node_to_name(Node *node) {	   
+	    name.insert(name.length(), node->str());	    
+	}
+
+    int recalculate_non_leaf_children() {
+	    int total = 0;
+		list<Node *>::iterator i;
+		for (i = children.begin(); i != children.end(); i++) {
+		  if (!(*i)->is_leaf()) {
+			total++;
+		  }
+		}
+		non_leaf_children = total;
+		return total;
+	}
+
     Node *contract_sibling_group(list<Node *> *nodes) {
 	    //check to make sure all nodes are siblings
 	    list<Node *>::iterator i;
-	    for (i = nodes->begin; i != nodes->end(); i++) {
-		    if ((*i)->parent() != this) {
+	    for (i = nodes->begin(); i != nodes->end(); i++) {
+		  if ((*i)->parent() != this) {
 			    return NULL;
 			}
 		}
-		
+		cout << "Contracting children. Tree before: " << str() << endl;
+		//contract all children into this
+		if (nodes->size() == children.size()) {
+		    children = *Node::get_combined_children(nodes);
+		    int total_non_leaves = 0;
+		    for (i = nodes->begin(); i != nodes->end(); i++) {
+			    (*i)->set_parent(this);
+			    if (!(*i)->is_leaf()) {
+				    total_non_leaves++;
+				}
+				append_node_to_name((*i));
+			}
+			non_leaf_children = total_non_leaves;
+			cout << " All of them. Tree after:" << str() << endl;
+			return this;
+		}
+		//Otherwise we create a new node and contract them into that
+		else {
+		    Node *new_child = new Node();
+			add_child(new_child);
+			for (i = nodes->begin(); i != nodes->end(); i++) {
+			  new_child->append_node_to_name((*i));
+			  children.remove((*i));
+			}
+			list<Node*> *new_children = Node::get_combined_children(nodes);
+			new_child->add_children(new_children);
+			for (i = new_children->begin(); i != new_children->end(); i++) {
+			  (*i)->set_parent(new_child);
+
+			}
+			delete new_children;
+			new_child->set_parent(this);
+			recalculate_non_leaf_children();
+			cout << " Made new node. Tree after:" << str() << endl;
+			return new_child;
+		}
 	}
-  */
+
+    //Takes a list of nodes in the other tree to contract in this tree
+    Node *contract_twin_group(list<Node *> *TO_nodes) {
+	  list<Node *> TT_nodes;
+	    list<Node *>::iterator i;
+		for( i = TO_nodes->begin(); i != TO_nodes->end(); i++) {
+		    TT_nodes.push_back((*i)->get_twin());			
+		}
+		return contract_sibling_group(&TT_nodes);		
+    }
+  
 	void fix_contracted_order() {
 		if (twin != NULL && twin->contracted_lc->twin != contracted_lc) {
 			Node *swap = contracted_lc;
@@ -2185,6 +2261,7 @@ Node *build_tree(string s);
 Node *build_tree(string s, set<string, StringCompare> *include_only);
 Node *build_tree(string s, int start_depth);
 Node *build_tree(string s, int start_depth, set<string, StringCompare> *include_only);
+
 int build_tree_helper(int start, const string& s, Node *parent,
 		bool &valid, set<string, StringCompare> *include_only);
 //void preorder_number(Node *node);
@@ -2455,7 +2532,6 @@ void reroot_safe(Node **n, Node *new_lc) {
 	(*n)->preorder_number();
 	(*n)->edge_preorder_interval();
 }
-
 
 
 
