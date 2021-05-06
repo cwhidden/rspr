@@ -90,6 +90,7 @@ class Node {
 	int num_clustered_children;
 	Forest *forest;
 	// TODO: contracted_list ?
+        list <Node *> contracted_children;
 	Node *contracted_lc;
 	Node *contracted_rc;
 	bool contracted;
@@ -404,21 +405,23 @@ class Node {
 		p = n;
 		return p;
 	}
-    void add_children(list<Node *> *nodes) {
+  
+        void add_children(list<Node *> *nodes) {
 	    list<Node *>::iterator i;
-		for (i = nodes->begin(); i != nodes->end(); i++) {
-		  children.push_back((*i));
-		}
+	    for (i = nodes->begin(); i != nodes->end(); i++) {
+	        children.push_back((*i));
+	    }
 	}
-    static list<Node *> *get_combined_children(list<Node *> *nodes) {
-    	list<Node *> *combined = new list<Node *>();
+        //TODO: clean this up to a function
+        static list<Node *> *get_combined_children(list<Node *> *nodes) {
+	        list<Node *> *combined = new list<Node *>();
 		list<Node *>::iterator i;
 		for (i = nodes->begin(); i != nodes->end(); i++) {
-		  list<Node *> children = (*i)->get_children();
-		  combined->insert(combined->end(), children.begin(), children.end());
+		    list<Node *> children = (*i)->get_children();
+		    combined->insert(combined->end(), children.begin(), children.end());
 		}
 		return combined;
-  }
+	}
 
 
 	Node *set_twin(Node *n) {
@@ -913,12 +916,12 @@ class Node {
 		contracted_rc = NULL;
 	}
 
-    void append_node_to_name(Node *node) {	   
-	    name.insert(name.length(), node->str());	    
+        void append_node_to_name(Node *node) {	   
+	        name.insert(name.length(), node->str());	    
 	}
 
-    int recalculate_non_leaf_children() {
-	    int total = 0;
+        int recalculate_non_leaf_children() {
+	        int total = 0;
 		list<Node *>::iterator i;
 		for (i = children.begin(); i != children.end(); i++) {
 		  if (!(*i)->is_leaf()) {
@@ -929,50 +932,61 @@ class Node {
 		return total;
 	}
 
-    Node *contract_sibling_group(list<Node *> *nodes) {
-	    //check to make sure all nodes are siblings
-	    list<Node *>::iterator i;
+        void add_contracted_child(Node *node) {
+                contracted_children.push_back(node);
+	}
+  
+        Node *contract_sibling_group(list<Node *> *nodes) {
+	  //check to make sure all nodes are siblings
+	  list<Node *>::iterator i;
+	  for (i = nodes->begin(); i != nodes->end(); i++) {
+	    if ((*i)->parent() != this) {
+	      return NULL;
+	    }
+	  }
+	  //cout << "Contracting children. Tree before: " << str() << endl;
+	  //contract all children into this
+	  if (nodes->size() == children.size()) {
+	    children = *Node::get_combined_children(nodes);
+	    int total_non_leaves = 0;
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
-		  if ((*i)->parent() != this) {
-			    return NULL;
-			}
+	      (*i)->set_parent(this);
+	      if (!(*i)->is_leaf()) {
+		total_non_leaves++;
+	      }
+	      append_node_to_name((*i));
+	    }
+	    non_leaf_children = total_non_leaves;
+	    //cout << " All of them. Tree after:" << str() << endl;
+	    return this;
+	  }
+	  //Otherwise we create a new node and contract them into that
+	  //TODO: Set preorder to lowest of children
+	  else {
+	    Node *new_child = new Node();
+	    add_child(new_child);
+	    int min_pre_num = 0x7FFFFFFF; //max value constant?
+	    for (i = nodes->begin(); i != nodes->end(); i++) {
+	      new_child->append_node_to_name((*i));
+	      new_child->add_contracted_child((*i));
+	      children.remove((*i));
+	      if ((*i)->get_preorder_number() < min_pre_num)
+		{
+		  min_pre_num = (*i)->get_preorder_number();
 		}
-		cout << "Contracting children. Tree before: " << str() << endl;
-		//contract all children into this
-		if (nodes->size() == children.size()) {
-		    children = *Node::get_combined_children(nodes);
-		    int total_non_leaves = 0;
-		    for (i = nodes->begin(); i != nodes->end(); i++) {
-			    (*i)->set_parent(this);
-			    if (!(*i)->is_leaf()) {
-				    total_non_leaves++;
-				}
-				append_node_to_name((*i));
-			}
-			non_leaf_children = total_non_leaves;
-			cout << " All of them. Tree after:" << str() << endl;
-			return this;
-		}
-		//Otherwise we create a new node and contract them into that
-		else {
-		    Node *new_child = new Node();
-			add_child(new_child);
-			for (i = nodes->begin(); i != nodes->end(); i++) {
-			  new_child->append_node_to_name((*i));
-			  children.remove((*i));
-			}
-			list<Node*> *new_children = Node::get_combined_children(nodes);
-			new_child->add_children(new_children);
-			for (i = new_children->begin(); i != new_children->end(); i++) {
-			  (*i)->set_parent(new_child);
-
-			}
-			delete new_children;
-			new_child->set_parent(this);
-			recalculate_non_leaf_children();
-			cout << " Made new node. Tree after:" << str() << endl;
-			return new_child;
-		}
+	    }
+	    new_child->set_preorder_number(min_pre_num);
+	    list<Node*> *new_children = Node::get_combined_children(nodes);
+	    new_child->add_children(new_children);
+	    for (i = new_children->begin(); i != new_children->end(); i++) {
+	      (*i)->set_parent(new_child);			  
+	    }
+	    delete new_children;
+	    new_child->set_parent(this);
+	    recalculate_non_leaf_children();
+	    //cout << " Made new node. Tree after:" << str() << endl;
+	    return new_child;
+	  }
 	}
 
     //Takes a list of nodes in the other tree to contract in this tree
@@ -1419,7 +1433,7 @@ class Node {
 		}
 
 	}
-	
+  
 	// find the interior nodes in this node's subtree
 	// does not include this node
 	vector<Node *> find_interior() {
@@ -1428,7 +1442,148 @@ class Node {
 			find_interior_hlpr(interior);
 		return interior;
 	}
+  /*
+        int find_arbitrary_lca_hlpr(vector<Node *> &sibling_descendants_counter) {
+		list<Node *>::iterator i;
+		int total = 0;
+		for (i = children->begin(); i != children->end(); i++) {
+		  total += (*i)->find_arbitrary_lca_hlpr(sibling_descendants_counter);
+		}
+		sibling_descendants_counter[get_preorder_number()] += total;
+		return sibling_descendants_counter[get_preorder_number()];
+	}
+  
+        // Finds one of the lca's in T2 based on a sibling group parent of T1
+        vector<Node *> find_arbitrary_lca(Node* T1_parent) {
+	        vector<Node *> sibling_descendants_counter = vector<Node *>();
+		list<Node *>::iterator i;
+		list<Node *> siblings = T1_parent->get_children();
+		for (i = siblings->begin(); i != siblings->end(); i++)
+		  {
+		    Node* twin = (*i)->get_twin();
+		    if (twin != NULL) {
+		      //1 it
+		    }
+		    else {
+		      //0 it
+		    }
+		  }
+		for () {
+		     //i in components of t2 forest)
+		  find_arbitrary_lca_hlpr(sibling_descendants_counter);
+		}
 
+	}
+  */
+        int get_deepest_siblings_hlpr(vector<int> &descendants, Node** to_be_placed) {
+	  list<Node*>::iterator i;
+	  for (i = children.begin(); i != children.end(); i++) {
+	    int descendant_value = descendants[(*i)->get_preorder_number()];
+	    if (descendant_value == -1) {
+	      *to_be_placed = (*i); //not convinced this is right
+	      return 1;
+	    }
+	    else if (descendant_value == 1) {
+	      return 1 + (*i)->get_deepest_siblings_hlpr(descendants, to_be_placed);
+	    }
+	  }	  
+	}
+        vector<Node*> get_deepest_siblings(vector<int> &descendants) {
+	  if (descendants[get_preorder_number()] < 2) { return vector<Node*>(); }
+		//parallel vectors for storing the siblings and their depths
+		vector<int> depths = vector<int>(descendants[get_preorder_number()],0);
+		vector<Node*> nodes = vector<Node*>(descendants[get_preorder_number()],0);
+		int node_counter = 0;
+		list<Node *>::iterator i;
+		
+		//Go down each path of 1s and take note of their path length to this node
+		//There should be the same amount of 1 paths as nodes.size()
+		for (i = children.begin(); i != children.end(); i++) {
+		  Node** placed_node = &nodes[node_counter];
+		  if (descendants[(*i)->get_preorder_number()] == 1) {
+		    depths[node_counter] = (*i)->get_deepest_siblings_hlpr(descendants, placed_node);
+		    node_counter++;
+		  }	
+		  //if it is -1 then this is the node itself
+		  else if (descendants[(*i)->get_preorder_number()] == -1) {
+		    depths[node_counter] = 1;
+		    nodes[node_counter] = (*i);
+		    node_counter++;
+		  }
+		}
+		if (node_counter != descendants[get_preorder_number()]) {
+		  cout << "Node counter incorrect: " << node_counter;
+		}
+		
+		//TODO: return all that are minimum if there are more than 2 of the same depth
+		int first_max = -1;
+		int second_max = -1;
+		vector<Node *> deepest_nodes = vector<Node *>(2);
+		for (int j = 0; j < depths.size(); j++) {
+		  if (depths[j] > first_max) {
+		    first_max = depths[j];
+		    deepest_nodes[0] = nodes[j];
+		  }
+		  else if (depths[j] <= first_max && depths[j] > second_max) {
+		    second_max = depths[j];
+		    deepest_nodes[1] = nodes[j];
+		  }
+		}
+		//return those
+		return deepest_nodes;		
+	}
+  
+        Node *find_arbitrary_lca_hlpr(vector<int> &descendants) {
+	        if (descendants[get_preorder_number()] < 2) { return NULL; }
+		list<Node*>::iterator i;
+	        for (i = children.begin(); i != children.end(); i++) {
+		  if (descendants[(*i)->get_preorder_number()] > 1) {
+		    return (*i)->find_arbitrary_lca_hlpr(descendants);
+		  }
+		}
+		return this;
+	}
+        /*
+	  Takes a vector of components in T2, 
+	  and a count of how many sibling descendants the node has in the index of its preorder number
+	  Returns lca of the nodes
+
+	  NOTE: this can be a function
+        */
+        Node *find_arbitrary_lca(vector<Node *> components, vector<int> &descendants) {	        
+		for (int i = 0; i < components.size(); i++) {
+		  Node* root = components[i];
+		  if (descendants[root->get_preorder_number()] > 1) {
+		    return root->find_arbitrary_lca_hlpr(descendants);
+		  }
+		}
+	}
+  /*This is potentially slower than just doing a traversal of the whole tree, 
+    since we could be visiting the same path many times. 
+    It does mean if this is a short branch and the others are
+    long that we dont visit those branches though */
+        void find_pseudo_lca_descendant_count_hlpr(vector <int> &desc_counter) {
+		if (p != NULL) {
+		  desc_counter[p->get_preorder_number()]++;
+		  p->find_pseudo_lca_descendant_count_hlpr(desc_counter);
+		}
+	}
+        vector<int> find_pseudo_lca_descendant_count(int max_preorder) {
+	        vector<int> sibling_descendants_counter = vector<int>(max_preorder, 0);
+		list<Node *>::iterator i;
+		for (i = children.begin(); i != children.end(); i++)
+		  {
+		    Node* twin = (*i)->get_twin();
+		    if (twin != NULL) {
+		      //set the twin itself to -1
+		      //This will be used later when traversing down to notify we have hit the node
+		      sibling_descendants_counter[twin->get_preorder_number()] = -1;
+		      twin->find_pseudo_lca_descendant_count_hlpr(sibling_descendants_counter);
+		    }
+		  }
+		return sibling_descendants_counter;
+	}
+  
 	void find_descendants_hlpr(vector<Node *> &descendants) {
 		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
@@ -1636,6 +1791,8 @@ class Node {
 	void preorder_number() {
 		preorder_number(0);
 	}
+  
+
 	int preorder_number(int next) {
 		set_preorder_number(next);
 		next++;

@@ -281,6 +281,7 @@ if (!sync_twins(T1, T2))
 	return 0;
 	*/
 	
+	
 	// find singletons of T2
 	list<Node *> singletons = T2->find_singletons();
 	list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
@@ -305,497 +306,500 @@ if (!sync_twins(T1, T2))
 // rSPR_worse_4_approx recursive helper function
 int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_groups, Forest **F1, Forest **F2, bool save_forests) {
 
-	int num_cut = 0;
-	//UndoMachine um = UndoMachine();
-	while(!singletons->empty() || !sibling_groups->empty()) {
+  int max_preorder = T2->components[0]->preorder_number(0);  
+  int num_cut = 0;
+  //UndoMachine um = UndoMachine();
+  while(!singletons->empty() || !sibling_groups->empty()) {
 	  
-// Case 1 - Remove singletons
-	  //TODO (Ben): fix for multifurcating
-while(!singletons->empty()) {
+    // Case 1 - Remove singletons
+    //TODO (Ben): fix for multifurcating
+    while(!singletons->empty()) {
 
-	Node *T2_a = singletons->back();
-	singletons->pop_back();
-	// find twin in T1
-	Node *T1_a = T2_a->get_twin();
-	// if this is in the first component of T_2 then
-	// it is not really a singleton.
-	// TODO: problem when we cluster and have a singleton as the
-	//		first comp of T2
-	//    NEED TO MODIFY CUTTING?
-	// 		HERE AND IN BB?
-	if (T2_a == T2->get_component(0))
-		continue;
+      Node *T2_a = singletons->back();
+      singletons->pop_back();
+      // find twin in T1
+      Node *T1_a = T2_a->get_twin();
+      // if this is in the first component of T_2 then
+      // it is not really a singleton.
+      // TODO: problem when we cluster and have a singleton as the
+      //		first comp of T2
+      //    NEED TO MODIFY CUTTING?
+      // 		HERE AND IN BB?
+      if (T2_a == T2->get_component(0))
+	continue;
 
-	Node *T1_a_parent = T1_a->parent();
-	if (T1_a_parent == NULL)
-		continue;
-	bool potential_new_sibling_pair = T1_a_parent->is_sibling_pair();
-	// cut the edge above T1_a
-	//um.add_event(new CutParent(T1_a));
-	T1_a->cut_parent();
-	//um.add_event(new AddComponent(T1));
-	T1->add_component(T1_a);
+      Node *T1_a_parent = T1_a->parent();
+      if (T1_a_parent == NULL)
+	continue;
+      bool potential_new_sibling_pair = T1_a_parent->is_sibling_pair();
+      // cut the edge above T1_a
+      //um.add_event(new CutParent(T1_a));
+      T1_a->cut_parent();
+      //um.add_event(new AddComponent(T1));
+      T1->add_component(T1_a);
 
-	//ContractEvent(&um, T1_a_parent);
-	Node *node = T1_a_parent->contract();
-	if (node != NULL && potential_new_sibling_pair &&
-			node->is_sibling_pair()){
-	  //um.add_event(new AddToFrontSiblingPairs(sibling_groups));
-		sibling_groups->push_front(node->rchild());
-		sibling_groups->push_front(node->lchild());
-	}
-}
+      //ContractEvent(&um, T1_a_parent);
+      Node *node = T1_a_parent->contract();
+      if (node != NULL && potential_new_sibling_pair &&
+	  node->is_sibling_pair()){
+	//um.add_event(new AddToFrontSiblingPairs(sibling_groups));
+	sibling_groups->push_front(node->rchild());
+	sibling_groups->push_front(node->lchild());
+      }
+    }//!singletons->empty()
  
-if(!sibling_groups->empty()) {
-	Node *T1_sibling_group = sibling_groups->back();
-	
-	//will have to conditionally pop, we might not be done with this sibling group
-	/*
+    if(!sibling_groups->empty()) {
+      Node *T1_sibling_group = sibling_groups->back();
+
+
+      sibling_groups->pop_back();
+      vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(max_preorder);
+      cout <<"desc count: ";
+      for (int i = 0; i < descendant_count.size(); i++) {
+	cout << descendant_count[i] << " ";
+      }
+      cout << endl;
+      
+      Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
+      cout <<"Arbitrary lca: "  << arbitrary_lca->str() << endl;
+      cout <<"children:" << endl;
+      list<Node*>::iterator i;
+      for (i = arbitrary_lca->get_children().begin(); i != arbitrary_lca->get_children().end(); i++) {
+	cout << "\t" << (*i)->str() << endl;
+      }
+      cout << "descendant count of lca: " << descendant_count[arbitrary_lca->get_preorder_number()] <<endl;;
+      
+      //later change to get deepest set? in case 3 are all max depth
+      vector<Node *> deepest_pair = arbitrary_lca->get_deepest_siblings(descendant_count);
+      cout << "Deepest pair: " << deepest_pair[0]->str() << " " << deepest_pair[1]->str() << endl;
+      continue;
+
+
+
+      
+      //will have to conditionally pop, we might not be done with this sibling group
+      /*
 	sibling_groups->pop_back();
 	Node *T1_c = sibling_groups->back();
 	sibling_groups->pop_back();
 	//um.add_event(new PopSiblingPair(T1_a, T1_c, sibling_groups));
 
 	if (T1_a->parent() == NULL || T1_c->parent() == NULL || T1_a->parent() != T1_c->parent()) {
-		continue;
+	continue;
 	}
 	//optimization i think
 	if (!T1_a->can_be_sibling() || !T1_c->can_be_sibling()
 	|| num_cut >= INT_MAX - 3) {
-		continue;
+	continue;
 	}
 	Node *T1_ac = T1_a->parent();
 	// lookup in T2 and determine the case
 	Node *T2_a = T1_a->get_twin();
 	Node *T2_c = T1_c->get_twin();
-	*/
-	/* Case where a subset of the group have the same parent both in T1 and T2
-	   So this if statement will need to change to a function most likely list<list<node>> identical_sibling_groups(){} then if(length of nodes > 0)
-	   Will also need to get the subset, this is the labeling part: 1,2,3 in T2 
-	   label their direct parent and then see if those labels have more than 1 identifier
-	   If it is > 1, then we can contract them into the parent in both T1 and T2
-	   Step 5 in paper
-	*/
+      */
+      /* Case where a subset of the group have the same parent both in T1 and T2
+	 So this if statement will need to change to a function most likely list<list<node>> identical_sibling_groups(){} then if(length of nodes > 0)
+	 Will also need to get the subset, this is the labeling part: 1,2,3 in T2 
+	 label their direct parent and then see if those labels have more than 1 identifier
+	 If it is > 1, then we can contract them into the parent in both T1 and T2
+	 Step 5 in paper
+      */
 
-	list<list<Node *>> *identical_sibling_groups = T1_sibling_group->find_identical_sibling_groups();
-	cout << "next round..." << endl;
-	// Case 2 - Contract identical sibling pair
-	if (identical_sibling_groups->size() > 0) {	  		
-		list<list<Node *>>::iterator i;
-		for (i = identical_sibling_groups->begin(); i != identical_sibling_groups->end(); i++) {
-  		    //Will need to get the nodes that are next to each other in T2, and
-		    //Contract those specifically
-		    //T1_p->contract_siblings(subset of siblings) create new node for this? Yes.
-		    list<Node *> T2_group = (*i);
-			Node *T2_p = T2_group.front()->parent();
-		    //um.add_event(new ContractSiblingPair(T1_ac));
-		    //T1_ac->contract_sibling_pair_undoable();
-			//um.add_event(new ContractSiblingPair(T2_ac, T2_a, T2_c, &um));
-			//Node *T2_ac_new = T2_ac->contract_sibling_pair_undoable(T2_a, T2_c);
-			cout << "Contracting T1... " << endl;
-			Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
-			cout << "Contracting T2... " << endl;
-			Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
+      list<list<Node *>> *identical_sibling_groups = T1_sibling_group->find_identical_sibling_groups();
+      //cout << "next round..." << endl;
+      // Case 2 - Contract identical sibling pair
+      if (identical_sibling_groups->size() > 0) {	  		
+	list<list<Node *>>::iterator i;
+	for (i = identical_sibling_groups->begin(); i != identical_sibling_groups->end(); i++) {
+	  //Will need to get the nodes that are next to each other in T2, and
+	  //Contract those specifically
+	  //T1_p->contract_siblings(subset of siblings) create new node for this? Yes.
+	  list<Node *> T2_group = (*i);
+	  Node *T2_p = T2_group.front()->parent();
+	  //cout << "Contracting T1... " << endl;
+	  Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
+	  //cout << "Contracting T2... " << endl;
+	  Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
 
-			/*
-			// Case of contracting all of them
-			if (T2_group_new == T2_p) {
-			  
-			}			
-			// case of contracting some of them
-			else {
-			  
-			}
-			if (T2_ac_new != NULL && T2_ac_new != T2_ac) {
-			  T2_ac = T2_ac_new;
-			  //um.add_event(new CreateNode(T2_ac));
-			  //um.add_event(new ContractSiblingPair(T2_ac));
-			  T2_ac->contract_sibling_pair_undoable();
-			}
-			*/
-			//um.add_event(new SetTwin(T1_ac));
-			//um.add_event(new SetTwin(T2_ac));
-			//T1_ac->set_twin(T2_ac);
-			//T2_ac->set_twin(T1_ac);
 
-			T1_group_new->set_twin(T2_group_new);
-			T2_group_new->set_twin(T1_group_new);
+	  T1_group_new->set_twin(T2_group_new);
+	  T2_group_new->set_twin(T1_group_new);
 			
 			
-			// check if T2_ac is a singleton
-			if (T2_p->is_singleton() && T1_sibling_group != T1->get_component(0) && T2_p != T2->get_component(0))
-			  singletons->push_back(T2_p);
-			/*
-			  This changes a bit, we'd only need to check this if 
-			  all the nodes got contracted into the parent, 
-			  Then check if it is part of a sibling group. Then we'd add it to
-			  the data structure to be processed
-			*/
+	  // check if T2_ac is a singleton
+	  if (T2_p->is_singleton() && T1_sibling_group != T1->get_component(0) && T2_p != T2->get_component(0))
+	    singletons->push_back(T2_p);
+
 			
-			if (T1_sibling_group->parent() != NULL) {
+	  if (T1_sibling_group->parent() != NULL) {
 			  
-			  T1_sibling_group->parent()->recalculate_non_leaf_children();
-			  // check if T1_ac is part of a sibling pair
-			  if (T1_sibling_group->parent() != NULL && T1_sibling_group->parent()->is_sibling_group()) {
-				//um.add_event(new AddToSiblingPairs(sibling_groups));
-				//sibling_groups->push_back(T1_ac->parent()->lchild());
-				//sibling_groups->push_back(T1_ac->parent()->rchild());
-				cout << "Added new group" << endl;
-				sibling_groups->push_back(T1_sibling_group->parent());
-			  }
-			}
-			if (!T1_sibling_group->is_sibling_group()) {
-			  sibling_groups->remove(T1_sibling_group);
-			}
-		}
+	    T1_sibling_group->parent()->recalculate_non_leaf_children();
+	    // check if T1_ac is part of a sibling pair
+	    if (T1_sibling_group->parent()->is_sibling_group()) {
+	      //cout << "Added new group" << endl;
+	      sibling_groups->push_back(T1_sibling_group->parent());
+	    }
+	  }
+	  if (!T1_sibling_group->is_sibling_group()) {
+	    sibling_groups->remove(T1_sibling_group);
+	  }
 	}
-	delete identical_sibling_groups;
-	#if 0
+      }//identical_sibling_groups->size() > 0
+      delete identical_sibling_groups;
+#if 0
 
-	/*
-	  4 branching case
-	  Step 6-8 in paper
-	  Cut above a1, b1, a2, b2
-	  Part 1: Get the LCA, this is the numbering to the top part
-	  Part 2: Get subset of sibling group that is descendant of this LCA
-	  Part 3: Sort them based on depth
-	  Part 4: Since this is the approximation, we cut all at once
+      /*
+	4 branching case
+	Step 6-8 in paper
+	Cut above a1, b1, a2, b2
+	Part 1: Get the LCA, this is the numbering to the top part
+	Part 2: Get subset of sibling group that is descendant of this LCA
+	Part 3: Sort them based on depth
+	Part 4: Since this is the approximation, we cut all at once
 
-	          for the exact one, 
-		  how do we decide which of the a1, a2, a3... ar pairs to consider?
-		  what order?
-		  how many?
-		  eg: group of 3 in T1, cut 1 and 2 then 3? or 2 and 3 then 1? or 1 and 3 then 2?
-		  (You operate on the deepest 2 of T2?)
-	 */
+	for the exact one, 
+	how do we decide which of the a1, a2, a3... ar pairs to consider?
+	what order?
+	how many?
+	eg: group of 3 in T1, cut 1 and 2 then 3? or 2 and 3 then 1? or 1 and 3 then 2?
+	(You operate on the deepest 2 of T2?)
+      */
 
-	// Case 3
-	//TODO (ben): make this work for multifurcating
-	else {
-		        // This changes to Part 1-3	
-		//  ensure T2_a is below T2_c
-		if ((T2_a->get_depth() < T2_c->get_depth()
-				&& T2_c->parent() != NULL)
-				|| T2_a->parent() == NULL) {
+      // Case 3
+      //INCOMPLETE (ben): make this work for multifurcating
+      else {
+
+	vector<int> descendant_count = find_pseudo_lca_descendant_count(T1_sibling_group, max_preorder);
+	Node* arbitrary_lca = find_arbitrary_lca(T2->components, descendant_count);
+	//later change to get deepest set? in case 3 are all max depth
+	vector<Node *> deepest_pair = arbitrary_lca->get_deepest_siblings(descendant_count);
+
+
+	
+	// This changes to Part 1-3	
+	//  ensure T2_a is below T2_c
+	if ((T2_a->get_depth() < T2_c->get_depth()
+	     && T2_c->parent() != NULL)
+	    || T2_a->parent() == NULL) {
 		
-			swap(&T1_a, &T1_c);
-			swap(&T2_a, &T2_c);
+	  swap(&T1_a, &T1_c);
+	  swap(&T2_a, &T2_c);
 
-		}
-		else if (T2_a->get_depth() == T2_c->get_depth()) {
-			if (T2_a->parent() && T2_c->parent() &&
-					(T2_a->parent()->get_depth() <
-					T2_c->parent()->get_depth())) {
-			swap(&T1_a, &T1_c);
-			swap(&T2_a, &T2_c);
-			}
-		}
+	}
+	else if (T2_a->get_depth() == T2_c->get_depth()) {
+	  if (T2_a->parent() && T2_c->parent() &&
+	      (T2_a->parent()->get_depth() <
+	       T2_c->parent()->get_depth())) {
+	    swap(&T1_a, &T1_c);
+	    swap(&T2_a, &T2_c);
+	  }
+	}
 
-		// get T2_b
-		bool multi_node = false;
-		Node *T2_ab = T2_a->parent();
-		Node *T2_b = T2_ab;
-		if (T2_ab->get_children().size() > 2) {
-			multi_node = true;
-		}
-		else {
-			T2_b = T2_ab->rchild();
-			if (T2_b == T2_a)
-				T2_b = T2_ab->lchild();
-		}
+	// get T2_b
+	bool multi_node = false;
+	Node *T2_ab = T2_a->parent();
+	Node *T2_b = T2_ab;
+	if (T2_ab->get_children().size() > 2) {
+	  multi_node = true;
+	}
+	else {
+	  T2_b = T2_ab->rchild();
+	  if (T2_b == T2_a)
+	    T2_b = T2_ab->lchild();
+	}
 
-		// cut T1_a, T1_c, T2_a, T2_b, T2_c
-		// This will need to take two nodes to contract
-		// T1_p->contract(T1_a, T1_c);
-		// This creates a new node off of the parent
-		// Need to check if the parent had any other children before contracting
+	// cut T1_a, T1_c, T2_a, T2_b, T2_c
+	// This will need to take two nodes to contract
+	// T1_p->contract(T1_a, T1_c);
+	// This creates a new node off of the parent
+	// Need to check if the parent had any other children before contracting
 
 
-		bool cut_a_only = false;
-		bool cut_b_only = false;
-		bool cut_c_only = false;
-		bool cut_b_only_if_not_a_or_c = false;
-		//optimization
-		if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent() && !multi_node
-						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
-			cut_b_only = true;
-			//um.add_event(new AddToSiblingPairs(sibling_groups));
-			sibling_groups->push_back(T1_c);
-			sibling_groups->push_back(T1_a);
-		}
-		//optimization
+	bool cut_a_only = false;
+	bool cut_b_only = false;
+	bool cut_c_only = false;
+	bool cut_b_only_if_not_a_or_c = false;
+	//optimization
+	if (APPROX_CUT_ONE_B && T2_a->parent() != NULL && T2_a->parent()->parent() != NULL && T2_a->parent()->parent() == T2_c->parent() && !multi_node
+	    && (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
+	  cut_b_only = true;
+	  //um.add_event(new AddToSiblingPairs(sibling_groups));
+	  sibling_groups->push_back(T1_c);
+	  sibling_groups->push_back(T1_a);
+	}
+	//optimization
 	if (APPROX_CUT_TWO_B && !cut_b_only && T1_ac->parent() != NULL
-						&& (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
-		Node *T1_s = T1_ac->get_sibling();
-		if (T1_s->is_leaf()) {
-			Node *T2_l = T2_a->parent()->parent();
-			if (T2_l != NULL) {
-				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
-						&& T2_a->parent()->get_children().size() > 2
-						&& T2_c->parent()->get_children().size() > 2) {
-					if (T2_l->get_sibling() == T1_s->get_twin()) {
-						cut_b_only=true;
-					}
-					else if (T2_l->parent() == NULL &&
-							(T2->contains_rho() ||
-							 T2->get_component(0) != T2_l)) {
-						cut_b_only_if_not_a_or_c=true;
-					}
-				}
-				else if ((T2_l = T2_l->parent()) != NULL
-						&& T2_c->parent() == T2_l
-						&& T2_a->parent()->get_children().size() > 2
-						&& T2_a->parent()->parent()->get_children().size() > 2) {
-					if (T2_l->get_sibling() == T1_s->get_twin()) {
-						cut_b_only=true;
-					}
-					else if (T2_l->parent() == NULL &&
-							(T2->contains_rho() ||
-							 T2->get_component(0) != T2_l)) {
-						cut_b_only_if_not_a_or_c=true;
-					}
-				}
-			}
+	    && (!APPROX_EDGE_PROTECTION || !T2_b->is_protected())) {
+	  Node *T1_s = T1_ac->get_sibling();
+	  if (T1_s->is_leaf()) {
+	    Node *T2_l = T2_a->parent()->parent();
+	    if (T2_l != NULL) {
+	      if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
+		  && T2_a->parent()->get_children().size() > 2
+		  && T2_c->parent()->get_children().size() > 2) {
+		if (T2_l->get_sibling() == T1_s->get_twin()) {
+		  cut_b_only=true;
 		}
+		else if (T2_l->parent() == NULL &&
+			 (T2->contains_rho() ||
+			  T2->get_component(0) != T2_l)) {
+		  cut_b_only_if_not_a_or_c=true;
+		}
+	      }
+	      else if ((T2_l = T2_l->parent()) != NULL
+		       && T2_c->parent() == T2_l
+		       && T2_a->parent()->get_children().size() > 2
+		       && T2_a->parent()->parent()->get_children().size() > 2) {
+		if (T2_l->get_sibling() == T1_s->get_twin()) {
+		  cut_b_only=true;
+		}
+		else if (T2_l->parent() == NULL &&
+			 (T2->contains_rho() ||
+			  T2->get_component(0) != T2_l)) {
+		  cut_b_only_if_not_a_or_c=true;
+		}
+	      }
+	    }
+	  }
 	}
 	//optimization
 	if (APPROX_REVERSE_CUT_ONE_B && !cut_b_only && T1_ac->parent() != NULL) {
-		Node *T1_s = T1_ac->get_sibling();
-		if (T1_s->is_leaf()) {
-			if (T1_s->get_twin()->parent() == T2_a->parent()//) {
-						&& (!APPROX_EDGE_PROTECTION || !T2_c->is_protected())) {
-				cut_c_only=true;
-			}
-			else if (T1_s->get_twin()->parent() == T2_c->parent()//) {
-						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())
-							&& T2_c->parent()->get_children().size() <= 2) {
-				cut_a_only=true;
-			}
-		}
-		else if (APPROX_REVERSE_CUT_ONE_B_2) {
-			if (T2_c->parent() != NULL
-				&& chain_match(T1_s, T2_c->get_sibling(), T2_a) //)
-						&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected()))
-			cut_a_only = true;
-		}
+	  Node *T1_s = T1_ac->get_sibling();
+	  if (T1_s->is_leaf()) {
+	    if (T1_s->get_twin()->parent() == T2_a->parent()//) {
+		&& (!APPROX_EDGE_PROTECTION || !T2_c->is_protected())) {
+	      cut_c_only=true;
+	    }
+	    else if (T1_s->get_twin()->parent() == T2_c->parent()//) {
+		     && (!APPROX_EDGE_PROTECTION || !T2_a->is_protected())
+		     && T2_c->parent()->get_children().size() <= 2) {
+	      cut_a_only=true;
+	    }
+	  }
+	  else if (APPROX_REVERSE_CUT_ONE_B_2) {
+	    if (T2_c->parent() != NULL
+		&& chain_match(T1_s, T2_c->get_sibling(), T2_a) //)
+		&& (!APPROX_EDGE_PROTECTION || !T2_a->is_protected()))
+	      cut_a_only = true;
+	  }
 	}
 	//optimization
 	if (APPROX_CUT_TWO_B_ROOT && cut_a_only == false && cut_c_only == false
-			&& cut_b_only_if_not_a_or_c == true) {
-		cut_b_only = true;
+	    && cut_b_only_if_not_a_or_c == true) {
+	  cut_b_only = true;
 	}
 
 
 
-		Node *node;
+	Node *node;
 
-		bool cut_a = false;
-		bool cut_c = false;
+	bool cut_a = false;
+	bool cut_c = false;
 		
-		if (!cut_b_only || T2_a->parent()->get_children().size() > 2) {
-			if (!cut_c_only &&
-					(!APPROX_EDGE_PROTECTION
-					 	|| (!T2_a->is_protected()
-							&& (T2_a->parent()->parent() != NULL
-								|| !T2_b->is_protected()
-								|| T2_a->parent()->get_children().size() > 2)))) {
-//					|| cut_a_only)) {
-			  //Cut a here
-			  //um.add_event(new CutParent(T1_a));
-				T1_a->cut_parent();
-				cut_a = true;
+	if (!cut_b_only || T2_a->parent()->get_children().size() > 2) {
+	  if (!cut_c_only &&
+	      (!APPROX_EDGE_PROTECTION
+	       || (!T2_a->is_protected()
+		   && (T2_a->parent()->parent() != NULL
+		       || !T2_b->is_protected()
+		       || T2_a->parent()->get_children().size() > 2)))) {
+	    //					|| cut_a_only)) {
+	    //Cut a here
+	    //um.add_event(new CutParent(T1_a));
+	    T1_a->cut_parent();
+	    cut_a = true;
 
-				//ContractEvent(&um, T1_ac);
-				node = T1_ac->contract();
-			}
-			else
-				node = T1_ac;
-			if (!cut_a_only &&
-					(!APPROX_EDGE_PROTECTION
-					 	|| (!T2_c->is_protected()
-						&& (T2_c->parent() == NULL
-								|| T2_c->parent()->parent() != NULL
-								|| !T2_c->get_sibling()->is_protected()
-								|| T2_c->parent()->get_children().size() > 2)))) {// &&
-//					|| cut_c_only)) {
-			  //Cut c here
-			  //um.add_event(new CutParent(T1_c));
-				T1_c->cut_parent();
-				cut_c = true;
+	    //ContractEvent(&um, T1_ac);
+	    node = T1_ac->contract();
+	  }
+	  else
+	    node = T1_ac;
+	  if (!cut_a_only &&
+	      (!APPROX_EDGE_PROTECTION
+	       || (!T2_c->is_protected()
+		   && (T2_c->parent() == NULL
+		       || T2_c->parent()->parent() != NULL
+		       || !T2_c->get_sibling()->is_protected()
+		       || T2_c->parent()->get_children().size() > 2)))) {// &&
+	    //					|| cut_c_only)) {
+	    //Cut c here
+	    //um.add_event(new CutParent(T1_c));
+	    T1_c->cut_parent();
+	    cut_c = true;
 
-				if (node) {
-				  //ContractEvent(&um, node);
-					node = node->contract();
-				}
-			}
+	    if (node) {
+	      //ContractEvent(&um, node);
+	      node = node->contract();
+	    }
+	  }
 
-			// contract parents
-			// check for T1_ac sibling pair
-			if (node && node->is_sibling_pair()){
-			  //um.add_event(new AddToSiblingPairs(sibling_groups));
-				sibling_groups->push_back(node->lchild());
-				sibling_groups->push_back(node->rchild());
-			}
-		}
+	  // contract parents
+	  // check for T1_ac sibling pair
+	  if (node && node->is_sibling_pair()){
+	    //um.add_event(new AddToSiblingPairs(sibling_groups));
+	    sibling_groups->push_back(node->lchild());
+	    sibling_groups->push_back(node->rchild());
+	  }
+	}
 
-		bool same_component = true;
-		if (APPROX_CHECK_COMPONENT && !cut_a_only && !cut_c_only)
-			same_component = (T2_a->find_root() == T2_c->find_root());
+	bool same_component = true;
+	if (APPROX_CHECK_COMPONENT && !cut_a_only && !cut_c_only)
+	  same_component = (T2_a->find_root() == T2_c->find_root());
 
-		Node *T2_ab_parent = T2_ab->parent();
-		node = T2_ab;
-		if (cut_a) {
-		  //um.add_event(new CutParent(T2_a));
-			T2_a->cut_parent();
+	Node *T2_ab_parent = T2_ab->parent();
+	node = T2_ab;
+	if (cut_a) {
+	  //um.add_event(new CutParent(T2_a));
+	  T2_a->cut_parent();
 
-			//ContractEvent(&um, T2_ab);
-			//node = T2_ab->contract();
-		}
-		bool cut_b = false;
-		if (same_component && T2_ab_parent != NULL
-				&& !cut_a_only && !cut_c_only
-				&& (!APPROX_EDGE_PROTECTION
-					|| (!T2_b->is_protected() ))) {
-//							&& (T2_b->parentT2_a->parent()->parent() != NULL
-//								|| !T2_a->is_protected())))) {
-//					|| cut_b_only)) {
-			if (multi_node) {
-				T2_b = T2_ab;
-				//um.add_event(new CutParent(T2_ab));
-				T2_ab->cut_parent();
-				if (T2_a->parent() != NULL) {
-				  //um.add_event(new CutParent(T2_a));
-					T2_a->cut_parent();
-					//um.add_event(new AddChild(T2_a));
-					T2_ab_parent->add_child(T2_a);
-				}
-				else
-					node = T2_ab_parent;
-			}
-			else {
-			  //um.add_event(new CutParent(T2_b));
-				T2_b->cut_parent();
-				//ContractEvent(&um, node);
-				//node = node->contract();
-			}
-			cut_b = true;
-		}
-		// T2_b will move up after contraction
-		else if (!multi_node) {
-			T2_b = T2_b->parent();
-		}
-		if (node != NULL) {
-		  //ContractEvent(&um, node);
-			node = node->contract();
-		// check for T2 parents as singletons
-		if (node != NULL && node->is_singleton()
-				&& node != T2->get_component(0))
-			singletons->push_back(node);
-		}
+	  //ContractEvent(&um, T2_ab);
+	  //node = T2_ab->contract();
+	}
+	bool cut_b = false;
+	if (same_component && T2_ab_parent != NULL
+	    && !cut_a_only && !cut_c_only
+	    && (!APPROX_EDGE_PROTECTION
+		|| (!T2_b->is_protected() ))) {
+	  //							&& (T2_b->parentT2_a->parent()->parent() != NULL
+	  //								|| !T2_a->is_protected())))) {
+	  //					|| cut_b_only)) {
+	  if (multi_node) {
+	    T2_b = T2_ab;
+	    //um.add_event(new CutParent(T2_ab));
+	    T2_ab->cut_parent();
+	    if (T2_a->parent() != NULL) {
+	      //um.add_event(new CutParent(T2_a));
+	      T2_a->cut_parent();
+	      //um.add_event(new AddChild(T2_a));
+	      T2_ab_parent->add_child(T2_a);
+	    }
+	    else
+	      node = T2_ab_parent;
+	  }
+	  else {
+	    //um.add_event(new CutParent(T2_b));
+	    T2_b->cut_parent();
+	    //ContractEvent(&um, node);
+	    //node = node->contract();
+	  }
+	  cut_b = true;
+	}
+	// T2_b will move up after contraction
+	else if (!multi_node) {
+	  T2_b = T2_b->parent();
+	}
+	if (node != NULL) {
+	  //ContractEvent(&um, node);
+	  node = node->contract();
+	  // check for T2 parents as singletons
+	  if (node != NULL && node->is_singleton()
+	      && node != T2->get_component(0))
+	    singletons->push_back(node);
+	}
 
-		// if T2_c is gone then its replacement is in singleton list
-		// contract might delete old T2_c, see where it is
-		bool add_T2_c = true;
-		T2_c = T1_c->get_twin();
-		// ignore T2_c if it is a singleton
-		if (cut_c && T2_c != node && T2_c->parent() != NULL) {
-			Node *T2_c_parent = T2_c->parent();
-			//um.add_event(new CutParent(T2_c));
-			T2_c->cut_parent();
-			//ContractEvent(&um, T2_c_parent);
-			node = T2_c_parent->contract();
-			if (node != NULL && node->is_singleton()
-					&& node != T2->get_component(0))
-				singletons->push_back(node);
-		}
-		else {
-			add_T2_c = false;
-		}
+	// if T2_c is gone then its replacement is in singleton list
+	// contract might delete old T2_c, see where it is
+	bool add_T2_c = true;
+	T2_c = T1_c->get_twin();
+	// ignore T2_c if it is a singleton
+	if (cut_c && T2_c != node && T2_c->parent() != NULL) {
+	  Node *T2_c_parent = T2_c->parent();
+	  //um.add_event(new CutParent(T2_c));
+	  T2_c->cut_parent();
+	  //ContractEvent(&um, T2_c_parent);
+	  node = T2_c_parent->contract();
+	  if (node != NULL && node->is_singleton()
+	      && node != T2->get_component(0))
+	    singletons->push_back(node);
+	}
+	else {
+	  add_T2_c = false;
+	}
 
 		
-		if (cut_a) {
-		  //um.add_event(new AddComponent(T1));
-			T1->add_component(T1_a);
-			//um.add_event(new AddComponent(T2));
-			T2->add_component(T2_a);
-		}
-		if (cut_c) {
-		  //um.add_event(new AddComponent(T1));
-			T1->add_component(T1_c);
-		}
-		if (cut_b) {
-		  //um.add_event(new AddComponent(T2));
-			T2->add_component(T2_b);
-		}
-		// problem if c is deleted
-		if (add_T2_c) {
-		  //um.add_event(new AddComponent(T2));
-			T2->add_component(T2_c);
-		}
-
-		// may have already been added
-		if (T2_b->is_leaf() && cut_b)
-			singletons->push_back(T2_b);
-
-		num_cut+=3;
-
-		if (cut_a == false && cut_b == false && cut_c == false) {
-			num_cut = INT_MAX-3;
-		}
-
+	if (cut_a) {
+	  //um.add_event(new AddComponent(T1));
+	  T1->add_component(T1_a);
+	  //um.add_event(new AddComponent(T2));
+	  T2->add_component(T2_a);
 	}
-	#endif
-}
+	if (cut_c) {
+	  //um.add_event(new AddComponent(T1));
+	  T1->add_component(T1_c);
+	}
+	if (cut_b) {
+	  //um.add_event(new AddComponent(T2));
+	  T2->add_component(T2_b);
+	}
+	// problem if c is deleted
+	if (add_T2_c) {
+	  //um.add_event(new AddComponent(T2));
+	  T2->add_component(T2_c);
+	}
 
+	// may have already been added
+	if (T2_b->is_leaf() && cut_b)
+	  singletons->push_back(T2_b);
+
+	num_cut+=3;
+
+	if (cut_a == false && cut_b == false && cut_c == false) {
+	  num_cut = INT_MAX-3;
 	}
-// if the first component of the forests differ then we have cut p
-if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
-	if (!T1->contains_rho()) {
-	  //um.add_event(new AddRho(T1));
-	  //um.add_event(new AddRho(T2));
-		T1->add_rho();
-		T2->add_rho();
-	}
-	else
-		// hack to ignore rho when it shouldn't be in a cluster
-		num_cut -=3;
-}
-if (save_forests) {
-	*F1 = new Forest(T1);
-	*F2 = new Forest(T2);
-}
- #if 0 
+
+      }//else
+#endif
+    }//!sibling_groups->empty()
+
+  } //sibling_groups->empty()
+  // if the first component of the forests differ then we have cut p
+  if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
+    if (!T1->contains_rho()) {
+      //um.add_event(new AddRho(T1));
+      //um.add_event(new AddRho(T2));
+      T1->add_rho();
+      T2->add_rho();
+    }
+    else
+      // hack to ignore rho when it shouldn't be in a cluster
+      num_cut -=3;
+  }
+  if (save_forests) {
+    *F1 = new Forest(T1);
+    *F2 = new Forest(T2);
+  }
+#if 0 
 #ifdef DEBUG_APPROX
 #ifdef DEBUG_UNDO
 
- while(um.num_events() > 0) {
-		cout << "Undo step " << um.num_events() << endl;
-		cout << "T1: ";
-		T1->print_components();
-		cout << "T2: ";
-		T2->print_components();
-			cout << "sibling pairs:";
-			for (list<Node *>::iterator i = sibling_groups->begin(); i != sibling_groups->end(); i++) {
-				cout << "  ";
-				(*i)->print_subtree_hlpr();
-			}
-			cout << endl;
-	 um.undo();
-	cout << endl;
- }
+  while(um.num_events() > 0) {
+    cout << "Undo step " << um.num_events() << endl;
+    cout << "T1: ";
+    T1->print_components();
+    cout << "T2: ";
+    T2->print_components();
+    cout << "sibling pairs:";
+    for (list<Node *>::iterator i = sibling_groups->begin(); i != sibling_groups->end(); i++) {
+      cout << "  ";
+      (*i)->print_subtree_hlpr();
+    }
+    cout << endl;
+    um.undo();
+    cout << endl;
+  }
 #else
- um.undo_all();
+  um.undo_all();
 #endif//debug undo
 #else
- um.undo_all();
+  um.undo_all();
 #endif// debug approx
 #endif// if 0
  
-//		 for(int i = 0; i < T1->num_components(); i++)
-//		 	T1->get_component(i)->fix_parents();
-//		 for(int i = 0; i < T2->num_components(); i++)
-//		 	T2->get_component(i)->fix_parents();
-return num_cut;
+  //		 for(int i = 0; i < T1->num_components(); i++)
+  //		 	T1->get_component(i)->fix_parents();
+  //		 for(int i = 0; i < T2->num_components(); i++)
+  //		 	T2->get_component(i)->fix_parents();
+  return num_cut;
 }
 
 
