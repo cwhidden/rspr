@@ -351,31 +351,38 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
     if(!sibling_groups->empty()) {
       Node *T1_sibling_group = sibling_groups->back();
 
-
+      
       sibling_groups->pop_back();
       vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(max_preorder);
+      
+      
       cout <<"desc count: ";
       for (int i = 0; i < descendant_count.size(); i++) {
 	cout << descendant_count[i] << " ";
       }
       cout << endl;
       
+      
       Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
+      if (arbitrary_lca == NULL) { continue; } //There is no path from either of the two, what to do?
+      
       cout <<"Arbitrary lca: "  << arbitrary_lca->str() << endl;
       cout <<"children:" << endl;
       list<Node*>::iterator i;
       for (i = arbitrary_lca->get_children().begin(); i != arbitrary_lca->get_children().end(); i++) {
 	cout << "\t" << (*i)->str() << endl;
       }
-      cout << "descendant count of lca: " << descendant_count[arbitrary_lca->get_preorder_number()] <<endl;;
+      cout << "descendant count of lca: " << descendant_count[arbitrary_lca->get_preorder_number()] <<endl;
+
       
       //later change to get deepest set? in case 3 are all max depth
       vector<Node *> deepest_pair = arbitrary_lca->get_deepest_siblings(descendant_count);
-      cout << "Deepest pair: " << deepest_pair[0]->str() << " " << deepest_pair[1]->str() << endl;
+      cout << "set sorted:" << endl;
+      for (int j = 0; j < deepest_pair.size(); j ++) {	
+	cout << "\t" << deepest_pair[j]->str() << endl;
+      }
       continue;
-
-
-
+      
       
       //will have to conditionally pop, we might not be done with this sibling group
       /*
@@ -468,14 +475,34 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
       // Case 3
       //INCOMPLETE (ben): make this work for multifurcating
       else {
-
-	vector<int> descendant_count = find_pseudo_lca_descendant_count(T1_sibling_group, max_preorder);
-	Node* arbitrary_lca = find_arbitrary_lca(T2->components, descendant_count);
-	//later change to get deepest set? in case 3 are all max depth
-	vector<Node *> deepest_pair = arbitrary_lca->get_deepest_siblings(descendant_count);
-
-
-	
+	//When to pop?
+      sibling_groups->pop_back();
+      vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(max_preorder);
+      
+      /*
+      cout <<"desc count: ";
+      for (int i = 0; i < descendant_count.size(); i++) {
+	cout << descendant_count[i] << " ";
+      }
+      cout << endl;
+      */
+      
+      Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
+      if (arbitrary_lca == NULL) { continue; } //There is no path from either of the two, what to do?
+      /*
+      cout <<"Arbitrary lca: "  << arbitrary_lca->str() << endl;
+      cout <<"children:" << endl;
+      list<Node*>::iterator i;
+      for (i = arbitrary_lca->get_children().begin(); i != arbitrary_lca->get_children().end(); i++) {
+	cout << "\t" << (*i)->str() << endl;
+      }
+      cout << "descendant count of lca: " << descendant_count[arbitrary_lca->get_preorder_number()] <<endl;
+      */
+      //later change to get deepest set? in case 3 are all max depth
+      vector<Node *> deepest_pair = arbitrary_lca->get_deepest_siblings(descendant_count);
+      //cout << "Deepest pair: " << deepest_pair[0]->str() << " " << deepest_pair[1]->str() << endl;
+      continue;
+      /*
 	// This changes to Part 1-3	
 	//  ensure T2_a is below T2_c
 	if ((T2_a->get_depth() < T2_c->get_depth()
@@ -494,7 +521,7 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	    swap(&T2_a, &T2_c);
 	  }
 	}
-
+      */
 	// get T2_b
 	bool multi_node = false;
 	Node *T2_ab = T2_a->parent();
@@ -507,13 +534,6 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	  if (T2_b == T2_a)
 	    T2_b = T2_ab->lchild();
 	}
-
-	// cut T1_a, T1_c, T2_a, T2_b, T2_c
-	// This will need to take two nodes to contract
-	// T1_p->contract(T1_a, T1_c);
-	// This creates a new node off of the parent
-	// Need to check if the parent had any other children before contracting
-
 
 	bool cut_a_only = false;
 	bool cut_b_only = false;

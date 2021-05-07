@@ -1488,50 +1488,51 @@ class Node {
 	    }
 	  }	  
 	}
+
+        /*
+	  Returns the deepest two siblings of this LCA
+	  Takes a vector of ints with the number of siblings that descend 
+	  from that node indexed by their pre-order number
+	  Assumes siblings are marked with -1
+	  TODO (Ben): proper counting sort
+	 */
         vector<Node*> get_deepest_siblings(vector<int> &descendants) {
 	  if (descendants[get_preorder_number()] < 2) { return vector<Node*>(); }
-		//parallel vectors for storing the siblings and their depths
-		vector<int> depths = vector<int>(descendants[get_preorder_number()],0);
-		vector<Node*> nodes = vector<Node*>(descendants[get_preorder_number()],0);
-		int node_counter = 0;
-		list<Node *>::iterator i;
+	  //parallel vectors for storing the siblings and their depths
+	  //Starts with max depth of 10, could pass in as parameter if we know what it will be
+	  vector<vector<Node*>> siblings_by_depth = vector<vector<Node*>>(2); 
+	  list<Node *>::iterator i;
+	  //Go down each path of 1s and take note of their path length to this node
+	  //There should be the same amount of 1 paths as nodes.size()
+	  for (i = children.begin(); i != children.end(); i++) {
+	    Node** placed_node;
+	    if (descendants[(*i)->get_preorder_number()] == 1) {		    
+	      int depth = (*i)->get_deepest_siblings_hlpr(descendants, placed_node);
+	      if (siblings_by_depth.size() - 1 < depth)
+		{
+		  cout<<"resizing..."<<endl;
+		  siblings_by_depth.resize(siblings_by_depth.size() * 2);
+		}
+	      siblings_by_depth[depth].push_back(*placed_node);		    
+	    }	
+	    //if it is -1 then this is the node itself
+	    else if (descendants[(*i)->get_preorder_number()] == -1) {
+	      siblings_by_depth[1].push_back(*i);
+	    }
+	  }
 		
-		//Go down each path of 1s and take note of their path length to this node
-		//There should be the same amount of 1 paths as nodes.size()
-		for (i = children.begin(); i != children.end(); i++) {
-		  Node** placed_node = &nodes[node_counter];
-		  if (descendants[(*i)->get_preorder_number()] == 1) {
-		    depths[node_counter] = (*i)->get_deepest_siblings_hlpr(descendants, placed_node);
-		    node_counter++;
-		  }	
-		  //if it is -1 then this is the node itself
-		  else if (descendants[(*i)->get_preorder_number()] == -1) {
-		    depths[node_counter] = 1;
-		    nodes[node_counter] = (*i);
-		    node_counter++;
-		  }
-		}
-		if (node_counter != descendants[get_preorder_number()]) {
-		  cout << "Node counter incorrect: " << node_counter;
-		}
-		
-		//TODO: return all that are minimum if there are more than 2 of the same depth
-		int first_max = -1;
-		int second_max = -1;
-		vector<Node *> deepest_nodes = vector<Node *>(2);
-		for (int j = 0; j < depths.size(); j++) {
-		  if (depths[j] > first_max) {
-		    first_max = depths[j];
-		    deepest_nodes[0] = nodes[j];
-		  }
-		  else if (depths[j] <= first_max && depths[j] > second_max) {
-		    second_max = depths[j];
-		    deepest_nodes[1] = nodes[j];
-		  }
-		}
-		//return those
-		return deepest_nodes;		
+	  vector<Node*> deepest_siblings = vector<Node*>();
+	  //Return them all sorted by depth
+	  for (int j = siblings_by_depth.size() - 1; j >= 0; j--) {
+	    if (siblings_by_depth[j].size() != 0) {
+	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
+		deepest_siblings.push_back(siblings_by_depth[j][k]);
+	      }
+	    }
+	  }
+	  return deepest_siblings; 
 	}
+
   
         Node *find_arbitrary_lca_hlpr(vector<int> &descendants) {
 	        if (descendants[get_preorder_number()] < 2) { return NULL; }
@@ -1545,9 +1546,11 @@ class Node {
 	}
         /*
 	  Takes a vector of components in T2, 
-	  and a count of how many sibling descendants the node has in the index of its preorder number
+	  and a count of how many sibling descendants the node 
+	  has in the index of its preorder number
 	  Returns lca of the nodes
-
+	  Returns NULL if there is no path between any of the two siblings
+	  
 	  NOTE: this can be a function
         */
         Node *find_arbitrary_lca(vector<Node *> components, vector<int> &descendants) {	        
@@ -1557,6 +1560,7 @@ class Node {
 		    return root->find_arbitrary_lca_hlpr(descendants);
 		  }
 		}
+		return NULL;
 	}
   /*This is potentially slower than just doing a traversal of the whole tree, 
     since we could be visiting the same path many times. 
