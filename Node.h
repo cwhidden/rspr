@@ -927,7 +927,7 @@ class Node {
 		contracted_rc = NULL;
 	}
 
-        void append_node_to_name(Node *node) {	   
+        void append_node_to_name(Node *node) {
 	        name.insert(name.length(), node->str());	    
 	}
 
@@ -965,20 +965,19 @@ class Node {
 	      if (!(*i)->is_leaf()) {
 		total_non_leaves++;
 	      }
-	      append_node_to_name((*i));
+	      //append_node_to_name((*i));
 	    }
 	    non_leaf_children = total_non_leaves;
 	    //cout << " All of them. Tree after:" << str() << endl;
 	    return this;
 	  }
 	  //Otherwise we create a new node and contract them into that
-	  //TODO: Set preorder to lowest of children
 	  else {
 	    Node *new_child = new Node();
 	    add_child(new_child);
 	    int min_pre_num = 0x7FFFFFFF; //max value constant?
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
-	      new_child->append_node_to_name((*i));
+	      //new_child->append_node_to_name((*i));
 	      new_child->add_contracted_child((*i));
 	      children.remove((*i));
 	      if ((*i)->get_preorder_number() < min_pre_num)
