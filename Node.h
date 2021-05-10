@@ -100,8 +100,8 @@ class Node {
 	int lost_children;
 	double support;
 	double support_normalization;
-    // TODO (Ben): put initialization in correct constructor
-    int non_leaf_children = 0;
+        // TODO (Ben): put initialization in correct constructor
+        int non_leaf_children = 0;
 
 	public:
 	Node() {
@@ -456,6 +456,17 @@ class Node {
 		edge_pre_end= p;
 		return edge_pre_end;
 	}
+        void set_non_leaf_children(int p) {
+	        non_leaf_children = p;
+	}
+
+        void decrement_non_leaf_children() {
+	        non_leaf_children--;
+	}
+        void increment_non_leaf_children() {
+	        non_leaf_children++;
+	}
+
 
 	void copy_edge_pre_interval(Node *n) {
 		if (n->edge_pre_start > -1) {
@@ -465,7 +476,7 @@ class Node {
 			edge_pre_end = n->edge_pre_end;
 		}
 	}
-
+  
 	int set_component_number(int c) {
 		component_number = c;
 	}
@@ -1355,7 +1366,7 @@ class Node {
 
 	}
       // finds the parents of the sibling groups in this node's subtree
-    void *append_sibling_groups(list<Node *> *sibling_groups) {
+    void append_sibling_groups(list<Node *> *sibling_groups) {
 	  find_sibling_groups_hlpr(sibling_groups);	
     }
 
@@ -1475,18 +1486,20 @@ class Node {
 
 	}
   */
+
         int get_deepest_siblings_hlpr(vector<int> &descendants, Node** to_be_placed) {
 	  list<Node*>::iterator i;
 	  for (i = children.begin(); i != children.end(); i++) {
 	    int descendant_value = descendants[(*i)->get_preorder_number()];
 	    if (descendant_value == -1) {
 	      *to_be_placed = (*i); //not convinced this is right
+	      cout << (*i)->str();
 	      return 1;
 	    }
 	    else if (descendant_value == 1) {
 	      return 1 + (*i)->get_deepest_siblings_hlpr(descendants, to_be_placed);
 	    }
-	  }	  
+	  }
 	}
 
         /*
@@ -1500,20 +1513,22 @@ class Node {
 	  if (descendants[get_preorder_number()] < 2) { return vector<Node*>(); }
 	  //parallel vectors for storing the siblings and their depths
 	  //Starts with max depth of 10, could pass in as parameter if we know what it will be
-	  vector<vector<Node*>> siblings_by_depth = vector<vector<Node*>>(2); 
+	  vector<vector<Node*>> siblings_by_depth = vector<vector<Node*>>(10); 
 	  list<Node *>::iterator i;
 	  //Go down each path of 1s and take note of their path length to this node
 	  //There should be the same amount of 1 paths as nodes.size()
 	  for (i = children.begin(); i != children.end(); i++) {
-	    Node** placed_node;
-	    if (descendants[(*i)->get_preorder_number()] == 1) {		    
-	      int depth = (*i)->get_deepest_siblings_hlpr(descendants, placed_node);
+
+	    if (descendants[(*i)->get_preorder_number()] == 1) {
+	      Node* placed_node;
+	      int depth = (*i)->get_deepest_siblings_hlpr(descendants, &placed_node);
 	      if (siblings_by_depth.size() - 1 < depth)
 		{
 		  cout<<"resizing..."<<endl;
 		  siblings_by_depth.resize(siblings_by_depth.size() * 2);
 		}
-	      siblings_by_depth[depth].push_back(*placed_node);		    
+	      if (placed_node != NULL){
+		siblings_by_depth[depth].push_back(placed_node);}
 	    }	
 	    //if it is -1 then this is the node itself
 	    else if (descendants[(*i)->get_preorder_number()] == -1) {
@@ -1565,7 +1580,9 @@ class Node {
   /*This is potentially slower than just doing a traversal of the whole tree, 
     since we could be visiting the same path many times. 
     It does mean if this is a short branch and the others are
-    long that we dont visit those branches though */
+    long that we dont visit those branches though
+    TODO: traverse tree and sum on return. Label sibling group with 1s rest with 0
+  */
         void find_pseudo_lca_descendant_count_hlpr(vector <int> &desc_counter) {
 		if (p != NULL) {
 		  desc_counter[p->get_preorder_number()]++;

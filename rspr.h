@@ -235,7 +235,7 @@ ProblemSolution(Forest *t1, Forest *t2, int new_k) {
 
 /* rSPR_worse_4_approx
  * Calculate an approximate maximum agreement forest and SPR distance for two multifurcating trees
- * RETURN At most 4 times the rSPR distance
+ * RETURN At most 3 times the rSPR distance
  * NOTE: destructive. The computed forests replace T1 and T2.
  * T1 and T2 can be  multifurcating forests.
  */
@@ -254,15 +254,15 @@ if (!sync_twins(T1, T2))
 	// find sibling pairs of T1
 	list<Node *> *sibling_groups = T1->find_sibling_groups();
 
-	/*
+	
 	list<Node *>::iterator c;
 	list<Node *>::iterator ch;
 	
 	for (c = sibling_groups->begin(); c != sibling_groups->end(); c++) {
-	  //cout << "Sibling group parent: " << (*c)->get_name() << endl;
+	  cout << "Sibling group parent: " << (*c)->str() << endl;
 		list<Node *> children = (*c)->get_children();
 		for (ch = children.begin(); ch != children.end(); ch++) {
-		  //cout << "\tChild: " << (*ch)->get_name() <<endl;
+		  cout << "\tChild: " << (*ch)->str() <<endl;
 		}
 		list<list<Node *>> *identical_sibling_groups = (*c)->find_identical_sibling_groups();
 		if (identical_sibling_groups->size() > 0) {
@@ -278,8 +278,8 @@ if (!sync_twins(T1, T2))
 		  cout << "No identical sibling groups" <<endl;
 		}
 	}	
-	return 0;
-	*/
+	//return 0;
+	
 	
 	
 	// find singletons of T2
@@ -310,6 +310,8 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
   int num_cut = 0;
   //UndoMachine um = UndoMachine();
   while(!singletons->empty() || !sibling_groups->empty()) {
+
+    Node* previous_group;
 	  
     // Case 1 - Remove singletons
     //TODO (Ben): fix for multifurcating
@@ -351,38 +353,10 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
     if(!sibling_groups->empty()) {
       Node *T1_sibling_group = sibling_groups->back();
 
-      
-      sibling_groups->pop_back();
-      vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(max_preorder);
-      
-      
-      cout <<"desc count: ";
-      for (int i = 0; i < descendant_count.size(); i++) {
-	cout << descendant_count[i] << " ";
-      }
+      cout << "F2: ";
+      T2->print_components();
       cout << endl;
-      
-      
-      Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
-      if (arbitrary_lca == NULL) { continue; } //There is no path from either of the two, what to do?
-      
-      cout <<"Arbitrary lca: "  << arbitrary_lca->str() << endl;
-      cout <<"children:" << endl;
-      list<Node*>::iterator i;
-      for (i = arbitrary_lca->get_children().begin(); i != arbitrary_lca->get_children().end(); i++) {
-	cout << "\t" << (*i)->str() << endl;
-      }
-      cout << "descendant count of lca: " << descendant_count[arbitrary_lca->get_preorder_number()] <<endl;
-
-      
-      //later change to get deepest set? in case 3 are all max depth
-      vector<Node *> deepest_pair = arbitrary_lca->get_deepest_siblings(descendant_count);
-      cout << "set sorted:" << endl;
-      for (int j = 0; j < deepest_pair.size(); j ++) {	
-	cout << "\t" << deepest_pair[j]->str() << endl;
-      }
-      continue;
-      
+	
       
       //will have to conditionally pop, we might not be done with this sibling group
       /*
@@ -411,7 +385,6 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	 If it is > 1, then we can contract them into the parent in both T1 and T2
 	 Step 5 in paper
       */
-
       list<list<Node *>> *identical_sibling_groups = T1_sibling_group->find_identical_sibling_groups();
       //cout << "next round..." << endl;
       // Case 2 - Contract identical sibling pair
@@ -423,9 +396,9 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	  //T1_p->contract_siblings(subset of siblings) create new node for this? Yes.
 	  list<Node *> T2_group = (*i);
 	  Node *T2_p = T2_group.front()->parent();
-	  //cout << "Contracting T1... " << endl;
+	  cout << "Contracting T1... " << endl;
 	  Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
-	  //cout << "Contracting T2... " << endl;
+	  cout << "Contracting T2... " << endl;
 	  Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
 
 
@@ -452,8 +425,8 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	  }
 	}
       }//identical_sibling_groups->size() > 0
-      delete identical_sibling_groups;
-#if 0
+
+
 
       /*
 	4 branching case
@@ -477,51 +450,221 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
       else {
 	//When to pop?
       sibling_groups->pop_back();
+      cout << "group:" <<endl;
+      for (list<Node*>::iterator i = T1_sibling_group->get_children().begin(); i != T1_sibling_group->get_children().end(); i++) {
+	cout << "\t" << (*i)->str() <<endl;
+      }
       vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(max_preorder);
       
-      /*
+      
       cout <<"desc count: ";
       for (int i = 0; i < descendant_count.size(); i++) {
 	cout << descendant_count[i] << " ";
       }
       cout << endl;
-      */
+      
       
       Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
       if (arbitrary_lca == NULL) { continue; } //There is no path from either of the two, what to do?
-      /*
-      cout <<"Arbitrary lca: "  << arbitrary_lca->str() << endl;
-      cout <<"children:" << endl;
+      
+      
+      cout <<"Arbitrary lca: "  << arbitrary_lca->str();
+      cout <<" children:" << endl;
       list<Node*>::iterator i;
       for (i = arbitrary_lca->get_children().begin(); i != arbitrary_lca->get_children().end(); i++) {
 	cout << "\t" << (*i)->str() << endl;
       }
       cout << "descendant count of lca: " << descendant_count[arbitrary_lca->get_preorder_number()] <<endl;
-      */
+      
       //later change to get deepest set? in case 3 are all max depth
-      vector<Node *> deepest_pair = arbitrary_lca->get_deepest_siblings(descendant_count);
-      //cout << "Deepest pair: " << deepest_pair[0]->str() << " " << deepest_pair[1]->str() << endl;
-      continue;
-      /*
-	// This changes to Part 1-3	
-	//  ensure T2_a is below T2_c
-	if ((T2_a->get_depth() < T2_c->get_depth()
-	     && T2_c->parent() != NULL)
-	    || T2_a->parent() == NULL) {
-		
-	  swap(&T1_a, &T1_c);
-	  swap(&T2_a, &T2_c);
+      vector<Node *> deepest_siblings = arbitrary_lca->get_deepest_siblings(descendant_count);
+      if (deepest_siblings.size() < 2) { cout << "improper length" << endl; }
+	
+      Node *T2_a1 = deepest_siblings[0];
+      Node *T2_a2 = deepest_siblings[1];
+      cout << "a1: " << T2_a1->str() << " a2: " << T2_a2->str() << endl;
 
+      bool cut_a1   = false;
+      bool cut_a1_p = false;
+      bool cut_a2   = false;
+      bool cut_a2_p = false;
+      
+      if (T1_sibling_group->get_children().size() == 2) {
+	/*
+	  7.1 case
+	  Cut a1, pa1, a2 in F2, add 3 to num_cut
+	  Consider adding 3 regardless if we actually cut 3, 
+	*/	
+	cut_a1   = true;
+	cut_a1_p = true;
+	cut_a2   = true;
+	/*
+	  7.2 case
+	  Cut a1, a2, pa1, pa2, add 4 to num_cuts
+	*/
+	if (previous_group == T1_sibling_group) {
+	  cut_a2_p = true;
 	}
-	else if (T2_a->get_depth() == T2_c->get_depth()) {
-	  if (T2_a->parent() && T2_c->parent() &&
-	      (T2_a->parent()->get_depth() <
-	       T2_c->parent()->get_depth())) {
-	    swap(&T1_a, &T1_c);
-	    swap(&T2_a, &T2_c);
+      } // size == 2
+      
+      else if (T1_sibling_group->get_children().size() > 2) {
+	/*
+	  7.3 case
+	  If a2's parent's only sibling is part of the sibling group, and a1's parent is a root or has a sibling that is not part of the sibling group then cut a2 and a2_p otherwise a1 and a1_p
+	 */
+	if (previous_group != T1_sibling_group) {
+	  Node* T2_a2_p = T2_a2->parent();
+	  bool x_2 = false;
+	  bool a2_p_one_sibling = (T2_a2_p != NULL) &&
+	    (T2_a2_p->parent() != NULL) &&
+	    (T2_a2_p->parent()->get_children().size() == 2);	  
+	  if (a2_p_one_sibling) {
+	    list<Node *> group = T1_sibling_group->get_children();
+	    //get the other one
+	    Node *a2_p_sibling = T2_a2_p->parent()->get_children().front() == T2_a2_p ?
+	      T2_a2_p->parent()->get_children().back() :
+	      T2_a2_p->parent()->get_children().front();	
+	    //check if it is part of sibling group
+	    bool a2_p_sibling_in_group = descendant_count[a2_p_sibling->get_preorder_number()] == -1;
+	    if (a2_p_sibling_in_group) {
+	      Node* T2_a1_p = T2_a1->parent();
+	      bool a1_p_is_root = T2_a1_p->parent() == NULL;
+	      bool a1_p_sibling_not_in_group = false;
+	      if (!a1_p_is_root) {
+		list<Node*> a1_p_siblings = T2_a1_p->parent()->get_children();
+		for (list<Node*>::iterator i = a1_p_siblings.begin(); i != a1_p_siblings.end(); i++) {
+		  if (descendant_count[(*i)->get_preorder_number()] != -1) {
+		    a1_p_sibling_not_in_group = true;
+		    break;
+		  }
+		}
+	      }
+	      if (a2_p_one_sibling && a2_p_sibling_in_group && (a1_p_is_root || a1_p_sibling_not_in_group)) {
+		x_2 = true;
+	      }
+	    }
+	  }
+	  if (x_2){
+	    cut_a2   = true;
+	    cut_a2_p = true;
+	  }
+	  else {
+	    cut_a1   = true;
+	    cut_a1_p = true;
 	  }
 	}
-      */
+	/*7.4 case
+	  cut a1 and a1_p
+	*/
+	else if (previous_group == T1_sibling_group) {
+	  cut_a1   = true;
+	  cut_a1_p = true;
+	}
+      }
+      /*
+	Cutting section
+       */
+      if (cut_a1) {
+	Node *T2_a1_p = T2_a1->parent();
+	//singletons? components?
+	if (T2_a1_p != NULL) {
+	  //Cut connections
+	  T2_a1->cut_parent();
+	  //add as components
+	  T2->add_component(T2_a1);
+	  //Just cut 1 of two children of a1 parent
+	  if (T2_a1_p->get_children().size() == 1) {
+	    T2_a1_p->contract();
+	    T2_a1_p->set_non_leaf_children(0);
+	  }
+	  //Check for singletons
+	  if (T2_a1->get_children().size() == 0)
+	    singletons->push_back(T2_a1);
+	  else {
+	    //Will only become new sibling group if T2_a1 had children
+	    T2_a1_p->decrement_non_leaf_children();
+	    if (T2_a1_p->is_sibling_group()) {
+	      sibling_groups->push_back(T2_a1_p);
+	    }
+	  }
+	  num_cut++;
+	  if (cut_a1_p) {
+	    if (T2_a1_p->parent() != NULL) {
+	      Node *T2_a1_gp = T2_a1_p->parent();
+	      //Cut connections
+	      T2_a1_p->cut_parent();
+	      //add as components
+	      T2->add_component(T2_a1_p);
+	      //Just cut 1 of two children of a1 parent
+	      if (T2_a1_gp->get_children().size() == 1) {
+		T2_a1_gp->contract();
+		T2_a1_gp->set_non_leaf_children(0);
+	      }
+	      //Check for singletons
+	      if (T2_a1_p->get_children().size() == 0) {
+		singletons->push_back(T2_a1_p);	      
+	      }
+	      num_cut++;
+	      //placeholder until it can be safely decremented
+	      T2_a1_gp->recalculate_non_leaf_children();
+	      if (T2_a1_gp->is_sibling_group()) {
+		sibling_groups->push_back(T2_a1_gp);
+	      }	    
+	    }
+	  }
+	}//T1_a1_p() != NULL
+      }
+      if (cut_a2){
+	Node *T2_a2_p = T2_a2->parent();
+	if (T2_a2_p != NULL) {
+	  //Cut connections
+	  T2_a2->cut_parent();
+	  //add as components
+	  T2->add_component(T2_a2);
+	  //Just cut 1 of two children of a2 parent
+	  if (T2_a2_p->get_children().size() == 1) {
+	    T2_a2_p->contract();
+	    T2_a2_p->set_non_leaf_children(0);
+	  }
+	  //Check for singletons
+	  if (T2_a2->get_children().size() == 0)
+	    singletons->push_back(T2_a2);
+	  else {
+	    //Will only become new sibling group if T2_a2 had children
+	    T2_a2_p->decrement_non_leaf_children();
+	    if (T2_a2_p->is_sibling_group()) {
+	      sibling_groups->push_back(T2_a2_p);
+	    }
+	  }
+	  num_cut++;	
+	  if (cut_a2_p) {
+	    if (T2_a2_p->parent() != NULL) {
+	      Node *T2_a2_gp = T2_a2_p->parent();
+	      //Cut connections
+	      T2_a2_p->cut_parent();
+	      //add as components
+	      T2->add_component(T2_a2_p);
+	      //Just cut 1 of two children of a2 parent
+	      if (T2_a2_gp->get_children().size() == 1) {
+		T2_a2_gp->contract();
+		T2_a2_gp->set_non_leaf_children(0);
+	      }
+	      //Check for singletons
+	      if (T2_a2_p->get_children().size() == 0) {
+		singletons->push_back(T2_a2_p);	      
+	      }
+	      num_cut++;
+	      //placeholder until it can be safely decremented
+	      T2_a2_gp->recalculate_non_leaf_children();
+	      if (T2_a2_gp->is_sibling_group()) {
+		sibling_groups->push_back(T2_a2_gp);
+	      }
+	    }
+	  }
+	}
+      }
+      
+      #if 0
 	// get T2_b
 	bool multi_node = false;
 	Node *T2_ab = T2_a->parent();
@@ -766,9 +909,10 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	if (cut_a == false && cut_b == false && cut_c == false) {
 	  num_cut = INT_MAX-3;
 	}
-
+	#endif
       }//else
-#endif
+      delete identical_sibling_groups;
+      previous_group = T1_sibling_group;
     }//!sibling_groups->empty()
 
   } //sibling_groups->empty()
