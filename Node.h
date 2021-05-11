@@ -65,6 +65,7 @@ vector<Node *> find_leaves(Node *node);
 */
 int stomini(string s);
 
+
 class Forest;
 
 class Node {
@@ -1492,7 +1493,7 @@ class Node {
 	    int descendant_value = descendants[(*i)->get_preorder_number()];
 	    if (descendant_value == -1) {
 	      *to_be_placed = (*i); //not convinced this is right
-	      cout << (*i)->str();
+	      //cout << (*i)->str();
 	      return 1;
 	    }
 	    else if (descendant_value == 1) {
@@ -1501,18 +1502,24 @@ class Node {
 	  }
 	}
 
+        void get_deepest_siblings(vector<int> &descendants, vector<vector<Node*>> &siblings_by_depth) {
+	  get_deepest_siblings_hlpr(descendants, siblings_by_depth);
+	}
+        vector<vector<Node*>> get_deepest_siblings(vector<int> &descendants) {
+	  vector<vector<Node *>> siblings_by_depth = vector<vector<Node *>>(10);
+	  get_deepest_siblings_hlpr(descendants, siblings_by_depth);
+	  return siblings_by_depth;
+	}
+  
         /*
-	  Returns the deepest two siblings of this LCA
 	  Takes a vector of ints with the number of siblings that descend 
 	  from that node indexed by their pre-order number
 	  Assumes siblings are marked with -1
 	  TODO (Ben): proper counting sort
 	 */
-        vector<Node*> get_deepest_siblings(vector<int> &descendants) {
-	  if (descendants[get_preorder_number()] < 2) { return vector<Node*>(); }
+         void get_deepest_siblings_hlpr(vector<int> &descendants, vector<vector<Node*>> &siblings_by_depth) {
 	  //parallel vectors for storing the siblings and their depths
 	  //Starts with max depth of 10, could pass in as parameter if we know what it will be
-	  vector<vector<Node*>> siblings_by_depth = vector<vector<Node*>>(10); 
 	  list<Node *>::iterator i;
 	  //Go down each path of 1s and take note of their path length to this node
 	  //There should be the same amount of 1 paths as nodes.size()
@@ -1531,22 +1538,12 @@ class Node {
 	    }	
 	    //if it is -1 then this is the node itself
 	    else if (descendants[(*i)->get_preorder_number()] == -1) {
-	      siblings_by_depth[1].push_back(*i);
+	      siblings_by_depth[0].push_back(*i);
 	    }
 	  }
-		
-	  vector<Node*> deepest_siblings = vector<Node*>();
-	  //Return them all sorted by depth
-	  for (int j = siblings_by_depth.size() - 1; j >= 0; j--) {
-	    if (siblings_by_depth[j].size() != 0) {
-	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
-		deepest_siblings.push_back(siblings_by_depth[j][k]);
-	      }
-	    }
-	  }
-	  return deepest_siblings; 
 	}
 
+        
   
         Node *find_arbitrary_lca_hlpr(vector<int> &descendants) {
 	        if (descendants[get_preorder_number()] < 2) { return NULL; }
@@ -2444,6 +2441,7 @@ int build_tree_helper(int start, const string& s, Node *parent,
 //void preorder_number(Node *node);
 //int preorder_number(Node *node, int next);
 string strip_newick_name(string &T);
+vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_depth);
 
 
 // build a tree from a newick string
@@ -2711,6 +2709,22 @@ void reroot_safe(Node **n, Node *new_lc) {
 }
 
 
-
+vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_depth) {	  
+	  vector<Node*> deepest_siblings = vector<Node*>();
+	  //Return them all sorted by depth
+	  for (int j = siblings_by_depth.size() - 1; j >= 0; j--) {
+	    if (siblings_by_depth[j].size() != 0) {
+	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
+		deepest_siblings.push_back(siblings_by_depth[j][k]);
+		cout << "Inserting... : " << siblings_by_depth[j][k]->str() << " of depth " << j << endl;
+	      }
+	    }
+	  }
+	  for (int j = 0; j < deepest_siblings.size(); j++) {
+	    cout <<"item: [" << j << "] = " << deepest_siblings[j]->str() << endl;;
+	  }
+	  
+	  return deepest_siblings; 
+	}
 
 #endif
