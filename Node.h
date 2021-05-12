@@ -1492,9 +1492,9 @@ class Node {
 	  for (i = children.begin(); i != children.end(); i++) {
 	    int descendant_value = descendants[(*i)->get_preorder_number()];
 	    if (descendant_value == -1) {
-	      *to_be_placed = (*i); //not convinced this is right
+	      *to_be_placed = (*i);
 	      //cout << (*i)->str();
-	      return 1;
+	      return 2;
 	    }
 	    else if (descendant_value == 1) {
 	      return 1 + (*i)->get_deepest_siblings_hlpr(descendants, to_be_placed);
@@ -1503,11 +1503,11 @@ class Node {
 	}
 
         void get_deepest_siblings(vector<int> &descendants, vector<vector<Node*>> &siblings_by_depth) {
-	  get_deepest_siblings_hlpr(descendants, siblings_by_depth);
+	  get_deepest_siblings_strt(descendants, siblings_by_depth);
 	}
         vector<vector<Node*>> get_deepest_siblings(vector<int> &descendants) {
 	  vector<vector<Node *>> siblings_by_depth = vector<vector<Node *>>(10);
-	  get_deepest_siblings_hlpr(descendants, siblings_by_depth);
+	  get_deepest_siblings_strt(descendants, siblings_by_depth);
 	  return siblings_by_depth;
 	}
   
@@ -1517,7 +1517,12 @@ class Node {
 	  Assumes siblings are marked with -1
 	  TODO (Ben): proper counting sort
 	 */
-         void get_deepest_siblings_hlpr(vector<int> &descendants, vector<vector<Node*>> &siblings_by_depth) {
+         void get_deepest_siblings_strt(vector<int> &descendants, vector<vector<Node*>> &siblings_by_depth) {
+	   //This is the sibling, and is a component
+	   if (descendants[get_preorder_number()] == -1) {
+	     siblings_by_depth[0].push_back(this);
+	     return;
+	   }
 	  //parallel vectors for storing the siblings and their depths
 	  //Starts with max depth of 10, could pass in as parameter if we know what it will be
 	  list<Node *>::iterator i;
@@ -1534,11 +1539,12 @@ class Node {
 		  siblings_by_depth.resize(siblings_by_depth.size() * 2);
 		}
 	      if (placed_node != NULL){
-		siblings_by_depth[depth].push_back(placed_node);}
+		siblings_by_depth[depth].push_back(placed_node);
+	      }
 	    }	
-	    //if it is -1 then this is the node itself
+	    //if it is -1 then this child is the node itself
 	    else if (descendants[(*i)->get_preorder_number()] == -1) {
-	      siblings_by_depth[0].push_back(*i);
+	      siblings_by_depth[1].push_back(*i);
 	    }
 	  }
 	}
