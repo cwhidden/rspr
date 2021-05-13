@@ -960,15 +960,14 @@ class Node {
 	  //contract all children into this
 	  if (nodes->size() == children.size()) {
 	    children = *Node::get_combined_children(nodes);
-	    int total_non_leaves = 0;
+
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
-	      (*i)->set_parent(this);
-	      if (!(*i)->is_leaf()) {
-		total_non_leaves++;
-	      }
+	      (*i)->set_parent(NULL);
+	      //children.remove(*i); already removed in setting children
+	      add_contracted_child(*i);
 	      //append_node_to_name((*i));
-	    }
-	    non_leaf_children = total_non_leaves;
+	    }	    
+	    recalculate_non_leaf_children();
 	    //cout << " All of them. Tree after:" << str() << endl;
 	    return this;
 	  }
@@ -988,13 +987,14 @@ class Node {
 	    }
 	    new_child->set_preorder_number(min_pre_num);
 	    list<Node*> *new_children = Node::get_combined_children(nodes);
-	    new_child->add_children(new_children);
+	     new_child->add_children(new_children);
 	    for (i = new_children->begin(); i != new_children->end(); i++) {
 	      (*i)->set_parent(new_child);			  
 	    }
 	    delete new_children;
 	    new_child->set_parent(this);
 	    recalculate_non_leaf_children();
+	    new_child->recalculate_non_leaf_children();
 	    //cout << " Made new node. Tree after:" << str() << endl;
 	    return new_child;
 	  }
@@ -1100,6 +1100,45 @@ class Node {
 	}
 	string get_name() {
 		return name;
+	}
+  
+	void str_mult_subtree_hlpr(string *s) {
+		if (!name.empty())
+			*s += name.c_str();
+		
+		if (contracted_lc != NULL || contracted_rc != NULL || contracted_children.size() != 0) {
+			#ifdef DEBUG_CONTRACTED
+				*s += "<";
+			#else
+				*s += "(";
+			#endif
+			if (contracted_lc != NULL) {
+				contracted_lc->str_mult_subtree_hlpr(s);
+			}
+			*s += ",";
+			list<Node*>::iterator i;
+			for (i = contracted_children.begin(); i != contracted_children.end(); i++) {
+			        (*i)->str_mult_subtree_hlpr(s);
+				*s += ",";
+			}
+			if (contracted_rc != NULL) {
+				contracted_rc->str_mult_subtree_hlpr(s);
+			}
+			#ifdef DEBUG_CONTRACTED
+				*s += ">";
+			#else
+				*s += ")";
+			#endif
+				str_subtree_hlpr(s);
+		}
+	}
+
+       
+
+        string str_mult_subtree() {
+	        string s = "";
+		str_mult_subtree_hlpr(&s);
+		return s;	  		  
 	}
 
 	void str_hlpr(string *s) {
@@ -1292,6 +1331,11 @@ class Node {
 		cout << str_subtree();
 		cout << endl;
 	}
+
+	void print_mult_subtree_hlpr() {
+		cout << str_mult_subtree();
+	}
+  
 	void print_subtree_hlpr() {
 		cout << str_subtree();
 	}

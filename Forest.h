@@ -177,6 +177,21 @@ class Forest {
 		cout << endl;
 	}
 
+        void print_mult_components() {
+	  	vector<Node *>::iterator it = components.begin();
+		for(it = components.begin(); it != components.end(); it++) {
+			Node *root = *it;
+			if (root == NULL)
+				cout << "!";
+			else if (root->is_leaf() && root->str() == "")
+				cout << "*";
+			else
+				root->print_mult_subtree_hlpr();
+			cout << " ";
+		}
+		cout << endl;
+	}
+
 	// print the components seperated by s
 	void print_components(string s) {
 		vector<Node *>::iterator it = components.begin();
