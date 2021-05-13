@@ -195,7 +195,7 @@ class Node {
 		this->lost_children = n.lost_children;
 		this->max_merge_depth = n.max_merge_depth;
 		this->support = n.support;
-		this->support_normalization = n.support_normalization;
+		this->support_normalization = n.support_normalization;		
 	}
 
 	Node(const Node &n, Node *parent) {
@@ -956,7 +956,6 @@ class Node {
 	      return NULL;
 	    }
 	  }
-	  //cout << "Contracting children. Tree before: " << str() << endl;
 	  //contract all children into this
 	  if (nodes->size() == children.size()) {
 	    children = *Node::get_combined_children(nodes);
@@ -965,10 +964,8 @@ class Node {
 	      (*i)->set_parent(NULL);
 	      //children.remove(*i); already removed in setting children
 	      add_contracted_child(*i);
-	      //append_node_to_name((*i));
 	    }	    
 	    recalculate_non_leaf_children();
-	    //cout << " All of them. Tree after:" << str() << endl;
 	    return this;
 	  }
 	  //Otherwise we create a new node and contract them into that
@@ -977,7 +974,6 @@ class Node {
 	    add_child(new_child);
 	    int min_pre_num = 0x7FFFFFFF; //max value constant?
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
-	      //new_child->append_node_to_name((*i));
 	      new_child->add_contracted_child((*i));
 	      children.remove((*i));
 	      if ((*i)->get_preorder_number() < min_pre_num)
@@ -995,7 +991,6 @@ class Node {
 	    new_child->set_parent(this);
 	    recalculate_non_leaf_children();
 	    new_child->recalculate_non_leaf_children();
-	    //cout << " Made new node. Tree after:" << str() << endl;
 	    return new_child;
 	  }
 	}
@@ -1439,32 +1434,30 @@ class Node {
     list<list<Node *>> *find_identical_sibling_groups() {	  
 	    list<list<Node *>> *identical_sibling_groups = new list<list<Node *>>();
 		list<Node *>::iterator c;
-		//way to allocate on stack? is that a good idea?
-		map<Node *, list<Node*>> *parent_to_children = new map<Node *, list<Node *>>();
+		map<Node *, list<Node*>> parent_to_children = map<Node *, list<Node *>>();
 		for (c = children.begin(); c != children.end(); c++) {
 		  Node *T1_a = *c;
 		  Node *T2_a = T1_a->get_twin();
 		  if (T2_a->parent() == NULL)	{
 			continue;
 		  }
-		  auto search = parent_to_children->find(T2_a->parent());
+		  auto search = parent_to_children.find(T2_a->parent());
 		  //if it does not equal the end, then we already have this parent in the map
-		  if (search != parent_to_children->end()) {
+		  if (search != parent_to_children.end()) {
 			search->second.push_back(T2_a);
 		  }
 		  //otherwise we add it
 		  else {
-			parent_to_children->insert({T2_a->parent(), {T2_a}});
+			parent_to_children.insert({T2_a->parent(), {T2_a}});
 		  }
 		}
 		//Check which parents have more than one identical sibling
 		map<Node *, list<Node*>>::iterator parents;
-		for (parents = parent_to_children->begin(); parents != parent_to_children->end(); parents++) {
+		for (parents = parent_to_children.begin(); parents != parent_to_children.end(); parents++) {
 		  if (parents->second.size() > 1) {
 			identical_sibling_groups->push_back(parents->second);
 		  }
 		}
-		delete parent_to_children;
 		return identical_sibling_groups;
     }
   
@@ -1537,7 +1530,6 @@ class Node {
 	    int descendant_value = descendants[(*i)->get_preorder_number()];
 	    if (descendant_value == -1) {
 	      *to_be_placed = (*i);
-	      //cout << (*i)->str();
 	      return 2;
 	    }
 	    else if (descendant_value == 1) {
@@ -1579,7 +1571,6 @@ class Node {
 	      int depth = (*i)->get_deepest_siblings_hlpr(descendants, &placed_node);
 	      if (siblings_by_depth.size() - 1 < depth)
 		{
-		  cout<<"resizing..."<<endl;
 		  siblings_by_depth.resize(siblings_by_depth.size() * 2);
 		}
 	      if (placed_node != NULL){
@@ -2766,13 +2757,17 @@ vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_dep
 	    if (siblings_by_depth[j].size() != 0) {
 	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
 		deepest_siblings.push_back(siblings_by_depth[j][k]);
+		#ifdef DEBUG_APPROX
 		cout << "Inserting... : " << siblings_by_depth[j][k]->str() << " of depth " << j << endl;
+		#endif
 	      }
 	    }
 	  }
+	  #ifdef DEBUG_APPROX
 	  for (int j = 0; j < deepest_siblings.size(); j++) {
 	    cout <<"item: [" << j << "] = " << deepest_siblings[j]->str() << endl;;
 	  }
+	  #endif
 	  
 	  return deepest_siblings; 
 	}

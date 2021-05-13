@@ -316,7 +316,9 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
       
       Node *T2_a = singletons->back();
       singletons->pop_back();
+      #ifdef DEBUG_APPROX
       cout << "Handling singleton: " << T2_a->str_mult_subtree() << endl;
+      #endif
       // find twin in T1
       Node *T1_a = T2_a->get_twin();
       // if this is in the first component of T_2 then
@@ -343,13 +345,13 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
       if (T1_a_p->get_children().size() == 1) {
 	if (is_sibling_group) {
 	  sibling_groups->remove(T1_a_p);
-	  
+          #ifdef DEBUG_APPROX	  
 	  cout << "Removed ";
 	  for (list<Node*>::iterator i = T1_a_p->get_children().begin(); i != T1_a_p->get_children().end(); i++) {
 	    cout << (*i)->str();
 	  }
 	  cout  << " from sibling groups" << endl;
-	  
+	  #endif
 	}
 	Node *possible_previous_sibling = T1_a_p->get_children().front();
 	bool was_sibling_group = possible_previous_sibling->is_sibling_group();
@@ -357,16 +359,14 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	if (node != NULL) {
 	  node->recalculate_non_leaf_children(); //can we tell what this would be instead of recalculating?
 
-	  if (node->is_sibling_group()) { //&& !exists){
-	    //um.add_event(new AddToFrontSiblingPairs(sibling_groups));
+	  if (node->is_sibling_group()) {
 	    if (was_sibling_group) {
 	      list<Node*>::iterator i = find(sibling_groups->begin(), sibling_groups->end(), possible_previous_sibling);
 	      *i = node;
-	      //replace(sibling_groups->begin(), sibling_groups->end(), possible_previous_sibling, node );	    
 	    }
 	    else{
 	      sibling_groups->push_front(node);
-	      cout << "Added new sibling group " << node->str() << endl;
+	      //cout << "Added new sibling group " << node->str() << endl;
 	    }
 	  }
 	}
@@ -386,14 +386,14 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	  break;
 	}
       }
-      
+      #ifdef DEBUG_APPROX
       cout << "F2: ";
       T2->print_components();
       cout << endl;
       cout << "F1: ";
       T1->print_components();
       cout << endl;
-	
+      #endif
       
       //will have to conditionally pop, we might not be done with this sibling group
       /* Case where a subset of the group have the same parent both in T1 and T2
@@ -403,8 +403,6 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	 If it is > 1, then we can contract them into the parent in both T1 and T2
 	 Step 5 in paper
       */
-      //      if (T1_sibling_group != previous_group) {
-      //list<list<Node *>> *identical_sibling_groups = T1_sibling_group->find_identical_sibling_groups();
       // Case 2 - Contract identical sibling pair
       if (identical_sibling_groups->size() > 0) {	  		
 	list<list<Node *>>::iterator i;
@@ -414,9 +412,13 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	  //T1_p->contract_siblings(subset of siblings) create new node for this? Yes.
 	  list<Node *> T2_group = (*i);
 	  Node *T2_p = T2_group.front()->parent();
+	  #ifdef DEBUG_APPROX
 	  cout << "Contracting T1... " << endl;
+	  #endif
 	  Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
+	  #ifdef DEBUG_APPROX
 	  cout << "Contracting T2... " << endl;
+	  #endif
 	  Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
 
 	  
@@ -457,16 +459,15 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 
       // Case 3
       else {
-	cout << "group:" <<endl;
-
-	cout << T1_sibling_group->str_subtree() << endl;
+	#ifdef DEBUG_APPROX
+	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
+	#endif
 	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(max_preorder);
       
 	Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
 	vector<Node *> deepest_siblings;
 	//All siblings are in different components, ie no path between them
 	if (arbitrary_lca == NULL) {	
-	  cout << "No path" << endl;
 	  vector<vector<Node *>> siblings_by_depth = vector<vector<Node *>>(10);
 	  for (int i = 0; i != T2->components.size(); i++) {
 	    T2->components[i]->get_deepest_siblings(descendant_count, siblings_by_depth);
@@ -483,8 +484,9 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	
 	Node *T2_a1 = deepest_siblings[0];
 	Node *T2_a2 = deepest_siblings[1];
+	#ifdef DEBUG_APPROX
 	cout << "a1: " << T2_a1->str_mult_subtree() << " a2: " << T2_a2->str_mult_subtree() << endl;
-
+	#endif
 	bool cut_a1   = false;
 	bool cut_a1_p = false;
 	bool cut_a2   = false;
@@ -506,11 +508,15 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	  */
 	  if (previous_group == T1_sibling_group) {
 	    cut_a2_p = true;
-	    cout <<"Case 7.2" << endl;	  
+	    #ifdef DEBUG_APPROX
+	    cout <<"Case 7.2" << endl;
+	    #endif
 	    //num_cut += 1;
 	  }
 	  else {
+	    #if DEBUG_APPROX
 	    cout << "Case 7.1" << endl;
+	    #endif
 	  }
 	} // size == 2
       
@@ -554,7 +560,9 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 		}
 	      }
 	    }
+	    #ifdef DEBUG_APPROX
 	    cout << "Case 7.3" << endl;
+	    #endif
 	    //num_cut += 2;
 	    if (x_2){
 	    
@@ -570,7 +578,9 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	    cut a1 and a1_p
 	  */
 	  else if (previous_group == T1_sibling_group) {
+	    #ifdef DEBUG_APPROX
 	    cout << "Case 7.4" << endl;
+	    #endif
 	    cut_a1   = true;
 	    cut_a1_p = true;
 	    //num_cut += 2;
@@ -733,7 +743,7 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
   um.undo_all();
 #endif// debug approx
 #endif// if 0
-  cout << "Num cuts: " << num_cut << endl;
+
   //		 for(int i = 0; i < T1->num_components(); i++)
   //		 	T1->get_component(i)->fix_parents();
   //		 for(int i = 0; i < T2->num_components(); i++)
