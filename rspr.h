@@ -68,9 +68,9 @@ const string whitespaces = " \t\f\v\n\r";
 int rSPR_4_approx_mult_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		list<Node *> *sibling_groups);
 int rSPR_4_approx_mult(Forest *T1, Forest *T2);
-int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
-int rSPR_worse_4_approx(Forest *T1, Forest *T2);
-int rSPR_worse_4_approx(Forest *T1, Forest *T2, bool sync);
+int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
+int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2);
+int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2, bool sync);
 
 
 int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
@@ -229,20 +229,20 @@ ProblemSolution(Forest *t1, Forest *t2, int new_k) {
 	map<string, ProblemSolution> memoized_clusters = map<string, ProblemSolution>();
 
 /*******************************************************************************
-	RSPR WORSE_4_APPROX
+	RSPR WORSE_3_MULT_APPROX
 *******************************************************************************/
 
-/* rSPR_worse_4_approx
+/* rSPR_worse_3_mult_approx
  * Calculate an approximate maximum agreement forest and SPR distance for two multifurcating trees
  * RETURN At most 3 times the rSPR distance
  * NOTE: destructive. The computed forests replace T1 and T2.
  * T1 and T2 can be  multifurcating forests.
  */
-int rSPR_worse_4_approx(Forest *T1, Forest *T2) {
-	return rSPR_worse_4_approx(T1, T2, true);
+int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2) {
+	return rSPR_worse_3_mult_approx(T1, T2, true);
 }
 
-int rSPR_worse_4_approx(Forest *T1, Forest *T2, bool sync) {
+int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2, bool sync) {
 	// match up nodes of T1 and T2
 	if (sync) {
 if (!sync_twins(T1, T2))
@@ -289,7 +289,7 @@ if (!sync_twins(T1, T2))
 	Forest *F1;
 	Forest *F2;
 
-	int ans = rSPR_worse_4_approx_hlpr(T1, T2, &singletons, sibling_groups, &F1, &F2, true);
+	int ans = rSPR_worse_3_mult_approx_hlpr(T1, T2, &singletons, sibling_groups, &F1, &F2, true);
 
 	F1->swap(T1);
 	F2->swap(T2);
@@ -303,8 +303,8 @@ if (!sync_twins(T1, T2))
 }
 
 
-// rSPR_worse_4_approx recursive helper function
-int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_groups, Forest **F1, Forest **F2, bool save_forests) {
+// rSPR_worse_3_mult_approx recursive helper function
+int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_groups, Forest **F1, Forest **F2, bool save_forests) {
 
   int max_preorder = T2->components[0]->preorder_number(0);  
   int num_cut = 0;
@@ -366,7 +366,6 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	    }
 	    else{
 	      sibling_groups->push_front(node);
-	      //cout << "Added new sibling group " << node->str() << endl;
 	    }
 	  }
 	}
@@ -409,7 +408,6 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	for (i = identical_sibling_groups->begin(); i != identical_sibling_groups->end(); i++) {
 	  //Will need to get the nodes that are next to each other in T2, and
 	  //Contract those specifically
-	  //T1_p->contract_siblings(subset of siblings) create new node for this? Yes.
 	  list<Node *> T2_group = (*i);
 	  Node *T2_p = T2_group.front()->parent();
 	  #ifdef DEBUG_APPROX
@@ -442,10 +440,7 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	    sibling_groups->remove(T1_sibling_group);
 	  }	  
 	}
-      }//identical_sibling_groups->size() > 0
-
-	    // }
-
+      }
 
       /*
 	4 branching case
@@ -462,18 +457,20 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	#ifdef DEBUG_APPROX
 	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
 	#endif
-	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(max_preorder);
-      
+	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(max_preorder);      
 	Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
 	vector<Node *> deepest_siblings;
+	
 	//All siblings are in different components, ie no path between them
+	//Get depth of siblings from root of each component
 	if (arbitrary_lca == NULL) {	
 	  vector<vector<Node *>> siblings_by_depth = vector<vector<Node *>>(10);
 	  for (int i = 0; i != T2->components.size(); i++) {
 	    T2->components[i]->get_deepest_siblings(descendant_count, siblings_by_depth);
 	  }
 	  deepest_siblings = contract_deepest_siblings(siblings_by_depth);
-	} 
+	}
+	//Otherwise they share an LCA
 	else {
 	  vector<vector<Node *>> siblings_by_depth = arbitrary_lca->get_deepest_siblings(descendant_count);
 	  deepest_siblings = contract_deepest_siblings(siblings_by_depth);
@@ -600,8 +597,7 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	    //Just cut 1 of two children of a1 parent
 	    if (T2_a1_p->get_children().size() == 1) {
 	      if (T2_a1_p->parent() == NULL) {
-		//singletons->push_back(T2_a1_p->get_children().front());
-		Node* node = T2_a1_p->contract(); //set T2_a1_p to this? // set twin?
+		Node* node = T2_a1_p->contract();
 		if (node->is_singleton()) {
 		  singletons->push_front(node);
 		}
@@ -655,7 +651,7 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
 	    //Just cut 1 of two children of a2 parent
 	    if (T2_a2_p->get_children().size() == 1) {
 	      if (T2_a2_p->parent() == NULL) {
-		Node* node = T2_a2_p->contract(); //set T2_a1_p to this?
+		Node* node = T2_a2_p->contract();
 		if (node->is_singleton()) {
 		  singletons->push_front(node);
 		}
@@ -700,12 +696,10 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
       previous_group = T1_sibling_group;
     }//!sibling_groups->empty()
 
-  } //sibling_groups->empty()
+  } //while(!sibling_groups->empty() && !singletons->empty()
   // if the first component of the forests differ then we have cut p
   if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
     if (!T1->contains_rho()) {
-      //um.add_event(new AddRho(T1));
-      //um.add_event(new AddRho(T2));
       T1->add_rho();
       T2->add_rho();
     }
@@ -717,37 +711,7 @@ int rSPR_worse_4_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, l
     *F1 = new Forest(T1);
     *F2 = new Forest(T2);
   }
-#if 0 
-#ifdef DEBUG_APPROX
-#ifdef DEBUG_UNDO
 
-  while(um.num_events() > 0) {
-    cout << "Undo step " << um.num_events() << endl;
-    cout << "T1: ";
-    T1->print_components();
-    cout << "T2: ";
-    T2->print_components();
-    cout << "sibling pairs:";
-    for (list<Node *>::iterator i = sibling_groups->begin(); i != sibling_groups->end(); i++) {
-      cout << "  ";
-      (*i)->print_subtree_hlpr();
-    }
-    cout << endl;
-    um.undo();
-    cout << endl;
-  }
-#else
-  um.undo_all();
-#endif//debug undo
-#else
-  um.undo_all();
-#endif// debug approx
-#endif// if 0
-
-  //		 for(int i = 0; i < T1->num_components(); i++)
-  //		 	T1->get_component(i)->fix_parents();
-  //		 for(int i = 0; i < T2->num_components(); i++)
-  //		 	T2->get_component(i)->fix_parents();
   return num_cut;
 }
 

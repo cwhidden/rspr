@@ -396,7 +396,7 @@ int main(int argc, char *argv[]) {
 //			APPROX_EDGE_PROTECTION = true;
 		}
 		else if (strcmp(arg, "-multi_approx") == 0) {
-		    DEFAULT_ALGORITHM = false;
+		        DEFAULT_ALGORITHM = false;
 			BB = true;
 			MULTI_APPROX = true;
 			DEFAULT_OPTIMIZATIONS = false;
@@ -877,7 +877,7 @@ int main(int argc, char *argv[]) {
 			if (MULTI_APPROX)
 			{
 			    cout << "Running multi_approx" << endl;
-			    approx_spr = rSPR_worse_4_approx(&F1, &F2);
+			    approx_spr = rSPR_worse_3_mult_approx(&F1, &F2);
 				min_spr = approx_spr / 3;
 			}
 			else
