@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RSPR
 //#define DEBUG 1
-//#define DEBUG_CONTRACTED 1
+#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -738,15 +738,17 @@ int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int en
       exact_spr = 0;
       continue;
     }
-    cout << k << " " << endl;
+
     #ifdef DEBUG
-    cout << "------------------" << endl << "Trying K = " << k << endl;
+    cout << "Trying K = " << k << endl << "------------------" << endl;
+    #else
+    cout << k << " " << endl;
     #endif
     exact_spr = rSPR_branch_and_bound_mult(F1, F2, k);
     #ifdef DEBUG
-
+    cout << "------------------" << endl;
     cout << "Finished K = " << k << " return value : " << exact_spr << endl;
-    cout << "------------------" << endl;;
+
     #endif
     if (exact_spr >= 0) {
       break;
@@ -949,9 +951,27 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 
       // Case 3
       else {
-	if (k == 0) {
-	  return -1; // have to cut, but already over the limit
+	//copies for the approx so we dont clobber this tree
+	map<Node*, Node*> approx_map = map<Node*, Node*>();
+	Forest T1_approx = Forest(T1, &approx_map);
+	Forest T2_approx = Forest(T2, &approx_map);
+	sync_twins(&T1_approx, &T2_approx);
+	list<Node*> sibling_group_approx = list<Node*>();
+	for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
+	  sibling_group_approx.push_back(approx_map[*n]);
 	}
+	list<Node*> singletons_approx = list<Node*>();
+	for (auto n = singletons->begin(); n != singletons->end(); n++) {
+	  singletons_approx.push_back(approx_map[*n]);
+	}
+	int approx_spr = rSPR_worse_3_mult_approx_hlpr(&T1_approx, &T2_approx, &singletons_approx, &sibling_group_approx, NULL, NULL, false);
+	if (approx_spr > 3*k) {
+	  #ifdef DEBUG
+	  cout << "approx failed" << endl;
+	  #endif
+	  return -1;
+	}
+       
 	#ifdef DEBUG
 	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
 	#endif
@@ -1146,7 +1166,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    int result_k = rSPR_branch_and_bound_mult_hlpr(&T1_next, &T2_next, k - 1, &sibling_group_next, &singletons_next, AFs);
 	    if (result_k > best_k) {
 	      best_k = result_k;
-	      if (best_k > -1) {
+	      if (!ALL_MAFS && best_k > -1) {
 		return best_k;
 	      }
 	    }
@@ -1219,10 +1239,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    int result_k = rSPR_branch_and_bound_mult_hlpr(&T1_next, &T2_next, k - 1, &sibling_group_next, &singletons_next, AFs);
 	    if (result_k > best_k) {
 	      best_k = result_k;
-	      if (best_k > -1) {
+	      if (!ALL_MAFS && best_k > -1) {
 		return best_k;
 	      }
-
 	    }
 	  }
 	}
@@ -1276,7 +1295,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    int result_k = rSPR_branch_and_bound_mult_hlpr(&T1_next, &T2_next, k - 1, &sibling_group_next, &singletons_next, AFs);
 	    if (result_k > best_k) {
 	      best_k = result_k;
-	      if (best_k > -1) {
+	      if (!ALL_MAFS && best_k > -1) {		
 		return best_k;
 	      }
 	    }
@@ -1345,26 +1364,22 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    int result_k = rSPR_branch_and_bound_mult_hlpr(&T1_next, &T2_next, k - 1, &sibling_group_next, &singletons_next, AFs);
 	    if (result_k > best_k) {
 	      best_k = result_k;
-	      if (best_k > -1) {
+	      if (!ALL_MAFS && best_k > -1) {		
 		return best_k;
 	      }
 	    }
 	  }
-
+	 
 	}
 	sibling_groups->pop_back();	  
 	
 	//if (best_k != -1) {
-	return best_k;
-	//}
 
+	//}
+	return best_k;
       }//else
       delete identical_sibling_groups;
       previous_group = T1_sibling_group;
-      
-      //      else {
-      //return best_k;
-      //}
 
     }//!sibling_groups->empty()
 
