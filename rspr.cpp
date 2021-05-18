@@ -189,6 +189,7 @@ bool DEFAULT_OPTIMIZATIONS=true;
 
 
 bool MULTI_APPROX = false;
+bool MULTIFURCATING = false;
 bool FPT = false;
 bool RF = false;
 bool QUIET = false;
@@ -401,6 +402,13 @@ int main(int argc, char *argv[]) {
 			MULTI_APPROX = true;
 			DEFAULT_OPTIMIZATIONS = false;
 		}
+		else if (strcmp(arg, "-multifurcating") == 0) {
+		        DEFAULT_ALGORITHM = false;
+			BB = true;
+			MULTIFURCATING = true;
+			DEFAULT_OPTIMIZATIONS = false;
+		}
+
 
 		else if (strcmp(arg, "-a_cob") == 0) {
 			APPROX_CUT_ONE_B = true;
@@ -874,15 +882,13 @@ int main(int argc, char *argv[]) {
 			// APPROX ALGORITHM
 			int approx_spr;
 			int min_spr;
-			if (MULTI_APPROX)
+			if (MULTI_APPROX || MULTIFURCATING)
 			{
-			    cout << "Running multi_approx" << endl;
 			    approx_spr = rSPR_worse_3_mult_approx(&F1, &F2);
-				min_spr = approx_spr / 3;
+				min_spr = approx_spr / 3;				
 			}
 			else
 			{
-			    cout << "Not running multi approx" <<endl;
 			    approx_spr = rSPR_worse_3_approx(&F1, &F2);
 				min_spr = approx_spr / 3;
 			}
@@ -902,6 +908,9 @@ int main(int argc, char *argv[]) {
 				*/
 				//cout << "approx drSPR=" << approx_spr << endl;
 				cout << "\n";
+				if (MULTI_APPROX) {
+				  //continue;
+				}
 			}
 	
 			int k = min_spr;
@@ -941,7 +950,13 @@ int main(int argc, char *argv[]) {
 				// BRANCH AND BOUND FPT ALGORITHM
 				Forest F1 = Forest(F3);
 				Forest F2 = Forest(F4);
-				int exact_spr = rSPR_branch_and_bound(&F1, &F2);
+				int exact_spr;
+				if (MULTIFURCATING) {
+				  exact_spr = rSPR_branch_and_bound_mult_range(&F1, &F2, min_spr);
+				}
+				else {
+				        exact_spr = rSPR_branch_and_bound(&F1, &F2);
+				}
 				if (exact_spr >= 0) {
 					cout << "F1: ";
 					F1.print_components();

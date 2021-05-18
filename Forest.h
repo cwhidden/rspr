@@ -58,7 +58,7 @@ class Forest {
 		bool rho;
 		Forest *twin;
 		ClusterInstance *cluster;
-
+                int max_preorder;
 	public:
 	Forest() {
 		init(vector<Node *>());
@@ -99,7 +99,24 @@ class Forest {
 		cluster = f->cluster;
 		//label_nodes_with_forest();
 	}
+        /* Temporary until rSPR_branch_and_bound_mult_hlpr uses the UndoMachine */
+        Forest(Forest *f, map<Node*, Node*> *node_map) {
+		components = vector<Node *>(f->components.size());
+		for(int i = 0; i < f->components.size(); i++) {
+			//if (f->components[i] != NULL)
+		        Node* new_node = new Node(*f->components[i], node_map);
+		        components[i] = new_node;
+			node_map->emplace(pair<Node*,Node*>(f->components[i], new_node));
+		}
+		deleted_nodes = vector<Node *>();
+		rho = f->rho;
+		twin = NULL;
+		cluster = f->cluster;
+		max_preorder = f->max_preorder;
+		//label_nodes_with_forest();
+	}
 
+  
 	Forest(Forest *f, bool b) {
 		components = vector<Node *>(f->components.size());
 		for(int i = 0; i < f->components.size(); i++) {

@@ -195,9 +195,63 @@ class Node {
 		this->lost_children = n.lost_children;
 		this->max_merge_depth = n.max_merge_depth;
 		this->support = n.support;
-		this->support_normalization = n.support_normalization;		
+		this->support_normalization = n.support_normalization;
+		this->non_leaf_children = n.non_leaf_children;
 	}
 
+        /* Temporary until rSPR_branch_and_bound_mult_hlpr uses the UndoMachine */
+        // copy constructor
+        Node(const Node &n, map<Node*, Node*> *node_map) {
+		p = NULL;
+		name = n.name.c_str();
+//		twin = n.twin;
+		depth = n.depth;
+//		depth = 0;
+		pre_num = n.pre_num;
+		edge_pre_start = n.edge_pre_start;
+		edge_pre_end = n.edge_pre_end;
+		component_number = n.component_number;
+		this->active_descendants = list <Node *>();
+		this->removable_descendants = list< list<Node *>::iterator>();
+		this->root_lcas = list <Node *>();
+		//sibling_pair_loc = n.sibling_pair_loc;
+		//sibling_pair_status = n.sibling_pair_status;
+		this->sibling_pair_loc = list<Node *>::iterator(); 
+		this->sibling_pair_status = 0;
+		this->num_clustered_children = 0;
+		this->forest = NULL;
+		list<Node *>::const_iterator c;
+		this->children = list<Node *>();
+		for(c = n.children.begin(); c != n.children.end(); c++) {
+		        Node* new_node = new Node(**c, node_map);
+			add_child(new_node);
+			node_map->emplace(pair<Node*,Node*>(*c, new_node));
+		}
+#ifdef COPY_CONTRACTED
+		if (n.contracted_lc == NULL)
+			contracted_lc = NULL;
+		else
+			contracted_lc = new Node(*(n.contracted_lc), this);
+		if (n.contracted_rc == NULL)
+			contracted_rc = NULL;
+		else
+			contracted_rc = new Node(*(n.contracted_rc), this);
+		this->contracted = n.contracted;
+#else
+		this->contracted_lc = n.contracted_lc;
+		this->contracted_rc = n.contracted_rc;
+		this->contracted = n.contracted;
+#endif
+		this->edge_protected = n.edge_protected;
+		this->allow_sibling = n.allow_sibling;
+		this->lost_children = n.lost_children;
+		this->max_merge_depth = n.max_merge_depth;
+		this->support = n.support;
+		this->support_normalization = n.support_normalization;
+		this->non_leaf_children = n.non_leaf_children;
+	}
+
+  
 	Node(const Node &n, Node *parent) {
 		p = parent;
 		name = n.name.c_str();
@@ -429,6 +483,7 @@ class Node {
 		twin = n;
 		return twin;
 	}
+  //Why does this return a node?
 	Node *set_name(string n) {
 		name = string(n);
 	}
@@ -956,6 +1011,12 @@ class Node {
 	      return NULL;
 	    }
 	  }
+	  string new_name;
+#if DEBUG_CONTRACTED
+	  new_name = "<";
+#else
+	  new_name = "(";
+#endif
 	  //contract all children into this
 	  if (nodes->size() == children.size()) {
 	    children = *Node::get_combined_children(nodes);
@@ -964,8 +1025,17 @@ class Node {
 	      (*i)->set_parent(NULL);
 	      //children.remove(*i); already removed in setting children
 	      add_contracted_child(*i);
+	      new_name += (*i)->str() + ",";
 	    }	    
 	    recalculate_non_leaf_children();
+	    new_name.pop_back();
+#if DEBUG_CONTRACTED
+	    new_name += ">";
+#else
+	    new_name += ")";
+#endif
+	    
+	    name = new_name.c_str();
 	    return this;
 	  }
 	  //Otherwise we create a new node and contract them into that
@@ -980,17 +1050,28 @@ class Node {
 		{
 		  min_pre_num = (*i)->get_preorder_number();
 		}
+	      if ((*i)->str() != "")
+		new_name += (*i)->str() + ",";
+
 	    }
 	    new_child->set_preorder_number(min_pre_num);
 	    list<Node*> *new_children = Node::get_combined_children(nodes);
 	     new_child->add_children(new_children);
 	    for (i = new_children->begin(); i != new_children->end(); i++) {
-	      (*i)->set_parent(new_child);			  
+	      (*i)->set_parent(new_child);
+
 	    }
 	    delete new_children;
 	    new_child->set_parent(this);
 	    recalculate_non_leaf_children();
 	    new_child->recalculate_non_leaf_children();
+	    new_name.pop_back();
+#if DEBUG_CONTRACTED
+	    new_name += ">";
+#else
+	    new_name += ")";
+#endif
+	    new_child->set_name(new_name.c_str());
 	    return new_child;
 	  }
 	}
@@ -2138,6 +2219,25 @@ void fixroot() {
 	}
 }
 
+  //Currently only used on T2, if you want to use it on T1, update non_leaf_children
+Node *expand_children_out(list<Node*> nodes) {
+  Node *new_child = new Node();
+  //new_child->set_parent(this);
+  int min_preorder = 0xFFFFFFFF;
+  list<Node *>::iterator i;
+  for (i = nodes.begin(); i != nodes.end(); i++) {
+    new_child->add_child(*i);
+    (*i)->set_parent(new_child);
+    children.remove(*i);
+    if ((*i)->get_preorder_number() < min_preorder) {
+      min_preorder = (*i)->get_preorder_number();
+    }
+  }
+  //super hacky, may overlap with others. Currently this is being used only when the other node is being contracted anyways, but be careful
+  new_child->set_preorder_number(min_preorder);
+  add_child(new_child);
+  return new_child;
+}
 
 Node *expand_parent_edge(Node *n) {
 	if (p != NULL) {
