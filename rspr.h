@@ -808,7 +808,8 @@ public:
 
 bb_mult_recurse_data *generate_mult_recurse_data(Forest *T1, Forest *T2, list<Node*> *sibling_groups, list<Node*> *singletons) {
 
-  bb_mult_recurse_data *data = new bb_mult_recurse_data();//(bb_mult_recurse_data*)malloc(sizeof(bb_mult_recurse_data));
+  bb_mult_recurse_data *data = new bb_mult_recurse_data();
+
   data->node_map = map<Node*, Node*>();
   data->T1 = new Forest(T1, &data->node_map);
   data->T2 = new Forest(T2, &data->node_map);
@@ -832,6 +833,80 @@ bb_mult_recurse_data *generate_mult_recurse_data(Forest *T1, Forest *T2, list<No
   }
   return data;
 }
+//Cuts the parent of to_cut, adds to components, conditionally adds to singletons
+//Assumes parent is not null and no Null parameters
+void mult_cut_and_cleanup(Node* to_cut, Forest *T2, list<Node*> *singletons) {
+  //Node* T2_a1_next = next_data->node_map[T2_a1];
+  Node* to_cut_p = to_cut->parent();
+  //Cut connections  
+  to_cut->cut_parent();
+  //add as components
+  T2->add_component(to_cut);
+  //Just cut 1 of two children of a1 parent
+  if (to_cut_p->get_children().size() == 1) {
+    if (to_cut_p->parent() == NULL) {
+      Node* node = to_cut_p->contract();
+      if (node->is_singleton()) {
+	singletons->push_front(node);
+      }
+    }
+    else {
+      to_cut_p = to_cut_p->contract();
+      //T2_a1_p_next->set_non_leaf_children(0);
+      if (to_cut_p->is_singleton()) {
+	singletons->push_front(to_cut_p);
+      }
+    }
+  }
+  //Check for singletons
+  if (to_cut->is_leaf())
+    singletons->push_front(to_cut);  
+}
+//cuts everything except node, possibly expanding, adds to components, conditionally adds to singletons
+//Assumes parent is not null and no Null parameters
+//NOTE: potentially unsafe for preorder numbers
+void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singletons) {
+  Node* T2_b1;
+  Node* parent = T2_a1->parent();
+  if (parent->get_children().size() == 2) {
+    T2_b1 = parent->get_children().front() == T2_a1 ?
+      parent->get_children().back() :
+      parent->get_children().front();		
+  }
+  else {
+    list<Node*> all_but_a1 = list<Node*>(parent->get_children());
+    all_but_a1.remove(T2_a1);	    
+    T2_b1 = parent->expand_children_out(all_but_a1);
+  }
+  //hack for now
+  //We immediately contract a1 up so we know the parent's preorder number is available
+  T2_b1->set_preorder_number(parent->get_preorder_number());
+  //Cut connections
+  T2_b1->cut_parent();
+	    
+  //add as components
+  T2->add_component(T2_b1);
+	    
+  //Just cut 1 of two children of a2 parent (will always be in this case?)
+  if (parent->get_children().size() == 1) {
+    if (parent->parent() == NULL) {
+      Node* node = parent->contract();
+      if (node->is_singleton()) {
+	singletons->push_front(node);
+      }
+    }
+    else {
+      parent = parent->contract();
+    }
+  }
+  else {
+    if (T2_a1->is_leaf())
+      singletons->push_front(T2_a1);
+  }
+  if (T2_b1->is_leaf())
+    singletons->push_front(T2_b1);
+  //Check for singletons	
+}
 
 //TODO: UndoMachine, then cleanup all constructors, bb_mult_recurse_data relying on copies of trees
 int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_stack, list<pair<Forest,Forest>> *AFs) {
@@ -839,10 +914,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
     return k;
   }
   Node* previous_group;
-  	int best_k = -1;
-  //list<Node *> *sibling_groups = T1->find_sibling_groups(); //order?
-  //list<Node *>  singletons     = T1->find_singletons();
-
+  int best_k = -1;
   while(!singletons->empty() || !sibling_groups->empty()) {
 	  
     // Case 1 - Remove singletons
@@ -870,8 +942,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       bool is_sibling_group = T1_a_p->is_sibling_group();
       // cut the edge above T1_a
       T1_a->cut_parent();
-      //temp
-      //T1_a_p->get_children().remove(T1_a);
       if (!T1_a->is_leaf()) {
 	T1_a_p->decrement_non_leaf_children();//although would this ever be a non leaf?
       }
@@ -1094,7 +1164,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		recurse on cut a1 no prot,
 		           cut a2 no prot
 	       */
-	      
 	    }
 	    //step 8.2
 	    else if (set of deepest ones are 2 deep &&
@@ -1283,31 +1352,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    //setup
 	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
 	    Node* T2_a1_next = next_data->node_map[T2_a1];
-	    //Cut connections
-	    T2_a1_next->cut_parent();
-	    //add as components
-	    next_data->T2->add_component(T2_a1_next);
-	    Node* T2_a1_p_next = next_data->node_map[T2_a1_p];
-	    //Just cut 1 of two children of a1 parent
-	    if (T2_a1_p_next->get_children().size() == 1) {
-	      if (T2_a1_p_next->parent() == NULL) {
-		Node* node = T2_a1_p_next->contract();
-		if (node->is_singleton()) {
-		  next_data->singletons->push_front(node);
-		}
-	      }
-	      else {
-		T2_a1_p_next = T2_a1_p_next->contract();
-		T2_a1_p_next->set_non_leaf_children(0);
-		if (T2_a1_p_next->is_singleton()) {
-		  next_data->singletons->push_front(T2_a1_p_next);
-		}
-	      }
-	    }
-	    //Check for singletons
-	    if (T2_a1_next->is_leaf())
-	      next_data->singletons->push_front(T2_a1_next);
-
+	    mult_cut_and_cleanup(T2_a1_next, next_data->T2, next_data->singletons);
 	    
 	    //recurse on this cut
 	    //TODO: UndoMachine
@@ -1326,49 +1371,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  if (T2_a1_p != NULL) {
 	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
 	    Node* T2_a1_next = next_data->node_map[T2_a1];
-	    Node* T2_a1_p_next = next_data->node_map[T2_a1_p];
-	    Node* T2_b1_next;
-	    //IINCOMPLETE: conditional expand
-	    if (T2_a1_p_next->get_children().size() == 2) {
-	      T2_b1_next = T2_a1_p_next->get_children().front() == T2_a1_next ?
-		T2_a1_p_next->get_children().back() :
-		T2_a1_p_next->get_children().front();		
-	    }
-	    else {
-	      list<Node*> all_but_a1 = list<Node*>(T2_a1_p_next->get_children());
-	      all_but_a1.remove(T2_a1_next);	    
-	      T2_b1_next = T2_a1_p_next->expand_children_out(all_but_a1);
-	    }
-	    //hack for now
-	    //We immediately contract a1 up so we know the parent's preorder number is available
-	    T2_b1_next->set_preorder_number(T2_a1_p_next->get_preorder_number());
-	    //Cut connections
-	    T2_b1_next->cut_parent();
-	    
-	    //add as components
-	    next_data->T2->add_component(T2_b1_next);
-	    
-	    //Just cut 1 of two children of a2 parent (will always be in this case?)
-	    if (T2_a1_p_next->get_children().size() == 1) {
-	      if (T2_a1_p_next->parent() == NULL) {
-		Node* node = T2_a1_p_next->contract();
-		if (node->is_singleton()) {
-		  next_data->singletons->push_front(node);
-		}
-	      }
-	      else {
-		T2_a1_p_next = T2_a1_p_next->contract();
-		T2_a1_p_next->set_non_leaf_children(0);
-	      }
-	    }
-	    else {
-	    if (T2_a1_next->is_leaf())
-	      next_data->singletons->push_front(T2_a1_next);
-	    }
-	    if (T2_b1_next->is_leaf())
-	      next_data->singletons->push_front(T2_b1_next);
-	    //Check for singletons
-	    
+	    mult_cut_all_except_and_cleanup(T2_a1_next, next_data->T2, next_data->singletons);
 	    //recurse
 	    
 	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
@@ -1391,32 +1394,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  if (T2_a2_p != NULL) {
 	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);	    
 	    Node* T2_a2_next = next_data->node_map[T2_a2];
-
-	    //Cut connections
-	    T2_a2_next->cut_parent();
-	    //add as components
-	    next_data->T2->add_component(T2_a2_next);
-	    Node* T2_a2_p_next = next_data->node_map[T2_a2_p];
-	    //Just cut 1 of two children of a2 parent
-	    if (T2_a2_p_next->get_children().size() == 1) {
-	      if (T2_a2_p_next->parent() == NULL) {
-		Node* node = T2_a2_p_next->contract();
-		if (node->is_singleton()) {
-		  next_data->singletons->push_front(node);
-		}
-	      }
-	      else {
-		T2_a2_p_next = T2_a2_p_next->contract();
-		T2_a2_p_next->set_non_leaf_children(0);
-	      }
-	    }
-	    //Check for singletons
-	    if (T2_a2_next->is_leaf())
-	      next_data->singletons->push_front(T2_a2_next);
-	    //recurse
+	    mult_cut_and_cleanup(T2_a2_next, next_data->T2, next_data->singletons);
 	    
 	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
 	    delete next_data;
+	    
 	    if (result_k > best_k) {
 	      best_k = result_k;
 	      if (!ALL_MAFS && best_k > -1) {		
@@ -1427,63 +1409,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	}
 	if (cut_b2) {
 	  if (T2_a2_p != NULL) {
-	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);	    	    
-	    map<Node*, Node*> node_map = map<Node*, Node*>();
-	    Forest T1_next = Forest(T1, &node_map);
-	    Forest T2_next = Forest(T2, &node_map);
-	    	    sync_twins(&T1_next, &T2_next);
-	    list<Node*> sibling_group_next = list<Node*>();
-	    for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
-	      sibling_group_next.push_back(node_map[*n]);
-	    }
-	    list<Node*> singletons_next = list<Node*>();
-	    for (auto n = singletons->begin(); n != singletons->end(); n++) {
-	      singletons_next.push_back(node_map[*n]);
-	    }
-	    
+	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
+
 	    Node* T2_a2_next = next_data->node_map[T2_a2];
-	    Node* T2_a2_p_next = next_data->node_map[T2_a2_p];
-	    Node* T2_b2_next;
-
-	        //IINCOMPLETE: conditional expand
-	    if (T2_a2_p_next->get_children().size() == 2) {
-	      T2_b2_next = T2_a2_p_next->get_children().front() == T2_a2_next ?
-		T2_a2_p_next->get_children().back() :
-		T2_a2_p_next->get_children().front();		
-	    }
-	    else {
-	      list<Node*> all_but_a2 = list<Node*>(T2_a2_p_next->get_children());
-	      all_but_a2.remove(T2_a2_next);	    
-	      T2_b2_next = T2_a2_p_next->expand_children_out(all_but_a2);
-	    }
-	    
-	    //hack for now
-	    //We immediately contract a1 up so we know the parent's preorder number is available
-	    T2_b2_next->set_preorder_number(T2_a2_p_next->get_preorder_number());
-
-	    //Cut connections
-	    T2_b2_next->cut_parent();
-	    
-	    //add as components
-	    next_data->T2->add_component(T2_b2_next);
-	    
-	    //Just cut 1 of two children of a2 parent (will always be in this case?)
-	    if (T2_a2_p_next->get_children().size() == 1) {
-	      if (T2_a2_p_next->parent() == NULL) {
-		Node* node = T2_a2_p_next->contract();
-		if (node->is_singleton()) {
-		  next_data->singletons->push_front(node);
-		}
-	      }
-	      else {
-		T2_a2_p_next = T2_a2_p_next->contract();
-		T2_a2_p_next->set_non_leaf_children(0);
-	      }
-	    }
-	    //Check for singletons
-	    if (T2_a2_next->is_leaf())
-	      next_data->singletons->push_front(T2_a2_next);
-	    //recurse
+	    mult_cut_all_except_and_cleanup(T2_a2_next, next_data->T2, next_data->singletons);
 	    
 	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
 	    delete next_data;
