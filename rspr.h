@@ -75,7 +75,7 @@ int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2, bool sync);
 int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k);
 int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int end_k);
 int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k);
-int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, list<pair<Forest,Forest>> *AFs);
+int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_stack, list<pair<Forest,Forest>> *AFs);
 
 
 
@@ -770,8 +770,9 @@ int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
   list<Node *> *sibling_groups = T1->find_sibling_groups();
   list<Node *> singletons     = T1->find_singletons();
   list<pair<Forest,Forest>> AFs = list<pair<Forest,Forest>>();
+  //list<Node *> protected_stack = list<Node*>();
   
-  int final_k = rSPR_branch_and_bound_mult_hlpr(T1, T2, k, sibling_groups, &singletons, &AFs);  
+  int final_k = rSPR_branch_and_bound_mult_hlpr(T1, T2, k, sibling_groups, &singletons, NULL, &AFs);  
 
   //print AFs
 
@@ -794,8 +795,46 @@ int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
     return final_k;
     
 }
-//TODO: Order of sibling groups. find_sibling_groups would change the order
-int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, list<pair<Forest,Forest>> *AFs) {
+
+
+class bb_mult_recurse_data {
+public:
+  Forest *T1;
+  Forest *T2;
+  list<Node*> *sibling_groups;
+  list<Node*> *singletons;
+  map<Node *, Node*> node_map;
+};
+
+bb_mult_recurse_data *generate_mult_recurse_data(Forest *T1, Forest *T2, list<Node*> *sibling_groups, list<Node*> *singletons) {
+
+  bb_mult_recurse_data *data = new bb_mult_recurse_data();//(bb_mult_recurse_data*)malloc(sizeof(bb_mult_recurse_data));
+  data->node_map = map<Node*, Node*>();
+  data->T1 = new Forest(T1, &data->node_map);
+  data->T2 = new Forest(T2, &data->node_map);
+  //TODO: smarter way of syncing
+  //for (auto n = node_map.begin(); n != node_map.end(); n++) {
+    //(*n).first->set_twin(node_map[(*n).first->get_twin()]);
+    /*
+      if ((*n).second->is_leaf()) {
+      (*n).second->set_twin(node_map[(*n).first->get_twin()]);
+      node_map[(*n).first->get_twin()]->set_twin((*n).second);
+      cout << "Synced twin : " << (*n).second->str() << " -> " << (*n).second->get_twin()->str() << endl;}*/
+  //}
+  sync_twins(data->T1, data->T2);
+  data->sibling_groups = new list<Node*>();
+  for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
+    data->sibling_groups->push_back(data->node_map[*n]);
+  }
+  data->singletons = new list<Node*>();
+  for (auto n = singletons->begin(); n != singletons->end(); n++) {
+    data->singletons->push_back(data->node_map[*n]);
+  }
+  return data;
+}
+
+//TODO: UndoMachine, then cleanup all constructors, bb_mult_recurse_data relying on copies of trees
+int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_stack, list<pair<Forest,Forest>> *AFs) {
   if (k < 0) {
     return k;
   }
@@ -1004,6 +1043,138 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	#ifdef DEBUG
 	cout << "a1: " << T2_a1->str_mult_subtree() << " a2: " << T2_a2->str_mult_subtree() << endl;
 	#endif
+
+#if 0
+	  //step 7
+	/*
+	  if a1 == prot, x = 2 else x = 1
+	 */
+	  if (!protected_node == NULL) {
+	    //step 7.1
+	    if (arbitrary_lca == NULL) {
+	      /* 
+		 recurse on cut ax prot protected node
+	       */
+	    }
+	    //step 7.2
+	    else if (arbitrary_lca != NULL &&
+		     protected_node is not descendant of arbitrary_lca
+		     ) {
+	      /*
+		recurse on cut a1's B's up to LCA prot protected node
+	       */
+	      if (deepest_siblings[deepest_siblings.size()-1] depth > 0) {
+		/*
+		  recurse on cut a1 prot protected node
+		 */
+	      }	      
+	    }
+	    //step 7.3
+	    else if (deepest_siblings.size() > 2 &&
+		     T2_ax->parent() == arbitrary_lca &&
+		     (
+		      lca is a root ||
+		      arbitrary_lca->parent()->get_children() has a sibling
+		      )) {
+	      /*
+		recurse on cut Bx prot protected node
+	       */
+	    }
+	    //step 7.4
+	    else if (7.3 didnt happen &&
+		     protected_node is a descendant of LCA &&
+		     ) {
+	    }
+	  }
+	  //step 8
+	  else {
+	    //step 8.1
+	    if (arbitrary_lca == NULL) {
+	      /*
+		recurse on cut a1 no prot,
+		           cut a2 no prot
+	       */
+	      
+	    }
+	    //step 8.2
+	    else if (set of deepest ones are 2 deep &&
+		     shallowest_sibling->parent() == arbitrary_lca) {
+	      /*for each sibling except for shallowest,
+		recurse on cut all B's leading up to lca, mark the sibling as protected, 
+		           cut all B's on all siblings leading up to lca, no protection
+	      */
+	      }
+	    //step 8.3
+	    else if (T1_sibling_group->get_children().size() == 2 &&
+		     depth of first + depth of second >= 4) {
+	      /*recurse on cut a1 no prot,
+		           cut a2 no prot,
+			   cut all along a1 to a2 no prot
+	       */
+	    }
+	    //step 8.4
+	    else if (T1_sibling_group->get_children().size() > 2 &&
+		     deepest_siblings.size() == 2 &&
+		     depth of first == 2 &&
+		     depth of second == 2) {
+	      /* 
+		 recurse on cut a1 and a2 no prot
+		            cut everything along path from a1 to a2 no prot
+			    cut a1, expand a1's parent and cut off, LCA's child towards a2, prot a2
+			    same thing as previous but for a2
+			    (more steps special case cant focus rn)
+	       */
+	    }
+	    //step 8.5
+	    else if (T1_sibling_group->get_children().size() > 2 &&
+		     deepest_siblings.size() > 2 &&
+		     they are all grandchildren of LCA) {
+	      /*
+		recurse on cut all a1 through ar no prot,
+		           everything along B's a1 through ar to LCA no prot,
+			   for each ai, cut all a's except ai prot ai
+			   for each ai, cut all B's except for ai's B prot ai
+	       */
+	    }
+	    //step 8.6
+	    else if (T1_sibling_group->get_children().size() > 2 &&
+		     deepest_siblings.size() == 2 &&
+		     T2_a1 at least two nodes down from LCA &&
+		     T2_a2->parent() == arbitrary_lca &&
+		     (
+		      arbitrary_lca is a root ||
+		      arbitrary_lca->parent()->get_children() contains a sibling
+		     )) {
+	      /*
+		recurse on cut a1 no prot,
+		           cut all B's leading up to LCA from a1, no prot,
+			   cut B2 (essentially a1's whole branch) no prot
+	       */
+	    }
+	    //step 8.7
+	    else if (T1_sibling_group->get_children().size() > 2 &&
+		     T2_a1 at least two nodes down from LCA &&
+		     didnt go into 8.6) {
+	      /*
+		recurse on cut a1 no prot,
+		           cut a2 prot a1,
+			   cut all B1's leading up to LCA no prot,
+			   
+	       */
+	      if (deepest_siblings.size() > 2) {
+		/*
+		  recurse on cut all B2's up to LCA
+		 */
+	      }
+	      else if(deepest_siblings.size() == 2) {
+		/*
+
+		 */
+	      }
+	    }
+	  
+	  }
+#endif
 	
 	bool cut_a1 = false;
 	bool cut_b1 = false;
@@ -1104,94 +1275,58 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	/*
 	  Cutting section
 	*/
-	//Forest* best_T1;
-	//Forest* best_T2;
-	//Forest* T1_copy = new Forest(T1);
-	//Forest* T2_copy = new Forest(T2);
 	Node *T2_a1_p = T2_a1->parent();
 
 	if (cut_a1) {	  
 	  //singletons? components?
 	  if (T2_a1_p != NULL) {
 	    //setup
-	    map<Node*, Node*> node_map = map<Node*, Node*>();
-	    Forest T1_next = Forest(T1, &node_map);
-	    Forest T2_next = Forest(T2, &node_map);
-	    for (auto n = node_map.begin(); n != node_map.end(); n++) {
-	      //(*n).first->set_twin(node_map[(*n).first->get_twin()]);
-	      /*
-	      if ((*n).second->is_leaf()) {
-	      (*n).second->set_twin(node_map[(*n).first->get_twin()]);
-	      node_map[(*n).first->get_twin()]->set_twin((*n).second);
-	      cout << "Synced twin : " << (*n).second->str() << " -> " << (*n).second->get_twin()->str() << endl;}*/
-	    }
-	    sync_twins(&T1_next, &T2_next);
-	    list<Node*> sibling_group_next = list<Node*>();
-	    for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
-	      sibling_group_next.push_back(node_map[*n]);
-	    }
-	    list<Node*> singletons_next = list<Node*>();
-	    for (auto n = singletons->begin(); n != singletons->end(); n++) {
-	      singletons_next.push_back(node_map[*n]);
-	    }
-	    Node* T2_a1_next = node_map[T2_a1];
+	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
+	    Node* T2_a1_next = next_data->node_map[T2_a1];
 	    //Cut connections
 	    T2_a1_next->cut_parent();
 	    //add as components
-	    T2_next.add_component(T2_a1_next);
-	    Node* T2_a1_p_next = node_map[T2_a1_p];
+	    next_data->T2->add_component(T2_a1_next);
+	    Node* T2_a1_p_next = next_data->node_map[T2_a1_p];
 	    //Just cut 1 of two children of a1 parent
 	    if (T2_a1_p_next->get_children().size() == 1) {
 	      if (T2_a1_p_next->parent() == NULL) {
 		Node* node = T2_a1_p_next->contract();
 		if (node->is_singleton()) {
-		  singletons_next.push_front(node);
+		  next_data->singletons->push_front(node);
 		}
 	      }
 	      else {
 		T2_a1_p_next = T2_a1_p_next->contract();
 		T2_a1_p_next->set_non_leaf_children(0);
 		if (T2_a1_p_next->is_singleton()) {
-		  singletons_next.push_front(T2_a1_p_next);
+		  next_data->singletons->push_front(T2_a1_p_next);
 		}
 	      }
 	    }
 	    //Check for singletons
 	    if (T2_a1_next->is_leaf())
-	      singletons_next.push_front(T2_a1_next);
+	      next_data->singletons->push_front(T2_a1_next);
 
 	    
 	    //recurse on this cut
 	    //TODO: UndoMachine
-	    int result_k = rSPR_branch_and_bound_mult_hlpr(&T1_next, &T2_next, k - 1, &sibling_group_next, &singletons_next, AFs);
+	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
+	    delete next_data;
 	    if (result_k > best_k) {
 	      best_k = result_k;
 	      if (!ALL_MAFS && best_k > -1) {
 		return best_k;
 	      }
-	    }
-	  }
-	     
+	    }	    
+	  }	     
 	}
 	//TODO: expand and cut if children > 2
 	if (cut_b1) {
 	  if (T2_a1_p != NULL) {
-	    
-	    map<Node*, Node*> node_map = map<Node*, Node*>();
-	    Forest T1_next = Forest(T1, &node_map);
-	    Forest T2_next = Forest(T2, &node_map);
-	    sync_twins(&T1_next, &T2_next);
-	    list<Node*> sibling_group_next = list<Node*>();
-	    for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
-	      sibling_group_next.push_back(node_map[*n]);
-	    }
-	    list<Node*> singletons_next = list<Node*>();
-	    for (auto n = singletons->begin(); n != singletons->end(); n++) {
-	      singletons_next.push_back(node_map[*n]);
-	    }
-	    
-	    Node* T2_a1_next = node_map[T2_a1];
-	    Node* T2_a1_p_next = node_map[T2_a1_p];
+	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
+	    Node* T2_a1_next = next_data->node_map[T2_a1];
+	    Node* T2_a1_p_next = next_data->node_map[T2_a1_p];
 	    Node* T2_b1_next;
 	    //IINCOMPLETE: conditional expand
 	    if (T2_a1_p_next->get_children().size() == 2) {
@@ -1211,14 +1346,14 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    T2_b1_next->cut_parent();
 	    
 	    //add as components
-	    T2_next.add_component(T2_b1_next);
+	    next_data->T2->add_component(T2_b1_next);
 	    
 	    //Just cut 1 of two children of a2 parent (will always be in this case?)
 	    if (T2_a1_p_next->get_children().size() == 1) {
 	      if (T2_a1_p_next->parent() == NULL) {
 		Node* node = T2_a1_p_next->contract();
 		if (node->is_singleton()) {
-		  singletons_next.push_front(node);
+		  next_data->singletons->push_front(node);
 		}
 	      }
 	      else {
@@ -1228,15 +1363,16 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    }
 	    else {
 	    if (T2_a1_next->is_leaf())
-	      singletons_next.push_front(T2_a1_next);
+	      next_data->singletons->push_front(T2_a1_next);
 	    }
 	    if (T2_b1_next->is_leaf())
-	      singletons_next.push_front(T2_b1_next);
+	      next_data->singletons->push_front(T2_b1_next);
 	    //Check for singletons
 	    
 	    //recurse
 	    
-	    int result_k = rSPR_branch_and_bound_mult_hlpr(&T1_next, &T2_next, k - 1, &sibling_group_next, &singletons_next, AFs);
+	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
+	    delete next_data;
 	    if (result_k > best_k) {
 	      best_k = result_k;
 	      if (!ALL_MAFS && best_k > -1) {
@@ -1253,33 +1389,20 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    //singletons->push_front(T2_a2);
 	  //}
 	  if (T2_a2_p != NULL) {
-	    
-	    map<Node*, Node*> node_map = map<Node*, Node*>();
-	    Forest T1_next = Forest(T1, &node_map);
-	    Forest T2_next = Forest(T2, &node_map);
-	    sync_twins(&T1_next, &T2_next);
-	    list<Node*> sibling_group_next = list<Node*>();
-	    for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
-	      sibling_group_next.push_back(node_map[*n]);
-	    }
-	    list<Node*> singletons_next = list<Node*>();
-	    for (auto n = singletons->begin(); n != singletons->end(); n++) {
-	      singletons_next.push_back(node_map[*n]);
-	    }
-	    
-	    Node* T2_a2_next = node_map[T2_a2];
+	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);	    
+	    Node* T2_a2_next = next_data->node_map[T2_a2];
 
 	    //Cut connections
 	    T2_a2_next->cut_parent();
 	    //add as components
-	    T2_next.add_component(T2_a2_next);
-	    Node* T2_a2_p_next = node_map[T2_a2_p];
+	    next_data->T2->add_component(T2_a2_next);
+	    Node* T2_a2_p_next = next_data->node_map[T2_a2_p];
 	    //Just cut 1 of two children of a2 parent
 	    if (T2_a2_p_next->get_children().size() == 1) {
 	      if (T2_a2_p_next->parent() == NULL) {
 		Node* node = T2_a2_p_next->contract();
 		if (node->is_singleton()) {
-		  singletons_next.push_front(node);
+		  next_data->singletons->push_front(node);
 		}
 	      }
 	      else {
@@ -1289,10 +1412,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    }
 	    //Check for singletons
 	    if (T2_a2_next->is_leaf())
-	      singletons_next.push_front(T2_a2_next);
+	      next_data->singletons->push_front(T2_a2_next);
 	    //recurse
 	    
-	    int result_k = rSPR_branch_and_bound_mult_hlpr(&T1_next, &T2_next, k - 1, &sibling_group_next, &singletons_next, AFs);
+	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
+	    delete next_data;
 	    if (result_k > best_k) {
 	      best_k = result_k;
 	      if (!ALL_MAFS && best_k > -1) {		
@@ -1303,7 +1427,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	}
 	if (cut_b2) {
 	  if (T2_a2_p != NULL) {
-	    	    
+	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);	    	    
 	    map<Node*, Node*> node_map = map<Node*, Node*>();
 	    Forest T1_next = Forest(T1, &node_map);
 	    Forest T2_next = Forest(T2, &node_map);
@@ -1317,8 +1441,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      singletons_next.push_back(node_map[*n]);
 	    }
 	    
-	    Node* T2_a2_next = node_map[T2_a2];
-	    Node* T2_a2_p_next = node_map[T2_a2_p];
+	    Node* T2_a2_next = next_data->node_map[T2_a2];
+	    Node* T2_a2_p_next = next_data->node_map[T2_a2_p];
 	    Node* T2_b2_next;
 
 	        //IINCOMPLETE: conditional expand
@@ -1341,14 +1465,14 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    T2_b2_next->cut_parent();
 	    
 	    //add as components
-	    T2_next.add_component(T2_b2_next);
+	    next_data->T2->add_component(T2_b2_next);
 	    
 	    //Just cut 1 of two children of a2 parent (will always be in this case?)
 	    if (T2_a2_p_next->get_children().size() == 1) {
 	      if (T2_a2_p_next->parent() == NULL) {
 		Node* node = T2_a2_p_next->contract();
 		if (node->is_singleton()) {
-		  singletons_next.push_front(node);
+		  next_data->singletons->push_front(node);
 		}
 	      }
 	      else {
@@ -1358,10 +1482,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    }
 	    //Check for singletons
 	    if (T2_a2_next->is_leaf())
-	      singletons_next.push_front(T2_a2_next);
+	      next_data->singletons->push_front(T2_a2_next);
 	    //recurse
 	    
-	    int result_k = rSPR_branch_and_bound_mult_hlpr(&T1_next, &T2_next, k - 1, &sibling_group_next, &singletons_next, AFs);
+	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
+	    delete next_data;
 	    if (result_k > best_k) {
 	      best_k = result_k;
 	      if (!ALL_MAFS && best_k > -1) {		
@@ -1373,9 +1498,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	}
 	sibling_groups->pop_back();	  
 	
-	//if (best_k != -1) {
-
-	//}
 	return best_k;
       }//else
       delete identical_sibling_groups;
