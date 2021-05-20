@@ -806,6 +806,9 @@ public:
   map<Node *, Node*> node_map;
 };
 
+/* Generates a copy of the data used to recurse on rSPR_branch_and_bound_mult_hlpr so 
+   that original forests aren't clobbered,
+   updates pointers accordingly */
 bb_mult_recurse_data *generate_mult_recurse_data(Forest *T1, Forest *T2, list<Node*> *sibling_groups, list<Node*> *singletons) {
 
   bb_mult_recurse_data *data = new bb_mult_recurse_data();
@@ -883,7 +886,7 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
   T2_b1->set_preorder_number(parent->get_preorder_number());
   //Cut connections
   T2_b1->cut_parent();
-	    
+
   //add as components
   T2->add_component(T2_b1);
 	    
@@ -908,8 +911,61 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
   //Check for singletons	
 }
 
+//What i'd need to pass: list of nodes to "cut", list of nodes to cut all except, node to protect, thats it?
+#define MULT_BB_CUT_AND_RESOLVE(nodes_to_cut, nodes_to_exclude_cutting, node_to_protect) { \
+  bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);\
+  int num_cuts = 0;							\
+  for (int i = 0; i < nodes_to_cut.size(); i++) {			\
+    Node* T2_ax_next = next_data->node_map[nodes_to_cut[i]];		\
+    mult_cut_and_cleanup(T2_ax_next, next_data->T2, next_data->singletons);\
+    num_cuts++;								\
+  }									\
+  for (int i = 0; i < nodes_to_exclude_cutting.size(); i++) {		\
+    Node* T2_ax_next = next_data->node_map[nodes_to_exclude_cutting[i]]; \
+    mult_cut_all_except_and_cleanup(T2_ax_next, next_data->T2, next_data->singletons); \
+    num_cuts++;								\
+  }									\
+  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - num_cuts, next_data->sibling_groups, next_data->singletons, node_to_protect, AFs); \
+  delete next_data;							\
+  if (result_k > best_k) {						\
+    best_k = result_k;							\
+    if (!ALL_MAFS && best_k > -1) {					\
+      return best_k;							\
+    }									\
+  }									\
+}
+
+/*
+//Consider struct for parameters to reduce stack use
+bool rSPR_branch_and_bound_mult_cut_hlpr(Forest *T1, Forest *T2,
+					 int k,
+					 list<Node*> *sibling_groups, list<Node*> *singletons,
+					 Node *protected_node, list<pair<Forest,Forest>> *AFs,
+					 Node* to_cut, int *best_k) {
+  bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
+  Node* T2_ax_next = next_data->node_map[T2_ax];
+  mult_cut_and_cleanup(T2_ax_next, next_data->T2, next_data->singletons);
+	    
+  //recurse on this cut
+  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, protected_node, AFs);
+  delete next_data;
+  if (result_k > best_k) {
+    best_k = result_k;
+    if (!ALL_MAFS && best_k > -1) {
+      return best_k;
+    }
+  }  
+}
+bool rSPR_branch_and_bound_mult_cut_all_except_hlpr(Forest *T1, Forest *T2,
+					 int k,
+					 list<Node*> *sibling_groups, list<Node*> *singletons,
+					 Node *protected_node, list<pair<Forest,Forest>> *AFs,
+					 Node *all_except, int *best_k) {
+}
+  
+*/
 //TODO: UndoMachine, then cleanup all constructors, bb_mult_recurse_data relying on copies of trees
-int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_stack, list<pair<Forest,Forest>> *AFs) {
+int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_node, list<pair<Forest,Forest>> *AFs) {
   if (k < 0) {
     return k;
   }
@@ -1088,22 +1144,21 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(T2->max_preorder);
 	Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
 	vector<Node *> deepest_siblings;
-	
+	vector<vector<Node*>> siblings_by_depth;
 	//All siblings are in different components, ie no path between them
 	//Get depth of siblings from root of each component
 	if (arbitrary_lca == NULL) {	
-	  vector<vector<Node *>> siblings_by_depth = vector<vector<Node *>>(10);
+	  siblings_by_depth = vector<vector<Node *>>(10);
 	  for (int i = 0; i != T2->components.size(); i++) {
 	    T2->components[i]->get_deepest_siblings(descendant_count, siblings_by_depth);
 	  }
-	  deepest_siblings = contract_deepest_siblings(siblings_by_depth);
 	}
 	//Otherwise they share an LCA
 	else {
-	  vector<vector<Node *>> siblings_by_depth = arbitrary_lca->get_deepest_siblings(descendant_count);
-	  deepest_siblings = contract_deepest_siblings(siblings_by_depth);
+	  siblings_by_depth = arbitrary_lca->get_deepest_siblings(descendant_count);
 	}
-      
+	map<Node*, int> s_map = map<Node*, int>();
+	deepest_siblings = contract_deepest_siblings(siblings_by_depth, &s_map);      
 	// Should assert here
 	if (deepest_siblings.size() < 2) { cout << "improper length" << endl; }
 
@@ -1119,12 +1174,25 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	/*
 	  if a1 == prot, x = 2 else x = 1
 	 */
-	  if (!protected_node == NULL) {
+	  if (protected_node != NULL) {
+	    Node* T2_ax;
+	    if (T2_a1 != protected_node) {
+	      T2_ax = T2_a1;
+	    }
+	    else {
+	      T2_ax = T2_a2;
+	    }
 	    //step 7.1
 	    if (arbitrary_lca == NULL) {
 	      /* 
 		 recurse on cut ax prot protected node
 	       */
+	      //7.1 : cut ax
+	      if (T2_ax->parent() != NULL) {
+		vector<Node*> to_cut = {T2_ax};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	      }
 	    }
 	    //step 7.2
 	    else if (arbitrary_lca != NULL &&
@@ -1137,18 +1205,31 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		/*
 		  recurse on cut a1 prot protected node
 		 */
+		//7.2b cut a1
+		if (T2_a1->parent() != NULL) {
+		  vector<Node*> to_cut = {T2_a1};
+		  vector<Node*> to_cut_except = {};
+		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+		}
+
 	      }	      
 	    }
 	    //step 7.3
 	    else if (deepest_siblings.size() > 2 &&
 		     T2_ax->parent() == arbitrary_lca &&
 		     (
-		      lca is a root ||
+		      arbitrary_lca->parent() == NULL ||
 		      arbitrary_lca->parent()->get_children() has a sibling
 		      )) {
 	      /*
 		recurse on cut Bx prot protected node
 	       */
+	      //7.3 cut Bx
+	      if (T2_ax->parent != NULL) { //would this ever be null?
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {T2_ax};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	      }
 	    }
 	    //step 7.4
 	    else if (7.3 didnt happen &&
@@ -1158,34 +1239,105 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  }
 	  //step 8
 	  else {
+#endif
+	    bool all_but_ar_s1 = true;
+	    for (int i = 0; i < deepest_siblings.size() - 1; i++) {
+	      if (s_map[deepest_siblings[i]] != 1) {
+		  all_but_ar_s1 = false;
+		  break;
+	      }
+	    }
+	   
+
 	    //step 8.1
 	    if (arbitrary_lca == NULL) {
 	      /*
 		recurse on cut a1 no prot,
 		           cut a2 no prot
 	       */
-	    }
-	    //step 8.2
-	    else if (set of deepest ones are 2 deep &&
-		     shallowest_sibling->parent() == arbitrary_lca) {
-	      /*for each sibling except for shallowest,
-		recurse on cut all B's leading up to lca, mark the sibling as protected, 
-		           cut all B's on all siblings leading up to lca, no protection
-	      */
+	      #ifdef DEBUG
+	      cout << "Case 8.1" << endl;
+	      #endif
+	      //8.1 : Cut a1
+	      if (T2_a1->parent() != NULL) {
+		vector<Node*> to_cut = {T2_a1};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	      }
+	      //8.1 : Cut a2
+	      if (T2_a2->parent() != NULL) {
+		vector<Node*> to_cut = {T2_a2};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	    }
+
+	    //step 8.2
+	    else if (all_but_ar_s1 &&
+		     deepest_siblings[deepest_siblings.size()-1]->parent() == arbitrary_lca) {
+	      /*
+		recurse on cut all B's except shallowest
+		           for each sibling except for shallowest,
+			      cut all other B's protect ai
+		           
+	      */
+	      //8.2 B's
+	      #ifdef DEBUG
+	      cout << "Case 8.2" << endl;
+	      #endif
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		for (int i = 0; i < deepest_siblings.size() - 1; i++) {
+		  to_cut_except.push_back(deepest_siblings[i]);
+		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //all other B's except ai
+	      //Doesnt explicitly say this in the paper, but
+	      //this would only happen if r > 2
+	      {
+		if (deepest_siblings.size() > 2){
+		  for (int i = 0; i < deepest_siblings.size() - 1; i++) {
+		    vector<Node*> to_cut = {};
+		    vector<Node*> to_cut_except = {};
+		    for (int j = 0; j < deepest_siblings.size() - 1; j++) {
+		      if (i != j) {
+			to_cut_except.push_back(deepest_siblings[j]);
+		      }
+		    }
+		    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);//TODO protect ai
+		  }
+		}
+	      }
+	    }
+#if 0
 	    //step 8.3
 	    else if (T1_sibling_group->get_children().size() == 2 &&
-		     depth of first + depth of second >= 4) {
+		     pseudodepth of first + pseudodepth of second >= 4) {
 	      /*recurse on cut a1 no prot,
 		           cut a2 no prot,
 			   cut all along a1 to a2 no prot
 	       */
+	      //8.3 : Cut a1
+	      if (T2_a1->parent() != NULL) {
+		vector<Node*> to_cut = {T2_a1};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //8.3 : Cut a2
+	      if (T2_a2->parent() != NULL) {
+		vector<Node*> to_cut = {T2_a2};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //8.3 : All along path from a1, a2
 	    }
 	    //step 8.4
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     deepest_siblings.size() == 2 &&
-		     depth of first == 2 &&
-		     depth of second == 2) {
+		     pseudodepth of first == 2 &&
+		     pseudodepth of second == 2) {
 	      /* 
 		 recurse on cut a1 and a2 no prot
 		            cut everything along path from a1 to a2 no prot
@@ -1244,7 +1396,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  
 	  }
 #endif
-	
+	  else {
+	    #ifdef DEBUG
+	    cout << "Backup 4 branch case" << endl;
+	    #endif
 	bool cut_a1 = false;
 	bool cut_b1 = false;
 	bool cut_a2 = false;
@@ -1264,14 +1419,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  */
 	  if (previous_group == T1_sibling_group) {
 	    cut_b2 = true;
-	    #ifdef DEBUG
-	    cout <<"Case 7.2" << endl;
-	    #endif
-	  }
-	  else {
-	    #if DEBUG
-	    cout << "Case 7.1" << endl;
-	    #endif
 	  }
 	} // size == 2
       
@@ -1315,9 +1462,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		}
 	      }
 	    }
-	    #ifdef DEBUG
-	    cout << "Case 7.3" << endl;
-	    #endif
 	    //num_cut += 2;
 	    if (x_2){
 	    
@@ -1333,9 +1477,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    cut a1 and a1_p
 	  */
 	  else if (previous_group == T1_sibling_group) {
-	    #ifdef DEBUG
-	    cout << "Case 7.4" << endl;
-	    #endif
+
 	    cut_a1   = true;
 	    cut_b1 = true;
 	    //num_cut += 2;
@@ -1347,41 +1489,17 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	Node *T2_a1_p = T2_a1->parent();
 
 	if (cut_a1) {	  
-	  //singletons? components?
 	  if (T2_a1_p != NULL) {
-	    //setup
-	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
-	    Node* T2_a1_next = next_data->node_map[T2_a1];
-	    mult_cut_and_cleanup(T2_a1_next, next_data->T2, next_data->singletons);
-	    
-	    //recurse on this cut
-	    //TODO: UndoMachine
-	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
-	    delete next_data;
-	    if (result_k > best_k) {
-	      best_k = result_k;
-	      if (!ALL_MAFS && best_k > -1) {
-		return best_k;
-	      }
-	    }	    
+	    vector<Node*> to_cut = {T2_a1};
+	    vector<Node*> to_cut_except = {};
+	    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	  }	     
 	}
-	//TODO: expand and cut if children > 2
 	if (cut_b1) {
 	  if (T2_a1_p != NULL) {
-	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
-	    Node* T2_a1_next = next_data->node_map[T2_a1];
-	    mult_cut_all_except_and_cleanup(T2_a1_next, next_data->T2, next_data->singletons);
-	    //recurse
-	    
-	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
-	    delete next_data;
-	    if (result_k > best_k) {
-	      best_k = result_k;
-	      if (!ALL_MAFS && best_k > -1) {
-		return best_k;
-	      }
-	    }
+	    vector<Node*> to_cut = {};
+	    vector<Node*> to_cut_except = {T2_a1};
+	    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	  }
 	}
 	Node *T2_a2_p = T2_a2->parent();
@@ -1392,39 +1510,20 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    //singletons->push_front(T2_a2);
 	  //}
 	  if (T2_a2_p != NULL) {
-	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);	    
-	    Node* T2_a2_next = next_data->node_map[T2_a2];
-	    mult_cut_and_cleanup(T2_a2_next, next_data->T2, next_data->singletons);
-	    
-	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
-	    delete next_data;
-	    
-	    if (result_k > best_k) {
-	      best_k = result_k;
-	      if (!ALL_MAFS && best_k > -1) {		
-		return best_k;
-	      }
-	    }
+	    vector<Node*> to_cut = {T2_a2};
+	    vector<Node*> to_cut_except = {};
+	    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	  }
 	}
 	if (cut_b2) {
 	  if (T2_a2_p != NULL) {
-	    bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
-
-	    Node* T2_a2_next = next_data->node_map[T2_a2];
-	    mult_cut_all_except_and_cleanup(T2_a2_next, next_data->T2, next_data->singletons);
-	    
-	    int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, NULL, AFs);
-	    delete next_data;
-	    if (result_k > best_k) {
-	      best_k = result_k;
-	      if (!ALL_MAFS && best_k > -1) {		
-		return best_k;
-	      }
-	    }
+	    vector<Node*> to_cut = {};
+	    vector<Node*> to_cut_except = {T2_a2};
+	    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	  }
 	 
 	}
+	  }
 	sibling_groups->pop_back();	  
 	
 	return best_k;

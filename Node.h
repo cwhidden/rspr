@@ -1640,9 +1640,7 @@ class Node {
 	     siblings_by_depth[0].push_back(this);
 	     return;
 	   }
-	  //parallel vectors for storing the siblings and their depths
-	  //Starts with max depth of 10, could pass in as parameter if we know what it will be
-	  list<Node *>::iterator i;
+	   list<Node *>::iterator i;
 	  //Go down each path of 1s and take note of their path length to this node
 	  //There should be the same amount of 1 paths as nodes.size()
 	  for (i = children.begin(); i != children.end(); i++) {
@@ -2849,10 +2847,9 @@ void reroot_safe(Node **n, Node *new_lc) {
 	(*n)->edge_preorder_interval();
 }
 
-
+//TODO: remove references to this, replace with map version
 vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_depth) {	  
 	  vector<Node*> deepest_siblings = vector<Node*>();
-	  //Return them all sorted by depth
 	  for (int j = siblings_by_depth.size() - 1; j >= 0; j--) {
 	    if (siblings_by_depth[j].size() != 0) {
 	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
@@ -2871,5 +2868,27 @@ vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_dep
 	  
 	  return deepest_siblings; 
 	}
+vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_depth, map<Node*, int> *s_map) {	  
+	  vector<Node*> deepest_siblings = vector<Node*>();
+	  for (int j = siblings_by_depth.size() - 1; j >= 0; j--) {
+	    if (siblings_by_depth[j].size() != 0) {
+	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
+		deepest_siblings.push_back(siblings_by_depth[j][k]);
+		s_map->insert({siblings_by_depth[j][k], j - 1});
+		#ifdef DEBUG_APPROX
+		cout << "Inserting... : " << siblings_by_depth[j][k]->str() << " of depth " << j << endl;
+		#endif
+	      }
+	    }
+	  }
+	  #ifdef DEBUG_APPROX
+	  for (int j = 0; j < deepest_siblings.size(); j++) {
+	    cout <<"item: [" << j << "] = " << deepest_siblings[j]->str() << endl;;
+	  }
+	  #endif
+	  
+	  return deepest_siblings; 
+	}
+
 
 #endif
