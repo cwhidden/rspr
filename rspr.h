@@ -1249,8 +1249,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		  break;
 	      }
 	    }
-	    //bool all_s1 = s_map[deepest_siblings[deepest_siblings.size()-1]] == 1 &&
-	    //  all_but_ar_s1;
+	    bool all_s1 = s_map[deepest_siblings[deepest_siblings.size()-1]] == 1 &&
+	      all_but_ar_s1;
 
 	    //step 8.1
 	    if (arbitrary_lca == NULL) {
@@ -1405,19 +1405,66 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	      }
 	    }
-#if 0
+
 	    //step 8.5
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     deepest_siblings.size() > 2 &&
 		     all_s1) {
 	      /*
 		recurse on cut all a1 through ar no prot,
-		           everything along B's a1 through ar to LCA no prot,
+		           cut all b1 through br no prot,
 			   for each ai, cut all a's except ai prot ai
 			   for each ai, cut all B's except for ai's B prot ai
 	       */
+	      #ifdef DEBUG
+	      cout << "Case 8.5" << endl;
+	      #endif
+	      //8.5 all ai
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		for (int i = 0; i < deepest_siblings.size(); i++) {
+		  to_cut.push_back(deepest_siblings[i]);
+		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //8.5 cut all bi
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		for (int i = 0; i < deepest_siblings.size(); i++) {
+		  to_cut_except.push_back(deepest_siblings[i]);
+		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //8.5 for each ai cut all a's except ai
+	      {
+		for (int i = 0; i < deepest_siblings.size(); i++) {
+		  vector<Node*> to_cut = {};
+		  vector<Node*> to_cut_except = {};
+		  for (int j = 0; j < deepest_siblings.size(); j++) {
+		    if (i != j) {
+		      to_cut.push_back(deepest_siblings[j]);
+		    }
+		  }
+		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);//TODO protect ai
+		}
+	      }
+	      //8.5 for each ai cut all b's except ai's
+	      {
+		for (int i = 0; i < deepest_siblings.size(); i++) {
+		  vector<Node*> to_cut = {};
+		  vector<Node*> to_cut_except = {};
+		  for (int j = 0; j < deepest_siblings.size(); j++) {
+		    if (i != j) {
+		      to_cut_except.push_back(deepest_siblings[j]);
+		    }
+		  }
+		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);//TODO protect ai
+		}
+	      }
 	    }
-
+#if 0
 	    //step 8.6
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     deepest_siblings.size() == 2 &&
