@@ -911,7 +911,8 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
   //Check for singletons	
 }
 
-//What i'd need to pass: list of nodes to "cut", list of nodes to cut all except, node to protect, thats it?
+//TODO (Ben): try using a routine instead of a macro, I suspect it will slow down because of
+//            stack and parameter passing though
 #define MULT_BB_CUT_AND_RESOLVE(nodes_to_cut, nodes_to_exclude_cutting, node_to_protect) { \
   bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);\
   int num_cuts = 0;							\
@@ -979,7 +980,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       Node *T2_a = singletons->back();
       singletons->pop_back();
       #ifdef DEBUG
-      cout << "Handling singleton: " << T2_a->str_mult_subtree() << endl;
+      cout << "Handling singleton: " << T2_a->str() << endl;
       #endif
       // find twin in T1
       Node *T1_a = T2_a->get_twin();
@@ -1168,6 +1169,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	#ifdef DEBUG
 	cout << "a1: " << T2_a1->str() << " a2: " << T2_a2->str() << endl;
 	#endif
+	best_k = -1;
 
 #if 0
 	  //step 7
@@ -1311,7 +1313,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		}
 	      }
 	    }
-#if 0
+
 	    //step 8.3
 	    else if (T1_sibling_group->get_children().size() == 2 &&
 		     s_map[T2_a1] + s_map[T2_a2] >= 2) {
@@ -1336,21 +1338,22 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      {
 		vector<Node*> to_cut = {};
 		vector<Node*> to_cut_except = {};
-		Node* stepper = T2_a1->parent();
+		Node* stepper = T2_a1;
 		
-		while(stepper != arbitrary_lca) { //no need to check for null! we know theres a path
+		while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
 		  to_cut_except.push_back(stepper);
 		  stepper = stepper->parent();
 		}
-		stepper = T2_a2->parent();
-		while(stepper != arbitrary_lca) { //no need to check for null! we know theres a path
+		stepper = T2_a2;
+		while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
 		  to_cut_except.push_back(stepper);
 		  stepper = stepper->parent();
 		}
+		reverse(to_cut_except.begin(), to_cut_except.end());
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	      }	      
 	    }
-
+#if 0
 	    //step 8.4
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     deepest_siblings.size() == 2 &&
@@ -1539,11 +1542,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    vector<Node*> to_cut_except = {T2_a2};
 	    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	  }
-	 
+	  
 	}
 	  }
-	sibling_groups->pop_back();	  
-	
+	sibling_groups->pop_back();
 	return best_k;
       }//else
       delete identical_sibling_groups;
@@ -1562,9 +1564,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       // hack to ignore rho when it shouldn't be in a cluster
       //num_cut -=3;
   }
+
   if (k >= 0) {
     AFs->push_front(make_pair(Forest(T1),Forest(T2)));
   }
+
   /*
   if (save_forests) {
     *F1 = new Forest(T1);
