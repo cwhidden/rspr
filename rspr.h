@@ -1081,7 +1081,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  T2_group_new->set_twin(T1_group_new);			
 
 	  // check if T2_p is a singleton after the contraction
-	  if (T2_p->is_singleton() && T1_sibling_group != T1->get_component(0) && T2_p != T2->get_component(0)) {
+	  if (T2_p->is_singleton()){// && T1_sibling_group != T1->get_component(0) && T2_p != T2->get_component(0)) {
 	    singletons->push_front(T2_p);
 	  }
 	  if (T1_sibling_group->parent() != NULL) {
@@ -1166,7 +1166,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	Node *T2_a1 = deepest_siblings[0];
 	Node *T2_a2 = deepest_siblings[1];
 	#ifdef DEBUG
-	cout << "a1: " << T2_a1->str_mult_subtree() << " a2: " << T2_a2->str_mult_subtree() << endl;
+	cout << "a1: " << T2_a1->str() << " a2: " << T2_a2->str() << endl;
 	#endif
 
 #if 0
@@ -1314,11 +1314,12 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 #if 0
 	    //step 8.3
 	    else if (T1_sibling_group->get_children().size() == 2 &&
-		     pseudodepth of first + pseudodepth of second >= 4) {
+		     s_map[T2_a1] + s_map[T2_a2] >= 2) {
 	      /*recurse on cut a1 no prot,
 		           cut a2 no prot,
 			   cut all along a1 to a2 no prot
 	       */
+	      cout << "Case 8.3" << endl;
 	      //8.3 : Cut a1
 	      if (T2_a1->parent() != NULL) {
 		vector<Node*> to_cut = {T2_a1};
@@ -1332,7 +1333,24 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	      }
 	      //8.3 : All along path from a1, a2
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		Node* stepper = T2_a1->parent();
+		
+		while(stepper != arbitrary_lca) { //no need to check for null! we know theres a path
+		  to_cut_except.push_back(stepper);
+		  stepper = stepper->parent();
+		}
+		stepper = T2_a2->parent();
+		while(stepper != arbitrary_lca) { //no need to check for null! we know theres a path
+		  to_cut_except.push_back(stepper);
+		  stepper = stepper->parent();
+		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }	      
 	    }
+
 	    //step 8.4
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     deepest_siblings.size() == 2 &&
