@@ -1249,7 +1249,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		  break;
 	      }
 	    }
-	   
+	    //bool all_s1 = s_map[deepest_siblings[deepest_siblings.size()-1]] == 1 &&
+	    //  all_but_ar_s1;
 
 	    //step 8.1
 	    if (arbitrary_lca == NULL) {
@@ -1321,7 +1322,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		           cut a2 no prot,
 			   cut all along a1 to a2 no prot
 	       */
+	      #ifdef DEBUG
 	      cout << "Case 8.3" << endl;
+	      #endif
 	      //8.3 : Cut a1
 	      if (T2_a1->parent() != NULL) {
 		vector<Node*> to_cut = {T2_a1};
@@ -1349,28 +1352,64 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		  to_cut_except.push_back(stepper);
 		  stepper = stepper->parent();
 		}
+		/*
+		  Cut from top to bottom,
+		  Cutting from bottom to top causes the contraction to invalidate
+		  the node, since contraction is implemented by cutting the parent, then giving
+		  the child to the parent
+		 */
+		//TODO: use list to push_front or figure out how to add from top to bottom 
 		reverse(to_cut_except.begin(), to_cut_except.end());
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	      }	      
 	    }
-#if 0
+
 	    //step 8.4
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     deepest_siblings.size() == 2 &&
-		     pseudodepth of first == 2 &&
-		     pseudodepth of second == 2) {
+		     s_map[T2_a1] == 1 &&
+		     s_map[T2_a2] == 1) {
 	      /* 
 		 recurse on cut a1 and a2 no prot
-		            cut everything along path from a1 to a2 no prot
-			    cut a1, expand a1's parent and cut off, LCA's child towards a2, prot a2
-			    same thing as previous but for a2
-			    (more steps special case cant focus rn)
+		            cut b1 and b2 no prot
+			    cut all except b1 off of lca, b1
+			    cut all except b2 off of lca, b2
+			    (TODO: special case)
 	       */
+	      #ifdef DEBUG
+	      cout << "Case 8.4" << endl;
+	      #endif
+	      //8.4 : Cut a1 and a2
+	      {
+		vector<Node*> to_cut = {T2_a1, T2_a2};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //8.4 : Cut a1 and a2's B's
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {T2_a1, T2_a2};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+
+	      //8.4 : All except a1->p, then b1
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {T2_a1->parent(), T2_a1};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //8.4 : All except a2->p, then b2
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {T2_a2->parent(), T2_a2};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
 	    }
+#if 0
 	    //step 8.5
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     deepest_siblings.size() > 2 &&
-		     they are all grandchildren of LCA) {
+		     all_s1) {
 	      /*
 		recurse on cut all a1 through ar no prot,
 		           everything along B's a1 through ar to LCA no prot,
@@ -1378,6 +1417,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 			   for each ai, cut all B's except for ai's B prot ai
 	       */
 	    }
+
 	    //step 8.6
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     deepest_siblings.size() == 2 &&
