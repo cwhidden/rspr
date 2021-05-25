@@ -1252,6 +1252,18 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    bool all_s1 = s_map[deepest_siblings[deepest_siblings.size()-1]] == 1 &&
 	      all_but_ar_s1;
 
+	    bool lca_p_contains_sibling = false;	    
+	    if (arbitrary_lca != NULL && arbitrary_lca->parent() != NULL) {
+	      for (list<Node*>::iterator i = arbitrary_lca->parent()->get_children().begin();
+		   i != arbitrary_lca->parent()->get_children().end();
+		   i++) {
+		if (descendant_count[(*i)->get_preorder_number()] == -1) {
+		  lca_p_contains_sibling = true;
+		  break;
+		}
+	      }
+	    }
+
 	    //step 8.1
 	    if (arbitrary_lca == NULL) {
 	      /*
@@ -1450,7 +1462,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);//TODO protect ai
 		}
 	      }
-	      //8.5 for each ai cut all b's except ai's
+ 	      //8.5 for each ai cut all b's except ai's
 	      {
 		for (int i = 0; i < deepest_siblings.size(); i++) {
 		  vector<Node*> to_cut = {};
@@ -1464,22 +1476,54 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		}
 	      }
 	    }
-#if 0
+
 	    //step 8.6
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     deepest_siblings.size() == 2 &&
-		     T2_a1 at least two nodes down from LCA &&
-		     T2_a2->parent() == arbitrary_lca &&
+		     s_map[T2_a1] >= 2 &&
+		     T2_a2->parent() == arbitrary_lca && //equivalent to s_map[T2_a2] == 0
 		     (
-		      arbitrary_lca is a root ||
-		      arbitrary_lca->parent()->get_children() contains a sibling
+		      arbitrary_lca->parent() == NULL ||
+		      lca_p_contains_sibling
 		     )) {
+	      #ifdef DEBUG	     
+	      cout << "Case 8.6" << endl;
+	      #endif
 	      /*
 		recurse on cut a1 no prot,
 		           cut all B's leading up to LCA from a1, no prot,
 			   cut B2 (essentially a1's whole branch) no prot
 	       */
+	      //if (T2_a1->parent() != NULL) {
+	      //8.6 cut a1
+	      {
+		vector<Node*> to_cut = {T2_a1};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //8.6 cut all B1s
+	      {		
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		Node* stepper = T2_a1;
+		
+		while(stepper->parent() != arbitrary_lca) { 
+		  to_cut_except.push_back(stepper);
+		  stepper = stepper->parent();
+		}
+		//TODO: use list to push_front or figure out how to add from top to bottom 
+		reverse(to_cut_except.begin(), to_cut_except.end());
+
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //8.6 cut B2
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {T2_a2};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }	      
 	    }
+#if 0
 	    //step 8.7
 	    else if (T1_sibling_group->get_children().size() > 2 &&
 		     T2_a1 at least two nodes down from LCA &&
