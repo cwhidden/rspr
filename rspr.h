@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RSPR
 //#define DEBUG 1
-//#define DEBUG_CONTRACTED 1
+#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -926,7 +926,8 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
     mult_cut_all_except_and_cleanup(T2_ax_next, next_data->T2, next_data->singletons); \
     num_cuts++;								\
   }									\
-  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - num_cuts, next_data->sibling_groups, next_data->singletons, node_to_protect, AFs); \
+  Node* protect = next_data->node_map[node_to_protect];			\
+  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - num_cuts, next_data->sibling_groups, next_data->singletons, protect, AFs); \
   delete next_data;							\
   if (result_k > best_k) {						\
     best_k = result_k;							\
@@ -1171,605 +1172,697 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	#endif
 	best_k = -1;
 
-#if 0
-	  //step 7
+	
+	//step 7
 	/*
 	  if a1 == prot, x = 2 else x = 1
-	 */
-	  if (protected_node != NULL) {
-	    Node* T2_ax;
-	    if (T2_a1 != protected_node) {
-	      T2_ax = T2_a1;
-	    }
-	    else {
-	      T2_ax = T2_a2;
-	    }
-	    //step 7.1
-	    if (arbitrary_lca == NULL) {
-	      /* 
-		 recurse on cut ax prot protected node
-	       */
-	      //7.1 : cut ax
-	      if (T2_ax->parent() != NULL) {
-		vector<Node*> to_cut = {T2_ax};
-		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
-	      }
-	    }
-	    //step 7.2
-	    else if (arbitrary_lca != NULL &&
-		     protected_node is not descendant of arbitrary_lca
-		     ) {
-	      /*
-		recurse on cut a1's B's up to LCA prot protected node
-	       */
-	      if (deepest_siblings[deepest_siblings.size()-1] depth > 0) {
-		/*
-		  recurse on cut a1 prot protected node
-		 */
-		//7.2b cut a1
-		if (T2_a1->parent() != NULL) {
-		  vector<Node*> to_cut = {T2_a1};
-		  vector<Node*> to_cut_except = {};
-		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
-		}
+	*/
+	if (protected_node != NULL) {
+	  Node* T2_ax;
+	  if (T2_a1 != protected_node) {
+	    T2_ax = T2_a1;
+	  }
+	  else {
+	    T2_ax = T2_a2;
+	  }
+	  
+	  bool a0_descendant_of_lca = false;
+	  Node* stepper = protected_node;
+	  while (stepper->parent() != NULL && stepper->parent() != arbitrary_lca) {
+	    stepper = stepper->parent();
+	  }
+	  if (stepper->parent() == arbitrary_lca) {
+	    a0_descendant_of_lca = true;
+	  }
 
-	      }	      
-	    }
-	    //step 7.3
-	    else if (deepest_siblings.size() > 2 &&
-		     T2_ax->parent() == arbitrary_lca &&
-		     (
-		      arbitrary_lca->parent() == NULL ||
-		      arbitrary_lca->parent()->get_children() has a sibling
-		      )) {
-	      /*
-		recurse on cut Bx prot protected node
-	       */
-	      //7.3 cut Bx
-	      if (T2_ax->parent != NULL) { //would this ever be null?
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {T2_ax};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	  //TODO (Ben) do one iteration of pl parent for has_aj_child and has_non_aj_child,
+	  //           as well as any other flags, before step 7 check
+	  bool pl_has_aj_child = false;
+	  if (arbitrary_lca != NULL) {
+	    Node* pl = arbitrary_lca->parent();	  
+	    if (pl != NULL) {
+	      for (auto i = pl->get_children().begin(); i != pl->get_children().end(); i++) {
+		if (*i != arbitrary_lca && descendant_count[(*i)->get_preorder_number()] == -1) {
+		  pl_has_aj_child = true;
+		  break;
+		}
 	      }
-	    }
-	    //step 7.4
-	    else if (7.3 didnt happen &&
-		     protected_node is a descendant of LCA &&
-		     ) {
 	    }
 	  }
-	  //step 8
-	  else {
-#endif
-	    bool all_but_ar_s1 = true;
-	    for (int i = 0; i < deepest_siblings.size() - 1; i++) {
-	      if (s_map[deepest_siblings[i]] != 1) {
-		  all_but_ar_s1 = false;
-		  break;
-	      }
+	  //step 7.1
+	  if (arbitrary_lca == NULL) {
+	    #ifdef DEBUG
+	    cout << "Case 7.1 T2_ax: " << T2_ax->str() << endl;
+	    #endif
+	    /* 
+	       recurse on cut ax prot protected node
+	    */
+	    //7.1 : cut ax
+	    if (T2_ax->parent() != NULL) {
+	      vector<Node*> to_cut = {T2_ax};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
 	    }
-	    bool all_s1 = s_map[deepest_siblings[deepest_siblings.size()-1]] == 1 &&
-	      all_but_ar_s1;
+	  }
 
-	    bool lca_p_contains_sibling = false;	    
-	    if (arbitrary_lca != NULL && arbitrary_lca->parent() != NULL) {
-	      for (list<Node*>::iterator i = arbitrary_lca->parent()->get_children().begin();
-		   i != arbitrary_lca->parent()->get_children().end();
-		   i++) {
-		if (descendant_count[(*i)->get_preorder_number()] == -1) {
-		  lca_p_contains_sibling = true;
-		  break;
-		}
-	      }
-	    }
+	  //step 7.2
+	  else if (!a0_descendant_of_lca) {
+	    /*
+	      recurse on cut a1's B's up to LCA prot protected node
 
-	    //step 8.1
-	    if (arbitrary_lca == NULL) {
-	      /*
-		recurse on cut a1 no prot,
-		           cut a2 no prot
-	       */
-	      #ifdef DEBUG
-	      cout << "Case 8.1" << endl;
-	      #endif
-	      //8.1 : Cut a1
-	      if (T2_a1->parent() != NULL) {
-		vector<Node*> to_cut = {T2_a1};
-		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      //8.1 : Cut a2
-	      if (T2_a2->parent() != NULL) {
-		vector<Node*> to_cut = {T2_a2};
-		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	    }
-
-	    //step 8.2
-	    else if (all_but_ar_s1 &&
-		     deepest_siblings[deepest_siblings.size()-1]->parent() == arbitrary_lca) {
-	      /*
-		recurse on cut all B's except shallowest
-		           for each sibling except for shallowest,
-			      cut all other B's protect ai
-		           
-	      */
-	      //8.2 B's
-	      #ifdef DEBUG
-	      cout << "Case 8.2" << endl;
-	      #endif
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {};
-		for (int i = 0; i < deepest_siblings.size() - 1; i++) {
-		  to_cut_except.push_back(deepest_siblings[i]);
-		}
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      //all other B's except ai
-	      //Doesnt explicitly say this in the paper, but
-	      //this would only happen if r > 2
-	      {
-		if (deepest_siblings.size() > 2){
-		  for (int i = 0; i < deepest_siblings.size() - 1; i++) {
-		    vector<Node*> to_cut = {};
-		    vector<Node*> to_cut_except = {};
-		    for (int j = 0; j < deepest_siblings.size() - 1; j++) {
-		      if (i != j) {
-			to_cut_except.push_back(deepest_siblings[j]);
-		      }
-		    }
-		    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);//TODO protect ai
-		  }
-		}
-	      }
-	    }
-
-	    //step 8.3
-	    else if (T1_sibling_group->get_children().size() == 2 &&
-		     s_map[T2_a1] + s_map[T2_a2] >= 2) {
-	      /*recurse on cut a1 no prot,
-		           cut a2 no prot,
-			   cut all along a1 to a2 no prot
-	       */
-	      #ifdef DEBUG
-	      cout << "Case 8.3" << endl;
-	      #endif
-	      //8.3 : Cut a1
-	      if (T2_a1->parent() != NULL) {
-		vector<Node*> to_cut = {T2_a1};
-		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      //8.3 : Cut a2
-	      if (T2_a2->parent() != NULL) {
-		vector<Node*> to_cut = {T2_a2};
-		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      //8.3 : All along path from a1, a2
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {};
-		Node* stepper = T2_a1;
+	    */
+	    #ifdef DEBUG
+	    cout << "Case 7.2 Protected Node: " << protected_node->str() <<  endl;
+	    #endif
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a1;
 		
-		while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
-		  to_cut_except.push_back(stepper);
-		  stepper = stepper->parent();
-		}
-		stepper = T2_a2;
-		while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
-		  to_cut_except.push_back(stepper);
-		  stepper = stepper->parent();
-		}
-		/*
-		  Cut from top to bottom,
-		  Cutting from bottom to top causes the contraction to invalidate
-		  the node, since contraction is implemented by cutting the parent, then giving
-		  the child to the parent
-		 */
-		//TODO: use list to push_front or figure out how to add from top to bottom 
-		reverse(to_cut_except.begin(), to_cut_except.end());
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }	      
+	      while(stepper->parent() != arbitrary_lca) { 
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
 	    }
-
-	    //step 8.4
-	    else if (T1_sibling_group->get_children().size() > 2 &&
-		     deepest_siblings.size() == 2 &&
-		     s_map[T2_a1] == 1 &&
-		     s_map[T2_a2] == 1) {
-	      /* 
-		 recurse on cut a1 and a2 no prot
-		            cut b1 and b2 no prot
-			    cut all except b1 off of lca, b1
-			    cut all except b2 off of lca, b2
-			    (TODO: special case)
-	       */
-	      #ifdef DEBUG
-	      cout << "Case 8.4" << endl;
-	      #endif
-	      //8.4 : Cut a1 and a2
-	      {
-		vector<Node*> to_cut = {T2_a1, T2_a2};
-		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      //8.4 : Cut a1 and a2's B's
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {T2_a1, T2_a2};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-
-	      //8.4 : All except a1->p, then b1
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {T2_a1->parent(), T2_a1};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      //8.4 : All except a2->p, then b2
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {T2_a2->parent(), T2_a2};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      Node* pl = arbitrary_lca->parent();
-	      bool pl_has_non_aj_child = false;
-	      if (pl != NULL) {
-		for (auto i = pl->get_children().begin(); i != pl->get_children().end(); i++) {
-		  if (*i != arbitrary_lca && descendant_count[(*i)->get_preorder_number()] != -1) {
-		    pl_has_non_aj_child = true;
-		    break;
-		  }
-		}
-	      }
-	      bool gpl_has_non_aj_child = false;
-	      //place this conditional so we do not unnecessarily iterate
-	      //If pl_has_non_aj_child then the if will evaluate to true later on anyways
-	      if (!pl_has_non_aj_child) {
-		if (pl != NULL) {
-		  Node* gpl = pl->parent();		    		    
-		  if (gpl != NULL) {
-		    for (auto i = gpl->get_children().begin(); i != gpl->get_children().end(); i++) {
-		      if (*i != pl && descendant_count[(*i)->get_preorder_number()] != -1) {
-			gpl_has_non_aj_child = true;
-			break;
-		      }
-		    }
-		  }
-		}
-	      }
-	      //8.4 special case
-	      if (arbitrary_lca->parent() == NULL ||
-		  pl_has_non_aj_child ||
-		  gpl_has_non_aj_child) {
-		cout << "8.4 special case" << endl;
-		//8.4 Cut a1 prot a2
-		{
-		  vector<Node*> to_cut = {T2_a1};
-		  vector<Node*> to_cut_except = {};
-		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);	
-		}
-		//8.4 Cut a2 prot a1
-		{
-		  vector<Node*> to_cut = {T2_a2};
-		  vector<Node*> to_cut_except = {};
-		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);	
-		}
-
-	      }
-	    }
-
-	    //step 8.5
-	    else if (T1_sibling_group->get_children().size() > 2 &&
-		     deepest_siblings.size() > 2 &&
-		     all_s1) {
+	    
+	    if (s_map[T2_a1] > 1 ||
+		s_map[deepest_siblings[deepest_siblings.size()-1]] > 0){
 	      /*
-		recurse on cut all a1 through ar no prot,
-		           cut all b1 through br no prot,
-			   for each ai, cut all a's except ai prot ai
-			   for each ai, cut all B's except for ai's B prot ai
-	       */
+		recurse on cut a1 prot protected node
+	      */
+	      //7.2b cut a1
+	      if (T2_a1->parent() != NULL) {
+		vector<Node*> to_cut = {T2_a1};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	      }     
+	    }
+	  }	
+	    
+
+	  //step 7.3
+	  else if (deepest_siblings.size() == 2 &&
+		   T2_ax->parent() == arbitrary_lca &&
+		   a0_descendant_of_lca &&
+		   (
+		    arbitrary_lca->parent() == NULL ||
+		    pl_has_aj_child
+		    )) {
+	    /*
+	      recurse on cut Bx prot protected node
+	    */
+	    //7.3 cut Bx
+
+	    #ifdef DEBUG
+	    cout << "Case 7.3 T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	    #endif
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_ax};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	    }
+	  }
+
+
+	  //step 7.4
+	  else if (a0_descendant_of_lca) {
+	    /*
+	      recurse on cut ax prot protected_node
+	                 if m > 2 and r > 2 recurse on 
+			    cut all Bx's then B`x
+	     */
+	    //7.4 cut ax
+	    #ifdef DEBUG
+	    cout << "Case 7.4 T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	    #endif
+	    {
+	      vector<Node*> to_cut = {T2_ax};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	    }
+	    if (T1_sibling_group->get_children().size() > 2 && deepest_siblings.size() > 2) {
 	      #ifdef DEBUG
-	      cout << "Case 8.5" << endl;
+	      cout << "Case 7.4b T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
 	      #endif
-	      //8.5 all ai
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {};
-		for (int i = 0; i < deepest_siblings.size(); i++) {
-		  to_cut.push_back(deepest_siblings[i]);
-		}
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      //7.4 cut all Bx B`x
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_ax;
+		
+	      while(stepper->parent() != arbitrary_lca) { //Do we know ax is descendant of lca?
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
 	      }
-	      //8.5 cut all bi
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {};
-		for (int i = 0; i < deepest_siblings.size(); i++) {
-		  to_cut_except.push_back(deepest_siblings[i]);
-		}
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+	      to_cut_except.push_back(T2_ax);
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);	      
+	    }
+	  }
+
+	  //else {
+	  //goto backup;
+	  //}
+
+	}
+
+	//step 8
+	else {
+	backup:
+	  bool all_but_ar_s1 = true;
+	  for (int i = 0; i < deepest_siblings.size() - 1; i++) {
+	    if (s_map[deepest_siblings[i]] != 1) {
+	      all_but_ar_s1 = false;
+	      break;
+	    }
+	  }
+	  bool all_s1 = s_map[deepest_siblings[deepest_siblings.size()-1]] == 1 &&
+	    all_but_ar_s1;
+
+	  bool lca_p_contains_sibling = false;	    
+	  if (arbitrary_lca != NULL && arbitrary_lca->parent() != NULL) {
+	    for (list<Node*>::iterator i = arbitrary_lca->parent()->get_children().begin();
+		 i != arbitrary_lca->parent()->get_children().end();
+		 i++) {
+	      if (descendant_count[(*i)->get_preorder_number()] == -1) {
+		lca_p_contains_sibling = true;
+		break;
 	      }
-	      //8.5 for each ai cut all a's except ai
-	      {
-		for (int i = 0; i < deepest_siblings.size(); i++) {
+	    }
+	  }
+
+	  //step 8.1
+	  if (arbitrary_lca == NULL) {
+	    /*
+	      recurse on cut a1 no prot,
+	      cut a2 no prot
+	    */
+#ifdef DEBUG
+	    cout << "Case 8.1" << endl;
+#endif
+	    //8.1 : Cut a1
+	    if (T2_a1->parent() != NULL) {
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.1 : Cut a2
+	    if (T2_a2->parent() != NULL) {
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	  }
+
+	  //step 8.2
+	  else if (all_but_ar_s1 &&
+		   deepest_siblings[deepest_siblings.size()-1]->parent() == arbitrary_lca) {
+	    /*
+	      recurse on cut all B's except shallowest
+	      for each sibling except for shallowest,
+	      cut all other B's protect ai
+		           
+	    */
+	    //8.2 B's
+#ifdef DEBUG
+	    cout << "Case 8.2" << endl;
+#endif
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      for (int i = 0; i < deepest_siblings.size() - 1; i++) {
+		to_cut_except.push_back(deepest_siblings[i]);
+	      }
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //all other B's except ai
+	    //Doesnt explicitly say this in the paper, but
+	    //this would only happen if r > 2
+	    {
+	      if (deepest_siblings.size() > 2){
+		for (int i = 0; i < deepest_siblings.size() - 1; i++) {
 		  vector<Node*> to_cut = {};
 		  vector<Node*> to_cut_except = {};
-		  for (int j = 0; j < deepest_siblings.size(); j++) {
-		    if (i != j) {
-		      to_cut.push_back(deepest_siblings[j]);
-		    }
-		  }
-		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);//TODO protect ai
-		}
-	      }
- 	      //8.5 for each ai cut all b's except ai's
-	      {
-		for (int i = 0; i < deepest_siblings.size(); i++) {
-		  vector<Node*> to_cut = {};
-		  vector<Node*> to_cut_except = {};
-		  for (int j = 0; j < deepest_siblings.size(); j++) {
+		  for (int j = 0; j < deepest_siblings.size() - 1; j++) {
 		    if (i != j) {
 		      to_cut_except.push_back(deepest_siblings[j]);
 		    }
 		  }
-		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);//TODO protect ai
+		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
 		}
 	      }
 	    }
-
-	    //step 8.6
-	    else if (T1_sibling_group->get_children().size() > 2 &&
-		     deepest_siblings.size() == 2 &&
-		     s_map[T2_a1] >= 2 &&
-		     T2_a2->parent() == arbitrary_lca && //equivalent to s_map[T2_a2] == 0
-		     (
-		      arbitrary_lca->parent() == NULL ||
-		      lca_p_contains_sibling
-		     )) {
-	      #ifdef DEBUG	     
-	      cout << "Case 8.6" << endl;
-	      #endif
-	      /*
-		recurse on cut a1 no prot,
-		           cut all B's leading up to LCA from a1, no prot,
-			   cut B2 (essentially a1's whole branch) no prot
-	       */
-	      //if (T2_a1->parent() != NULL) {
-	      //8.6 cut a1
-	      {
-		vector<Node*> to_cut = {T2_a1};
-		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      //8.6 cut all B1s
-	      {		
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {};
-		Node* stepper = T2_a1;
-		
-		while(stepper->parent() != arbitrary_lca) { 
-		  to_cut_except.push_back(stepper);
-		  stepper = stepper->parent();
-		}
-		//TODO: use list to push_front or figure out how to add from top to bottom 
-		reverse(to_cut_except.begin(), to_cut_except.end());
-
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      //8.6 cut B2
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {T2_a2};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }	      
-	    }
-
-	    //step 8.7
-	    else if (T1_sibling_group->get_children().size() > 2 &&
-		     s_map[T2_a1] >= 2) {
-	      /*
-		recurse on cut a1 no prot,
-		           cut a2 prot a1,
-			   cut all B1's leading up to LCA no prot,
-			   
-	       */
-	      #ifdef DEBUG
-	      cout << "Case 8.7";
-	      if (deepest_siblings.size() == 2) {
-		cout << "2" << endl;
-	      }
-	      else {
-		cout << "n" << endl;
-	      }
-	      #endif
-	      //8.7 cut a1
-	      {
-		vector<Node*> to_cut = {T2_a1};
-		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }	      
-	      //8.7 cut a2
-	      {
-		vector<Node*> to_cut = {T2_a2};
-		vector<Node*> to_cut_except = {};
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	      }
-	      //8.7 cut all B1s
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {};
-		Node* stepper = T2_a1;
-		
-		while(stepper->parent() != arbitrary_lca) { 
-		  to_cut_except.push_back(stepper);
-		  stepper = stepper->parent();
-		}
-		//TODO: use list to push_front or figure out how to add from top to bottom 
-		reverse(to_cut_except.begin(), to_cut_except.end());
-
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);		
-	      }
-	      //8.7 cut all B2s
-	      {
-		vector<Node*> to_cut = {};
-		vector<Node*> to_cut_except = {};
-		Node* stepper = T2_a2;
-		
-		while(stepper->parent() != arbitrary_lca) { 
-		  to_cut_except.push_back(stepper);
-		  stepper = stepper->parent();
-		}
-		//TODO: use list to push_front or figure out how to add from top to bottom 
-		reverse(to_cut_except.begin(), to_cut_except.end());
-		//8.7 cut all B2's, cut B`2, otherwise r > 2
-		if(deepest_siblings.size() == 2) {
-		  to_cut_except.push_back(T2_a2); // cut B`2 at the end
-		}
-		//This exception should be caught by 8.6 case.
-		/*
-		if (to_cut_except.size() == 0) {
-		  cout << "\n\n\nto_cut_except empty in 8.7n. Parent is lca ERROR \n\n\n"; 
-		  }*/
-
-		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);	
-	      }
-	    }
-	  #if 0
 	  }
+
+	  //step 8.3
+	  else if (T1_sibling_group->get_children().size() == 2 &&
+		   s_map[T2_a1] + s_map[T2_a2] >= 2) {
+	    /*recurse on cut a1 no prot,
+	      cut a2 no prot,
+	      cut all along a1 to a2 no prot
+	    */
+#ifdef DEBUG
+	    cout << "Case 8.3" << endl;
 #endif
-	  else {
-	    #ifdef DEBUG
-	    cout << "Backup 4 branch case" << endl;
-	    #endif
-	bool cut_a1 = false;
-	bool cut_b1 = false;
-	bool cut_a2 = false;
-	bool cut_b2 = false;
-      
-	if (T1_sibling_group->get_children().size() == 2) {
-	  /*
-	    7.1 case
-	    Cut a1, pa1, a2 in F2, add 3 to num_cut
-	  */	
-	  cut_a1   = true;
-	  cut_b1 = true;
-	  cut_a2   = true;
-	  /*
-	    7.2 case
-	    Cut a1, a2, pa1, pa2, add 4 to num_cuts
-	  */
-	  if (previous_group == T1_sibling_group) {
-	    cut_b2 = true;
+	    //8.3 : Cut a1
+	    if (T2_a1->parent() != NULL) {
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.3 : Cut a2
+	    if (T2_a2->parent() != NULL) {
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.3 : All along path from a1, a2
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a1;
+		
+	      while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      stepper = T2_a2;
+	      while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      /*
+		Cut from top to bottom,
+		Cutting from bottom to top causes the contraction to invalidate
+		the node, since contraction is implemented by cutting the parent, then giving
+		the child to the parent
+	      */
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }	      
 	  }
-	} // size == 2
-      
-	else if (T1_sibling_group->get_children().size() > 2) {
-	  /*
-	    7.3 case
-	    If a2's parent's only sibling is part of the sibling group, 
-	    and a1's parent is a root or has a sibling that is not part of the sibling group
-	    then cut a2 and a2_p otherwise a1 and a1_p
-	  */
-	  if (previous_group != T1_sibling_group) {
-	    Node* T2_a2_p = T2_a2->parent();
-	    bool x_2 = false;
-	    bool a2_p_one_sibling = (T2_a2_p != NULL) &&
-	      (T2_a2_p->parent() != NULL) &&
-	      (T2_a2_p->parent()->get_children().size() == 2);	  
-	    if (a2_p_one_sibling) {
-	      list<Node *> group = T1_sibling_group->get_children();
-	      //get the other one
-	      Node *a2_p_sibling = T2_a2_p->parent()->get_children().front() == T2_a2_p ?
-		T2_a2_p->parent()->get_children().back() :
-		T2_a2_p->parent()->get_children().front();	
-	      //check if it is part of sibling group
-	      bool a2_p_sibling_in_group = descendant_count[a2_p_sibling->get_preorder_number()] == -1;
-	      if (a2_p_sibling_in_group) {
-		Node* T2_a1_p = T2_a1->parent();
-		bool a1_p_is_root = T2_a1_p->parent() == NULL;
-		bool a1_p_sibling_not_in_group = false;
-		if (!a1_p_is_root) {
-		  list<Node*> a1_p_siblings = T2_a1_p->parent()->get_children();
-		  for (list<Node*>::iterator i = a1_p_siblings.begin(); i != a1_p_siblings.end(); i++) {
-		    if (descendant_count[(*i)->get_preorder_number()] != -1) {
-		      a1_p_sibling_not_in_group = true;
+
+	  //step 8.4
+	  else if (T1_sibling_group->get_children().size() > 2 &&
+		   deepest_siblings.size() == 2 &&
+		   s_map[T2_a1] == 1 &&
+		   s_map[T2_a2] == 1) {
+	    /* 
+	       recurse on cut a1 and a2 no prot
+	       cut b1 and b2 no prot
+	       cut all except b1 off of lca, b1
+	       cut all except b2 off of lca, b2
+	       (TODO: special case)
+	    */
+#ifdef DEBUG
+	    cout << "Case 8.4" << endl;
+#endif
+	    //8.4 : Cut a1 and a2
+	    {
+	      vector<Node*> to_cut = {T2_a1, T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.4 : Cut a1 and a2's B's
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a1, T2_a2};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+
+	    //8.4 : All except a1->p, then b1
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a1->parent(), T2_a1};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a2);
+	    }
+	    //8.4 : All except a2->p, then b2
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a2->parent(), T2_a2};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);
+	    }
+	    Node* pl = arbitrary_lca->parent();
+	    bool pl_has_non_aj_child = false;
+	    if (pl != NULL) {
+	      for (auto i = pl->get_children().begin(); i != pl->get_children().end(); i++) {
+		if (*i != arbitrary_lca && descendant_count[(*i)->get_preorder_number()] != -1) {
+		  pl_has_non_aj_child = true;
+		  break;
+		}
+	      }
+	    }
+	    bool gpl_has_non_aj_child = false;
+	    //place this conditional so we do not unnecessarily iterate
+	    //If pl_has_non_aj_child then the if will evaluate to true later on anyways
+	    if (!pl_has_non_aj_child) {
+	      if (pl != NULL) {
+		Node* gpl = pl->parent();		    		    
+		if (gpl != NULL) {
+		  for (auto i = gpl->get_children().begin(); i != gpl->get_children().end(); i++) {
+		    if (*i != pl && descendant_count[(*i)->get_preorder_number()] != -1) {
+		      gpl_has_non_aj_child = true;
 		      break;
 		    }
 		  }
 		}
-		if (a2_p_one_sibling && a2_p_sibling_in_group && (a1_p_is_root || a1_p_sibling_not_in_group)) {
-		  x_2 = true;
-
-		}
 	      }
 	    }
-	    //num_cut += 2;
-	    if (x_2){
-	    
-	      cut_a2   = true;
-	      cut_b2 = true;
+	    //8.4 special case
+	    if (arbitrary_lca->parent() == NULL ||
+		pl_has_non_aj_child ||
+		gpl_has_non_aj_child) {
+#ifdef DEBUG
+	      cout << "8.4 special case" << endl;
+#endif
+	      //8.4 Cut a1 prot a2
+	      {
+		vector<Node*> to_cut = {T2_a1};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a2);	
+	      }
+	      //8.4 Cut a2 prot a1
+	      {
+		vector<Node*> to_cut = {T2_a2};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);	
+	      }
+
+	    }
+	  }
+
+	  //step 8.5
+	  else if (T1_sibling_group->get_children().size() > 2 &&
+		   deepest_siblings.size() > 2 &&
+		   all_s1) {
+	    /*
+	      recurse on cut all a1 through ar no prot,
+	      cut all b1 through br no prot,
+	      for each ai, cut all a's except ai prot ai
+	      for each ai, cut all B's except for ai's B prot ai
+	    */
+#ifdef DEBUG
+	    cout << "Case 8.5" << endl;
+#endif
+	    //8.5 all ai
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      for (int i = 0; i < deepest_siblings.size(); i++) {
+		to_cut.push_back(deepest_siblings[i]);
+	      }
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.5 cut all bi
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      for (int i = 0; i < deepest_siblings.size(); i++) {
+		to_cut_except.push_back(deepest_siblings[i]);
+	      }
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.5 for each ai cut all a's except ai
+	    {
+	      for (int i = 0; i < deepest_siblings.size(); i++) {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		for (int j = 0; j < deepest_siblings.size(); j++) {
+		  if (i != j) {
+		    to_cut.push_back(deepest_siblings[j]);
+		  }
+		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
+	      }
+	    }
+	    //8.5 for each ai cut all b's except ai's
+	    {
+	      for (int i = 0; i < deepest_siblings.size(); i++) {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		for (int j = 0; j < deepest_siblings.size(); j++) {
+		  if (i != j) {
+		    to_cut_except.push_back(deepest_siblings[j]);
+		  }
+		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
+	      }
+	    }
+	  }
+
+	  //step 8.6
+	  else if (T1_sibling_group->get_children().size() > 2 &&
+		   deepest_siblings.size() == 2 &&
+		   s_map[T2_a1] >= 2 &&
+		   T2_a2->parent() == arbitrary_lca && //equivalent to s_map[T2_a2] == 0
+		   (
+		    arbitrary_lca->parent() == NULL ||
+		    lca_p_contains_sibling
+		    )) {
+#ifdef DEBUG	     
+	    cout << "Case 8.6" << endl;
+#endif
+	    /*
+	      recurse on cut a1 no prot,
+	      cut all B's leading up to LCA from a1, no prot,
+	      cut B2 (essentially a1's whole branch) no prot
+	    */
+	    //if (T2_a1->parent() != NULL) {
+	    //8.6 cut a1
+	    {
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.6 cut all B1s
+	    {		
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a1;
+		
+	      while(stepper->parent() != arbitrary_lca) { 
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.6 cut B2
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a2};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }	      
+	  }
+
+	  //step 8.7
+	  else if (T1_sibling_group->get_children().size() > 2 &&
+		   s_map[T2_a1] >= 2) {
+	    /*
+	      recurse on cut a1 no prot,
+	      cut a2 prot a1,
+	      cut all B1's leading up to LCA no prot,
+			   
+	    */
+#ifdef DEBUG
+	    cout << "Case 8.7";
+	    if (deepest_siblings.size() == 2) {
+	      cout << "2" << endl;
 	    }
 	    else {
-	      cut_a1   = true;
-	      cut_b1 = true;
+	      cout << "n" << endl;
+	    }
+#endif
+	    //8.7 cut a1
+	    {
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }	      
+	    //8.7 cut a2
+	    {
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);
+	    }
+	    //8.7 cut all B1s
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a1;
+		
+	      while(stepper->parent() != arbitrary_lca) { 
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);		
+	    }
+	    //8.7 cut all B2s
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a2;
+		
+	      while(stepper->parent() != arbitrary_lca) { 
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+	      //8.7 cut all B2's, cut B`2, otherwise r > 2
+	      if(deepest_siblings.size() == 2) {
+		to_cut_except.push_back(T2_a2); // cut B`2 at the end
+	      }
+	      //This exception should be caught by 8.6 case.
+	      /*
+		if (to_cut_except.size() == 0) {
+		cout << "\n\n\nto_cut_except empty in 8.7n. Parent is lca ERROR \n\n\n"; 
+		}*/
+
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);	
 	    }
 	  }
-	  /*7.4 case
-	    cut a1 and a1_p
-	  */
-	  else if (previous_group == T1_sibling_group) {
 
+	}
+      
+	if(0) {
+
+#ifdef DEBUG
+	  cout << "Backup 4 branch case" << endl;
+#endif
+	  bool cut_a1 = false;
+	  bool cut_b1 = false;
+	  bool cut_a2 = false;
+	  bool cut_b2 = false;
+      
+	  if (T1_sibling_group->get_children().size() == 2) {
+	    /*
+	      7.1 case
+	      Cut a1, pa1, a2 in F2, add 3 to num_cut
+	    */	
 	    cut_a1   = true;
 	    cut_b1 = true;
-	    //num_cut += 2;
-	  }
-	}
-	/*
-	  Cutting section
-	*/
-	Node *T2_a1_p = T2_a1->parent();
+	    cut_a2   = true;
+	    /*
+	      7.2 case
+	      Cut a1, a2, pa1, pa2, add 4 to num_cuts
+	    */
+	    if (previous_group == T1_sibling_group) {
+	      cut_b2 = true;
+	    }
+	  } // size == 2
+      
+	  else if (T1_sibling_group->get_children().size() > 2) {
+	    /*
+	      7.3 case
+	      If a2's parent's only sibling is part of the sibling group, 
+	      and a1's parent is a root or has a sibling that is not part of the sibling group
+	      then cut a2 and a2_p otherwise a1 and a1_p
+	    */
+	    if (previous_group != T1_sibling_group) {
+	      Node* T2_a2_p = T2_a2->parent();
+	      bool x_2 = false;
+	      bool a2_p_one_sibling = (T2_a2_p != NULL) &&
+		(T2_a2_p->parent() != NULL) &&
+		(T2_a2_p->parent()->get_children().size() == 2);	  
+	      if (a2_p_one_sibling) {
+		list<Node *> group = T1_sibling_group->get_children();
+		//get the other one
+		Node *a2_p_sibling = T2_a2_p->parent()->get_children().front() == T2_a2_p ?
+		  T2_a2_p->parent()->get_children().back() :
+		  T2_a2_p->parent()->get_children().front();	
+		//check if it is part of sibling group
+		bool a2_p_sibling_in_group = descendant_count[a2_p_sibling->get_preorder_number()] == -1;
+		if (a2_p_sibling_in_group) {
+		  Node* T2_a1_p = T2_a1->parent();
+		  bool a1_p_is_root = T2_a1_p->parent() == NULL;
+		  bool a1_p_sibling_not_in_group = false;
+		  if (!a1_p_is_root) {
+		    list<Node*> a1_p_siblings = T2_a1_p->parent()->get_children();
+		    for (list<Node*>::iterator i = a1_p_siblings.begin(); i != a1_p_siblings.end(); i++) {
+		      if (descendant_count[(*i)->get_preorder_number()] != -1) {
+			a1_p_sibling_not_in_group = true;
+			break;
+		      }
+		    }
+		  }
+		  if (a2_p_one_sibling && a2_p_sibling_in_group && (a1_p_is_root || a1_p_sibling_not_in_group)) {
+		    x_2 = true;
 
-	if (cut_a1) {	  
-	  if (T2_a1_p != NULL) {
-	    vector<Node*> to_cut = {T2_a1};
-	    vector<Node*> to_cut_except = {};
-	    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	  }	     
-	}
-	if (cut_b1) {
-	  if (T2_a1_p != NULL) {
-	    vector<Node*> to_cut = {};
-	    vector<Node*> to_cut_except = {T2_a1};
-	    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+		  }
+		}
+	      }
+	      //num_cut += 2;
+	      if (x_2){
+	    
+		cut_a2   = true;
+		cut_b2 = true;
+	      }
+	      else {
+		cut_a1   = true;
+		cut_b1 = true;
+	      }
+	    }
+	    /*7.4 case
+	      cut a1 and a1_p
+	    */
+	    else if (previous_group == T1_sibling_group) {
+
+	      cut_a1   = true;
+	      cut_b1 = true;
+	      //num_cut += 2;
+	    }
 	  }
-	}
-	Node *T2_a2_p = T2_a2->parent();
-	if (cut_a2){
-	  //could have cut a2's parent in previous steps, so could be singleton now
-	  //not possible anymore?
-	  //if (T2_a2->is_leaf() && T2_a2_p == NULL && T2_a2 != T2->get_component(0)) {
+	  /*
+	    Cutting section
+	  */
+	  Node *T2_a1_p = T2_a1->parent();
+
+	  if (cut_a1) {	  
+	    if (T2_a1_p != NULL) {
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }	     
+	  }
+	  if (cut_b1) {
+	    if (T2_a1_p != NULL) {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a1};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	  }
+	  Node *T2_a2_p = T2_a2->parent();
+	  if (cut_a2){
+	    //could have cut a2's parent in previous steps, so could be singleton now
+	    //not possible anymore?
+	    //if (T2_a2->is_leaf() && T2_a2_p == NULL && T2_a2 != T2->get_component(0)) {
 	    //singletons->push_front(T2_a2);
-	  //}
-	  if (T2_a2_p != NULL) {
-	    vector<Node*> to_cut = {T2_a2};
-	    vector<Node*> to_cut_except = {};
-	    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    //}
+	    if (T2_a2_p != NULL) {
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
 	  }
-	}
-	if (cut_b2) {
-	  if (T2_a2_p != NULL) {
-	    vector<Node*> to_cut = {};
-	    vector<Node*> to_cut_except = {T2_a2};
-	    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	  }
+	  if (cut_b2) {
+	    if (T2_a2_p != NULL) {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a2};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
 	  
-	}
 	  }
+	}
 	sibling_groups->pop_back();
 	return best_k;
       }//else
@@ -1786,8 +1879,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       T2->add_rho();
     }
     //else
-      // hack to ignore rho when it shouldn't be in a cluster
-      //num_cut -=3;
+    // hack to ignore rho when it shouldn't be in a cluster
+    //num_cut -=3;
   }
 
   if (k >= 0) {
@@ -1795,10 +1888,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
   }
 
   /*
-  if (save_forests) {
+    if (save_forests) {
     *F1 = new Forest(T1);
     *F2 = new Forest(T2);
-  }
+    }
   */
   return k;
 }
