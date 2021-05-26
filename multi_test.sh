@@ -20,8 +20,11 @@ declare -a tests=(
 		  "multi_tree_7.4_test_00.txt"
 		  "multi_tree_8.2_test_00.txt"
 		  "multi_tree_8.4_test_00.txt"
+		  "multi_tree_8.4_test_01.txt"
 		  "multi_tree_8.5_test_00.txt"
 		  "multi_tree_8.6_test_00.txt"
+		  "multi_tree_8.7_test_00.txt"
+		  "multi_tree_8.7_test_01.txt"
 		  )
 		  
 for i in ${tests[@]}

@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RSPR
 //#define DEBUG 1
-#define DEBUG_CONTRACTED 1
+//#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -1416,6 +1416,51 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		vector<Node*> to_cut_except = {T2_a2->parent(), T2_a2};
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	      }
+	      Node* pl = arbitrary_lca->parent();
+	      bool pl_has_non_aj_child = false;
+	      if (pl != NULL) {
+		for (auto i = pl->get_children().begin(); i != pl->get_children().end(); i++) {
+		  if (*i != arbitrary_lca && descendant_count[(*i)->get_preorder_number()] != -1) {
+		    pl_has_non_aj_child = true;
+		    break;
+		  }
+		}
+	      }
+	      bool gpl_has_non_aj_child = false;
+	      //place this conditional so we do not unnecessarily iterate
+	      //If pl_has_non_aj_child then the if will evaluate to true later on anyways
+	      if (!pl_has_non_aj_child) {
+		if (pl != NULL) {
+		  Node* gpl = pl->parent();		    		    
+		  if (gpl != NULL) {
+		    for (auto i = gpl->get_children().begin(); i != gpl->get_children().end(); i++) {
+		      if (*i != pl && descendant_count[(*i)->get_preorder_number()] != -1) {
+			gpl_has_non_aj_child = true;
+			break;
+		      }
+		    }
+		  }
+		}
+	      }
+	      //8.4 special case
+	      if (arbitrary_lca->parent() == NULL ||
+		  pl_has_non_aj_child ||
+		  gpl_has_non_aj_child) {
+		cout << "8.4 special case" << endl;
+		//8.4 Cut a1 prot a2
+		{
+		  vector<Node*> to_cut = {T2_a1};
+		  vector<Node*> to_cut_except = {};
+		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);	
+		}
+		//8.4 Cut a2 prot a1
+		{
+		  vector<Node*> to_cut = {T2_a2};
+		  vector<Node*> to_cut_except = {};
+		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);	
+		}
+
+	      }
 	    }
 
 	    //step 8.5
@@ -1523,29 +1568,78 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	      }	      
 	    }
-#if 0
+
 	    //step 8.7
 	    else if (T1_sibling_group->get_children().size() > 2 &&
-		     T2_a1 at least two nodes down from LCA &&
-		     didnt go into 8.6) {
+		     s_map[T2_a1] >= 2) {
 	      /*
 		recurse on cut a1 no prot,
 		           cut a2 prot a1,
 			   cut all B1's leading up to LCA no prot,
 			   
 	       */
-	      if (deepest_siblings.size() > 2) {
-		/*
-		  recurse on cut all B2's up to LCA
-		 */
+	      #ifdef DEBUG
+	      cout << "Case 8.7";
+	      if (deepest_siblings.size() == 2) {
+		cout << "2" << endl;
 	      }
-	      else if(deepest_siblings.size() == 2) {
-		/*
+	      else {
+		cout << "n" << endl;
+	      }
+	      #endif
+	      //8.7 cut a1
+	      {
+		vector<Node*> to_cut = {T2_a1};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }	      
+	      //8.7 cut a2
+	      {
+		vector<Node*> to_cut = {T2_a2};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+	      //8.7 cut all B1s
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		Node* stepper = T2_a1;
+		
+		while(stepper->parent() != arbitrary_lca) { 
+		  to_cut_except.push_back(stepper);
+		  stepper = stepper->parent();
+		}
+		//TODO: use list to push_front or figure out how to add from top to bottom 
+		reverse(to_cut_except.begin(), to_cut_except.end());
 
-		 */
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);		
+	      }
+	      //8.7 cut all B2s
+	      {
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		Node* stepper = T2_a2;
+		
+		while(stepper->parent() != arbitrary_lca) { 
+		  to_cut_except.push_back(stepper);
+		  stepper = stepper->parent();
+		}
+		//TODO: use list to push_front or figure out how to add from top to bottom 
+		reverse(to_cut_except.begin(), to_cut_except.end());
+		//8.7 cut all B2's, cut B`2, otherwise r > 2
+		if(deepest_siblings.size() == 2) {
+		  to_cut_except.push_back(T2_a2); // cut B`2 at the end
+		}
+		//This exception should be caught by 8.6 case.
+		/*
+		if (to_cut_except.size() == 0) {
+		  cout << "\n\n\nto_cut_except empty in 8.7n. Parent is lca ERROR \n\n\n"; 
+		  }*/
+
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);	
 	      }
 	    }
-	  
+	  #if 0
 	  }
 #endif
 	  else {
