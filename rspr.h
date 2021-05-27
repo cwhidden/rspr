@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RSPR
 //#define DEBUG 1
-#define DEBUG_CONTRACTED 1
+//#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -1138,7 +1138,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  #endif
 	  return -1;
 	}
-       
 	#ifdef DEBUG
 	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
 	#endif
@@ -1232,7 +1231,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 
 	    */
 	    #ifdef DEBUG
-	    cout << "Case 7.2 Protected Node: " << protected_node->str() <<  endl;
+	    cout << "Case 7.2a cut all B1's Protected Node: " << protected_node->str() <<  endl;
 	    #endif
 	    {
 	      vector<Node*> to_cut = {};
@@ -1253,6 +1252,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      /*
 		recurse on cut a1 prot protected node
 	      */
+#ifdef DEBUG
+	    cout << "Case 7.2b Cut a1 Protected Node: " << protected_node->str() <<  endl;
+#endif
 	      //7.2b cut a1
 	      if (T2_a1->parent() != NULL) {
 		vector<Node*> to_cut = {T2_a1};
@@ -1361,7 +1363,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      cut a2 no prot
 	    */
 #ifdef DEBUG
-	    cout << "Case 8.1" << endl;
+	    cout << "Case 8.1a cut a1" << endl;
 #endif
 	    //8.1 : Cut a1
 	    if (T2_a1->parent() != NULL) {
@@ -1369,6 +1371,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
+#ifdef DEBUG
+	    cout << "Case 8.1b cut a2" << endl;
+#endif
 	    //8.1 : Cut a2
 	    if (T2_a2->parent() != NULL) {
 	      vector<Node*> to_cut = {T2_a2};
@@ -1387,10 +1392,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		           
 	    */
 	    //8.2 B's
-#ifdef DEBUG
-	    cout << "Case 8.2" << endl;
-#endif
 	    {
+#ifdef DEBUG
+	    cout << "Case 8.2a cut B1 - B(r-1)" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      for (int i = 0; i < deepest_siblings.size() - 1; i++) {
@@ -1401,20 +1406,23 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    //all other B's except ai
 	    //Doesnt explicitly say this in the paper, but
 	    //this would only happen if r > 2
-	    {
-	      if (deepest_siblings.size() > 2){
-		for (int i = 0; i < deepest_siblings.size() - 1; i++) {
-		  vector<Node*> to_cut = {};
-		  vector<Node*> to_cut_except = {};
-		  for (int j = 0; j < deepest_siblings.size() - 1; j++) {
-		    if (i != j) {
-		      to_cut_except.push_back(deepest_siblings[j]);
-		    }
+
+	    if (deepest_siblings.size() > 2){
+	      for (int i = 0; i < deepest_siblings.size() - 1; i++) {
+#ifdef DEBUG
+	      cout << "Case 8.2b for all ai cut all other B" << endl;
+#endif	      	   
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		for (int j = 0; j < deepest_siblings.size() - 1; j++) {
+		  if (i != j) {
+		    to_cut_except.push_back(deepest_siblings[j]);
 		  }
-		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
 		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
 	      }
 	    }
+
 	  }
 
 	  //step 8.3
@@ -1424,23 +1432,30 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      cut a2 no prot,
 	      cut all along a1 to a2 no prot
 	    */
-#ifdef DEBUG
-	    cout << "Case 8.3" << endl;
-#endif
 	    //8.3 : Cut a1
 	    if (T2_a1->parent() != NULL) {
+#ifdef DEBUG
+	      cout << "Case 8.3a cut a1" << endl;
+#endif
+
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
 	    //8.3 : Cut a2
 	    if (T2_a2->parent() != NULL) {
+#ifdef DEBUG
+	    cout << "Case 8.3b cut a2" << endl;
+#endif
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
 	    //8.3 : All along path from a1, a2
 	    {
+#ifdef DEBUG
+	    cout << "Case 8.3c cut all B1's and B2's" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
@@ -1478,17 +1493,20 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	       cut all except b2 off of lca, b2
 	       (TODO: special case)
 	    */
-#ifdef DEBUG
-	    cout << "Case 8.4" << endl;
-#endif
 	    //8.4 : Cut a1 and a2
 	    {
+#ifdef DEBUG
+	    cout << "Case 8.4a cut a1 & a2" << endl;
+#endif
 	      vector<Node*> to_cut = {T2_a1, T2_a2};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
 	    //8.4 : Cut a1 and a2's B's
 	    {
+#ifdef DEBUG
+	    cout << "Case 8.4b cut B1 & B2" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a1, T2_a2};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
@@ -1496,12 +1514,18 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 
 	    //8.4 : All except a1->p, then b1
 	    {
+#ifdef DEBUG
+	    cout << "Case 8.4c cut B1 & B`1" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a1->parent(), T2_a1};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a2);
 	    }
 	    //8.4 : All except a2->p, then b2
 	    {
+#ifdef DEBUG
+	    cout << "Case 8.4d cut B2 & B`2" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a2->parent(), T2_a2};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);
@@ -1536,17 +1560,20 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    if (arbitrary_lca->parent() == NULL ||
 		pl_has_non_aj_child ||
 		gpl_has_non_aj_child) {
-#ifdef DEBUG
-	      cout << "8.4 special case" << endl;
-#endif
 	      //8.4 Cut a1 prot a2
 	      {
+#ifdef DEBUG
+	      cout << "Case 8.4e cut a1" << endl;
+#endif
 		vector<Node*> to_cut = {T2_a1};
 		vector<Node*> to_cut_except = {};
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a2);	
 	      }
 	      //8.4 Cut a2 prot a1
 	      {
+#ifdef DEBUG
+	      cout << "Case 8.4f a2" << endl;
+#endif
 		vector<Node*> to_cut = {T2_a2};
 		vector<Node*> to_cut_except = {};
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);	
@@ -1565,11 +1592,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      for each ai, cut all a's except ai prot ai
 	      for each ai, cut all B's except for ai's B prot ai
 	    */
-#ifdef DEBUG
-	    cout << "Case 8.5" << endl;
-#endif
 	    //8.5 all ai
 	    {
+#ifdef DEBUG
+	    cout << "Case 8.5a cut all a1-ar" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
@@ -1579,6 +1606,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    }
 	    //8.5 cut all bi
 	    {
+#ifdef DEBUG
+	      cout << "Case 8.5b cut all B1-Br" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
@@ -1587,8 +1617,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
 	    //8.5 for each ai cut all a's except ai
-	    {
+	    {	      
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
+#ifdef DEBUG
+		cout << "Case 8.5c cut all a1-ar except ai" << endl;
+#endif
 		vector<Node*> to_cut = {};
 		vector<Node*> to_cut_except = {};
 		for (int j = 0; j < deepest_siblings.size(); j++) {
@@ -1600,8 +1633,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      }
 	    }
 	    //8.5 for each ai cut all b's except ai's
-	    {
+	    {	      
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
+#ifdef DEBUG
+		cout << "Case 8.5d cut all B1-Br except Bi" << endl;
+#endif
 		vector<Node*> to_cut = {};
 		vector<Node*> to_cut_except = {};
 		for (int j = 0; j < deepest_siblings.size(); j++) {
@@ -1623,9 +1659,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 		    arbitrary_lca->parent() == NULL ||
 		    lca_p_contains_sibling
 		    )) {
-#ifdef DEBUG	     
-	    cout << "Case 8.6" << endl;
-#endif
 	    /*
 	      recurse on cut a1 no prot,
 	      cut all B's leading up to LCA from a1, no prot,
@@ -1634,12 +1667,18 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    //if (T2_a1->parent() != NULL) {
 	    //8.6 cut a1
 	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.6a cut a1" << endl;
+#endif
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
 	    //8.6 cut all B1s
-	    {		
+	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.6b cut all B1's" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
@@ -1655,6 +1694,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    }
 	    //8.6 cut B2
 	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.6c cut B2" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a2};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
@@ -1670,29 +1712,29 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      cut all B1's leading up to LCA no prot,
 			   
 	    */
-#ifdef DEBUG
-	    cout << "Case 8.7";
-	    if (deepest_siblings.size() == 2) {
-	      cout << "2" << endl;
-	    }
-	    else {
-	      cout << "n" << endl;
-	    }
-#endif
 	    //8.7 cut a1
 	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.7a cut a1" << endl;
+#endif
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }	      
 	    //8.7 cut a2
 	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.7b cut a2" << endl;
+#endif
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);
 	    }
 	    //8.7 cut all B1s
 	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.7c cut all B1's" << endl;
+#endif
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a1;
@@ -1708,6 +1750,16 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    }
 	    //8.7 cut all B2s
 	    {
+#ifdef DEBUG
+	    cout << "Case 8.7d";
+	    if (deepest_siblings.size() == 2) {
+	      cout << "2" << endl;
+	    }
+	    else {
+	      cout << "n" << endl;
+	    }
+#endif
+
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      Node* stepper = T2_a2;
@@ -1733,7 +1785,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  }
 
 	}
-      
+
+
 	if(0) {
 
 #ifdef DEBUG

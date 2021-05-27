@@ -13,6 +13,7 @@ declare -a tests=(
 		  "trees6.txt"
 		  "trees_100_9.txt"
 		  "trees_100_17.txt"
+		  "trees_100_24.txt"
 		  "multi_tree_basic_2.txt"
 		  "multi_tree_basic_5.txt"
 		  "multi_tree_7.1_test_00.txt"
@@ -32,8 +33,7 @@ do
     echo "\n\n////////////////////////////////////////////////////////"
     echo $i
     echo "////////////////////////////////////////////////////////\n\n"
-
-    ./rspr -multifurcating < test_trees/$i
+    time ./rspr -multifurcating < test_trees/$i    
 done
 
 echo "Finished"
