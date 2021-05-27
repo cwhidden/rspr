@@ -230,13 +230,24 @@ class Node {
 #ifdef COPY_CONTRACTED
 		if (n.contracted_lc == NULL)
 			contracted_lc = NULL;
-		else
-			contracted_lc = new Node(*(n.contracted_lc), this);
+		else {
+		  contracted_lc = new Node(*(n.contracted_lc), this);// node_map);
+		  // contracted_lc->set_parent(this);
+		  }
 		if (n.contracted_rc == NULL)
 			contracted_rc = NULL;
-		else
-			contracted_rc = new Node(*(n.contracted_rc), this);
+		else {
+		  contracted_rc = new Node(*(n.contracted_rc), this);//node_map);
+			//contracted_rc->set_parent(this);
+		}
 		this->contracted = n.contracted;
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  Node* contracted_node = new Node(**i, node_map);
+		  contracted_children.push_back(contracted_node);
+		  contracted_node->set_parent(this);
+		  //TODO: why does this change distance?
+		  //node_map->emplace(pair<Node*,Node*>(*i, contracted_node));
+		} 
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
@@ -288,6 +299,10 @@ class Node {
 		else
 			contracted_rc = new Node(*(n.contracted_rc), this);
 		this->contracted = n.contracted;
+		/*for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  Node* contracted_node = new Node(**i, this);
+		  contracted_children.push_back(contracted_node);
+		  } */
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
@@ -345,6 +360,7 @@ class Node {
 	*/
 
 	// delete a subtree
+  //LEAK: contracted children
 	void delete_tree() {
 		list<Node *>::iterator c = children.begin();
 		while(c!= children.end()) {
@@ -362,6 +378,9 @@ class Node {
 			contracted_rc->delete_tree();
 		}
 		contracted_rc = NULL;
+		for (auto i = contracted_children.begin(); i != contracted_children.end(); i++) {
+		  (*i)->delete_tree();
+		}
 #endif
 		delete this;
 	}
@@ -464,10 +483,12 @@ class Node {
         void add_children(list<Node *> *nodes) {
 	    list<Node *>::iterator i;
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
-	        children.push_back((*i));
+	      //children.push_back((*i));
+	      add_child(*i);
 	    }
 	}
         //TODO: clean this up to a function
+  //LEAK: combined
         static list<Node *> *get_combined_children(list<Node *> *nodes) {
 	        list<Node *> *combined = new list<Node *>();
 		list<Node *>::iterator i;
@@ -1001,6 +1022,7 @@ class Node {
 
         void add_contracted_child(Node *node) {
                 contracted_children.push_back(node);
+		node->contracted = true;
 	}
   
         Node *contract_sibling_group(list<Node *> *nodes) {
@@ -1019,12 +1041,22 @@ class Node {
 #endif
 	  //contract all children into this
 	  if (nodes->size() == children.size()) {
-	    children = *Node::get_combined_children(nodes);
+	    //LEAK: should directly splice them in
+	    //TODO: Both have references to children, double free?
+	    list<Node*> *new_children = Node::get_combined_children(nodes);
+	    children.clear();
+	    for (i = new_children->begin(); i != new_children->end(); i++) {
+	      children.push_back(*i);
+	    }
+	    delete new_children;
+	      
 
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
-	      (*i)->set_parent(NULL);
+	      (*i)->set_parent(this);
 	      //children.remove(*i); already removed in setting children
 	      add_contracted_child(*i);
+	     
+	      
 	      new_name += (*i)->str() + ",";
 	    }	    
 	    recalculate_non_leaf_children();
@@ -1045,6 +1077,7 @@ class Node {
 	    int min_pre_num = 0x7FFFFFFF; //max value constant?
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
 	      new_child->add_contracted_child((*i));
+	      (*i)->set_parent(new_child);
 	      children.remove((*i));
 	      if ((*i)->get_preorder_number() < min_pre_num)
 		{
@@ -1055,6 +1088,7 @@ class Node {
 
 	    }
 	    new_child->set_preorder_number(min_pre_num);
+	    
 	    list<Node*> *new_children = Node::get_combined_children(nodes);
 	     new_child->add_children(new_children);
 	    for (i = new_children->begin(); i != new_children->end(); i++) {
@@ -1178,45 +1212,6 @@ class Node {
 		return name;
 	}
   
-	void str_mult_subtree_hlpr(string *s) {
-		if (!name.empty())
-			*s += name.c_str();
-		
-		if (contracted_lc != NULL || contracted_rc != NULL || contracted_children.size() != 0) {
-			#ifdef DEBUG_CONTRACTED
-				*s += "<";
-			#else
-				*s += "(";
-			#endif
-			if (contracted_lc != NULL) {
-				contracted_lc->str_mult_subtree_hlpr(s);
-			}
-			*s += ",";
-			list<Node*>::iterator i;
-			for (i = contracted_children.begin(); i != contracted_children.end(); i++) {
-			        (*i)->str_mult_subtree_hlpr(s);
-				*s += ",";
-			}
-			if (contracted_rc != NULL) {
-				contracted_rc->str_mult_subtree_hlpr(s);
-			}
-			#ifdef DEBUG_CONTRACTED
-				*s += ">";
-			#else
-				*s += ")";
-			#endif
-				str_subtree_hlpr(s);
-		}
-	}
-
-       
-
-        string str_mult_subtree() {
-	        string s = "";
-		str_mult_subtree_hlpr(&s);
-		return s;	  		  
-	}
-
 	void str_hlpr(string *s) {
 		if (!name.empty())
 			*s += name.c_str();
@@ -1408,11 +1403,7 @@ class Node {
 		cout << endl;
 	}
 
-	void print_mult_subtree_hlpr() {
-		cout << str_mult_subtree();
-	}
-  
-	void print_subtree_hlpr() {
+  	void print_subtree_hlpr() {
 		cout << str_subtree();
 	}
 	void print_subtree_twin_hlpr() {

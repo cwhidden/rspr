@@ -315,7 +315,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 
   //int max_preorder = T2->components[0]->preorder_number(0);  
   int num_cut = 0;
-  Node* previous_group;
+  Node* previous_group = NULL;
   while(!singletons->empty() || !sibling_groups->empty()) {
 	  
     // Case 1 - Remove singletons
@@ -324,7 +324,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
       Node *T2_a = singletons->back();
       singletons->pop_back();
       #ifdef DEBUG_APPROX
-      cout << "Handling singleton: " << T2_a->str_mult_subtree() << endl;
+      cout << "Handling singleton: " << T2_a->str() << endl;
       #endif
       // find twin in T1
       Node *T1_a = T2_a->get_twin();
@@ -484,7 +484,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	Node *T2_a1 = deepest_siblings[0];
 	Node *T2_a2 = deepest_siblings[1];
 	#ifdef DEBUG_APPROX
-	cout << "a1: " << T2_a1->str_mult_subtree() << " a2: " << T2_a2->str_mult_subtree() << endl;
+	cout << "a1: " << T2_a1->str() << " a2: " << T2_a2->str() << endl;
 	#endif
 	
 	bool cut_a1   = false;
@@ -928,6 +928,10 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
   }									\
   Node* protect = next_data->node_map[node_to_protect];			\
   int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - num_cuts, next_data->sibling_groups, next_data->singletons, protect, AFs); \
+  delete next_data->T1;							\
+  delete next_data->T2;							\
+  delete next_data->sibling_groups;					\
+  delete next_data->singletons;						\
   delete next_data;							\
   if (result_k > best_k) {						\
     best_k = result_k;							\
