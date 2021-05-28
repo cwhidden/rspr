@@ -1,6 +1,6 @@
 #!/bin/bash
 echo "Building..."
-make
+make rspr
 #if (! test -d "test_output" ) then
  #  mkdir test_output
 #fi

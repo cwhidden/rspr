@@ -909,7 +909,9 @@ int main(int argc, char *argv[]) {
 				//cout << "approx drSPR=" << approx_spr << endl;
 				cout << "\n";
 				if (MULTI_APPROX) {
-				  //continue;
+				  T1->delete_tree();
+				  T2->delete_tree();
+				  continue;
 				}
 			}
 	

@@ -201,6 +201,7 @@ class Node {
 
         /* Temporary until rSPR_branch_and_bound_mult_hlpr uses the UndoMachine */
         // copy constructor
+  //LEAK nodes not being deleted, must be missing links
         Node(const Node &n, map<Node*, Node*> *node_map) {
 		p = NULL;
 		name = n.name.c_str();
@@ -488,7 +489,6 @@ class Node {
 	    }
 	}
         //TODO: clean this up to a function
-  //LEAK: combined
         static list<Node *> *get_combined_children(list<Node *> *nodes) {
 	        list<Node *> *combined = new list<Node *>();
 		list<Node *>::iterator i;
@@ -1041,7 +1041,6 @@ class Node {
 #endif
 	  //contract all children into this
 	  if (nodes->size() == children.size()) {
-	    //LEAK: should directly splice them in
 	    //TODO: Both have references to children, double free?
 	    list<Node*> *new_children = Node::get_combined_children(nodes);
 	    children.clear();
@@ -1503,8 +1502,8 @@ class Node {
 
     // Assumes this is the parent of the sibling group in T1
     //outputs a list of list of nodes of siblings in T2 that have the same parents in T2
-    list<list<Node *>> *find_identical_sibling_groups() {	  
-	    list<list<Node *>> *identical_sibling_groups = new list<list<Node *>>();
+    void find_identical_sibling_groups(list<list<Node *>> *identical_sibling_groups) {
+                identical_sibling_groups->clear();
 		list<Node *>::iterator c;
 		map<Node *, list<Node*>> parent_to_children = map<Node *, list<Node *>>();
 		for (c = children.begin(); c != children.end(); c++) {
@@ -1530,7 +1529,6 @@ class Node {
 			identical_sibling_groups->push_back(parents->second);
 		  }
 		}
-		return identical_sibling_groups;
     }
   
 	// find the leaves in this node's subtree
@@ -2216,7 +2214,7 @@ Node *expand_children_out(list<Node*> nodes) {
   list<Node *>::iterator i;
   for (i = nodes.begin(); i != nodes.end(); i++) {
     new_child->add_child(*i);
-    (*i)->set_parent(new_child);
+    (*i)->set_parent(new_child);//not needed?
     children.remove(*i);
     if ((*i)->get_preorder_number() < min_preorder) {
       min_preorder = (*i)->get_preorder_number();

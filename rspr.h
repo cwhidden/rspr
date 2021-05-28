@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RSPR
 //#define DEBUG 1
-//#define DEBUG_CONTRACTED 1
+#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -385,10 +385,11 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
       list<Node*>::iterator i = sibling_groups->end();
       i--;
       Node *T1_sibling_group = sibling_groups->back();
-      list<list<Node*>> *identical_sibling_groups = T1_sibling_group->find_identical_sibling_groups();
+      list<list<Node*>> identical_sibling_groups = list<list<Node*>>();
+      T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
       for (; i != sibling_groups->begin(); i-- ){
-	identical_sibling_groups = (*i)->find_identical_sibling_groups();
-	if (identical_sibling_groups->size() > 0) {
+	(*i)->find_identical_sibling_groups(&identical_sibling_groups);
+	if (identical_sibling_groups.size() > 0) {
 	  T1_sibling_group = (*i);
 	  break;
 	}
@@ -408,9 +409,9 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	 Step 5 in paper
       */
       // Case 2 - Contract identical sibling pair
-      if (identical_sibling_groups->size() > 0) {	  		
+      if (identical_sibling_groups.size() > 0) {	  		
 	list<list<Node *>>::iterator i;
-	for (i = identical_sibling_groups->begin(); i != identical_sibling_groups->end(); i++) {
+	for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
 	  list<Node *> T2_group = (*i);
 	  Node *T2_p = T2_group.front()->parent();
 	  #ifdef DEBUG_APPROX
@@ -607,7 +608,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	      }
 	      else {
 		T2_a1_p = T2_a1_p->contract();
-		T2_a1_p->set_non_leaf_children(0);
+		//T2_a1_p->set_non_leaf_children(0);
 	      }
 	    }
 	    //Check for singletons
@@ -629,7 +630,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 		    singletons->push_front(node);
 		  }
 
-		  T2_a1_gp->set_non_leaf_children(0);
+		  //T2_a1_gp->set_non_leaf_children(0);
 		}
 		//Check for singletons
 		if (T2_a1_p->get_children().size() == 0) {
@@ -695,7 +696,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
       
 
       }//else
-      delete identical_sibling_groups;
+      //delete identical_sibling_groups;
       previous_group = T1_sibling_group;
     }//!sibling_groups->empty()
 
@@ -747,14 +748,15 @@ int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int en
     exact_spr = rSPR_branch_and_bound_mult(F1, F2, k);
     #ifdef DEBUG
     cout << "------------------" << endl;
-    cout << "Finished K = " << k << " return value : " << exact_spr << endl;
-
+    cout << "Finished K = " << k << " return value : " << exact_spr << endl;   
     #endif
+    
+    delete F1;
+    delete F2;
+
     if (exact_spr >= 0) {
       break;
     }
-    delete F1;
-    delete F2;
   }
   if (k > end_k) {
     k = -1;
@@ -809,6 +811,7 @@ public:
 /* Generates a copy of the data used to recurse on rSPR_branch_and_bound_mult_hlpr so 
    that original forests aren't clobbered,
    updates pointers accordingly */
+//TODO: 1 new not 5
 bb_mult_recurse_data *generate_mult_recurse_data(Forest *T1, Forest *T2, list<Node*> *sibling_groups, list<Node*> *singletons) {
 
   bb_mult_recurse_data *data = new bb_mult_recurse_data();
@@ -848,13 +851,13 @@ void mult_cut_and_cleanup(Node* to_cut, Forest *T2, list<Node*> *singletons) {
   //Just cut 1 of two children of a1 parent
   if (to_cut_p->get_children().size() == 1) {
     if (to_cut_p->parent() == NULL) {
-      Node* node = to_cut_p->contract();
+      Node* node = to_cut_p->contract(true);
       if (node->is_singleton()) {
 	singletons->push_front(node);
       }
     }
     else {
-      to_cut_p = to_cut_p->contract();
+      to_cut_p = to_cut_p->contract(true);
       //T2_a1_p_next->set_non_leaf_children(0);
       if (to_cut_p->is_singleton()) {
 	singletons->push_front(to_cut_p);
@@ -893,13 +896,13 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
   //Just cut 1 of two children of a2 parent (will always be in this case?)
   if (parent->get_children().size() == 1) {
     if (parent->parent() == NULL) {
-      Node* node = parent->contract();
+      Node* node = parent->contract(true);
       if (node->is_singleton()) {
 	singletons->push_front(node);
       }
     }
     else {
-      parent = parent->contract();
+      parent = parent->contract(true);
     }
   }
   else {
@@ -975,7 +978,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
   if (k < 0) {
     return k;
   }
-  Node* previous_group;
+  Node* previous_group = NULL;
   int best_k = -1;
   while(!singletons->empty() || !sibling_groups->empty()) {
 	  
@@ -1023,7 +1026,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	}
 	Node *possible_previous_sibling = T1_a_p->get_children().front();
 	bool was_sibling_group = possible_previous_sibling->is_sibling_group();
-	Node *node = T1_a_p->contract();
+	Node *node = T1_a_p->contract(true);//LEAK; Deleting previous node?
 	if (node != NULL) {
 	  node->recalculate_non_leaf_children(); //can we tell what this would be instead of recalculating?
 
@@ -1045,12 +1048,16 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       //Get the first group that has identical sibling groups, otherwise default to the group on the back
       list<Node*>::reverse_iterator i = sibling_groups->rbegin();
       Node *T1_sibling_group = sibling_groups->back();
-      list<list<Node*>> *identical_sibling_groups = T1_sibling_group->find_identical_sibling_groups();
+      list<list<Node*>> identical_sibling_groups;
+      T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
       for (; i != sibling_groups->rend(); i++ ){
-	identical_sibling_groups = (*i)->find_identical_sibling_groups();
-	if (identical_sibling_groups->size() > 0) {
+	(*i)->find_identical_sibling_groups(&identical_sibling_groups);
+	if (identical_sibling_groups.size() > 0) {
 	  T1_sibling_group = (*i);
 	  break;
+	}
+	else {
+	  //delete identical_sibling_groups;
 	}
       }
       
@@ -1069,9 +1076,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	 Step 5 in paper
       */
       // Case 2 - Contract identical sibling pair
-      if (identical_sibling_groups->size() > 0) {	  		
+      if (identical_sibling_groups.size() > 0) {	  		
 	list<list<Node *>>::iterator i;
-	for (i = identical_sibling_groups->begin(); i != identical_sibling_groups->end(); i++) {
+	for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
 	  list<Node *> T2_group = (*i);
 	  Node *T2_p = T2_group.front()->parent();
 	  #ifdef DEBUG
@@ -1124,6 +1131,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       else {
 	//copies for the approx so we dont clobber this tree
 	map<Node*, Node*> approx_map = map<Node*, Node*>();
+	//LEAK?
 	Forest T1_approx = Forest(T1, &approx_map);
 	Forest T2_approx = Forest(T2, &approx_map);
 	sync_twins(&T1_approx, &T2_approx);
@@ -1328,16 +1336,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);	      
 	    }
 	  }
-
-	  //else {
-	  //goto backup;
-	  //}
-
 	}
-
 	//step 8
 	else {
-	backup:
 	  bool all_but_ar_s1 = true;
 	  for (int i = 0; i < deepest_siblings.size() - 1; i++) {
 	    if (s_map[deepest_siblings[i]] != 1) {
@@ -1923,7 +1924,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	sibling_groups->pop_back();
 	return best_k;
       }//else
-      delete identical_sibling_groups;
+      //delete identical_sibling_groups;
       previous_group = T1_sibling_group;
 
     }//!sibling_groups->empty()
