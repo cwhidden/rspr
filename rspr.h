@@ -608,12 +608,13 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 		}
 	      }
 	      else {
-		T2_a1_p = T2_a1_p->contract(true);
-		//T2_a1_p->set_non_leaf_children(0);
+		Node* T2_b1 = T2_a1_p->get_children().front();
+		T2_a1_p->contract(true);
+		T2_a1_p = T2_b1; // <------------------------------------
 	      }
 	    }
 	    //Check for singletons
-	    if (T2_a1->is_leaf())
+	    if (T2_a1->is_singleton())
 	      singletons->push_front(T2_a1);
 	    
 	    num_cut++;
@@ -632,15 +633,21 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 		T2->add_component(T2_a1_p);
 		//Just cut 1 of two children of a1 parent
 		if (T2_a1_gp->get_children().size() == 1) {
-		  Node* node = T2_a1_gp->contract(true);
-		  if (node != NULL && node->is_singleton()) {
-		    singletons->push_front(node);
+		  if (T2_a1_gp->parent() == NULL) {
+		    T2_a1_gp->contract(true);		    
+		  }
+		  else {
+		    Node* T2_b1_p = T2_a1_gp->get_children().front();
+		    T2_a1_gp->contract(true);
+		    T2_a1_gp = T2_b1_p;
 		  }
 
-		  //T2_a1_gp->set_non_leaf_children(0);
+		  if (T2_a1_gp != NULL && T2_a1_gp->is_singleton()) {
+		    singletons->push_front(T2_a1_gp);
+		  }
 		}
 		//Check for singletons
-		if (T2_a1_p->get_children().size() == 0) {
+		if (T2_a1_p->is_singleton()) {
 		  singletons->push_front(T2_a1_p);	      
 		}
 		num_cut++;
@@ -651,7 +658,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	if (cut_a2){
 	  T2_a2_p = T2_a2->parent();
 	  //could have cut a2's parent in previous steps, so could be singleton now
-	  if (T2_a2->is_leaf() && T2_a2_p == NULL && T2_a2 != T2->get_component(0)) {
+	  if (T2_a2->is_leaf() && T2_a2_p == NULL) {
 	    singletons->push_front(T2_a2);
 	  }
 	  else if (T2_a2_p != NULL) {
@@ -668,19 +675,19 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 		}
 	      }
 	      else {
-		T2_a2_p = T2_a2_p->contract(true);
-		T2_a2_p->set_non_leaf_children(0);
+		Node* T2_b2 = T2_a2_p->get_children().front();
+		T2_a2_p->contract(true);
+		T2_a2_p = T2_b2;
 	      }
 	    }
 	    //Check for singletons
-	    if (T2_a2->is_leaf())
+	    if (T2_a2->is_singleton())
 	      singletons->push_front(T2_a2);
 	    num_cut++;
 	  }
 	}
 	if (cut_a2_p) {
 	  if (T2_a2_p != NULL && T2_a2_p->parent() != NULL) {
-	    //Node *T2_a2_p = T2_a2->parent();
 	    Node *T2_a2_gp = T2_a2_p->parent();
 	    //Cut connections
 	    T2_a2_p->cut_parent();
@@ -688,14 +695,21 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	    T2->add_component(T2_a2_p);
 	    //Just cut 1 of two children of a2 parent
 	    if (T2_a2_gp->get_children().size() == 1) {
-	      T2_a2_gp->contract(true);
+	      if (T2_a2_gp->parent() == NULL) {
+		T2_a2_gp->contract(true);
+	      }
+	      else {
+		Node* T2_b2_p = T2_a2_gp->get_children().front();
+		T2_a2_gp->contract(true);
+		T2_a2_gp = T2_b2_p;
+	      }
+
 	      if (T2_a2_gp->is_singleton()) {
 		singletons->push_front(T2_a2_gp);
 	      }
-	      T2_a2_gp->set_non_leaf_children(0);
 	    }
 	    //Check for singletons
-	    if (T2_a2_p->get_children().size() == 0) {
+	    if (T2_a2_p->is_singleton()) {
 	      singletons->push_front(T2_a2_p);	      
 	    }
 	    num_cut++;
