@@ -620,11 +620,12 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	    num_cut++;
 	    if (cut_a1_p) {
 	      if (T2_a1_p->parent() != NULL) {
+		bool aborted_a2 = false;
 		if (T2_a1_p->parent() == T2_a2->parent() &&
 		    T2_a2->parent()->get_children().size() == 2)
 		  {
 		    cut_a2 = false; //cutting a1_p will cause a2 to get contracted up, so there is no more a2 to cut
-		    T2_a2_p = T2_a2;
+		    aborted_a2 = true;
 		  }
 		Node *T2_a1_gp = T2_a1_p->parent();
 		//Cut connections
@@ -641,7 +642,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 		    T2_a1_gp->contract(true);
 		    T2_a1_gp = T2_b1_p;
 		  }
-
+		  if (aborted_a2) { T2_a2_p = T2_a1_gp; }
 		  if (T2_a1_gp != NULL && T2_a1_gp->is_singleton()) {
 		    singletons->push_front(T2_a1_gp);
 		  }
@@ -873,16 +874,16 @@ void mult_cut_and_cleanup(Node* to_cut, Forest *T2, list<Node*> *singletons) {
   //Just cut 1 of two children of a1 parent
   if (to_cut_p->get_children().size() == 1) {
     if (to_cut_p->parent() == NULL) {
-      Node* node = to_cut_p->contract(true);
-      if (node->is_singleton()) {
-	singletons->push_front(node);
+      to_cut_p->contract(true);
+      if (to_cut_p->is_singleton()) {
+	singletons->push_front(to_cut_p);
       }
     }
     else {
-      to_cut_p = to_cut_p->contract(true);
-      //T2_a1_p_next->set_non_leaf_children(0);
-      if (to_cut_p->is_singleton()) {
-	singletons->push_front(to_cut_p);
+      Node* to_cut_b = to_cut_p->get_children().front();
+      to_cut_p->contract(true);
+      if (to_cut_b->is_singleton()) {
+	singletons->push_front(to_cut_b);
       }
     }
   }
@@ -918,22 +919,19 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
   //Just cut 1 of two children of a2 parent (will always be in this case?)
   if (parent->get_children().size() == 1) {
     if (parent->parent() == NULL) {
-      Node* node = parent->contract(true);
-      if (node->is_singleton()) {
-	singletons->push_front(node);
+      parent->contract(true);
+      if (parent->is_singleton()) {
+	singletons->push_front(parent);
       }
     }
     else {
       parent = parent->contract(true);
+      if (T2_a1->is_singleton())
+	singletons->push_front(T2_a1);
     }
   }
-  else {
-    if (T2_a1->is_leaf())
-      singletons->push_front(T2_a1);
-  }
-  if (T2_b1->is_leaf())
+  if (T2_b1->is_singleton())
     singletons->push_front(T2_b1);
-  //Check for singletons	
 }
 
 //TODO (Ben): try using a routine instead of a macro, I suspect it will slow down because of
@@ -1025,7 +1023,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 
       Node *T1_a_p = T1_a->parent();
       if (T1_a_p == NULL)
-	continue;
+	continue;      
       bool is_sibling_group = T1_a_p->is_sibling_group();
       // cut the edge above T1_a
       T1_a->cut_parent();
@@ -1034,35 +1032,49 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       }
       T1->add_component(T1_a);
 
+      
+      
       //only contract if one node
       if (T1_a_p->get_children().size() == 1) {
+	//If we contract this node, and it used to be a sibling group
+	//then it is not a sibling group anymore
 	if (is_sibling_group) {
 	  sibling_groups->remove(T1_a_p);
           #ifdef DEBUG
-	  cout << "Removed ";
-	  for (list<Node*>::iterator i = T1_a_p->get_children().begin(); i != T1_a_p->get_children().end(); i++) {
-	    cout << (*i)->str();
-	  }
-	  cout  << " from sibling groups" << endl;
+	  cout << "Removed " << T1_a_p->str() << " from sibling groups" << endl;
 	  #endif
 	}
+	
 	Node *possible_previous_sibling = T1_a_p->get_children().front();
 	bool was_sibling_group = possible_previous_sibling->is_sibling_group();
-	Node *node = T1_a_p->contract(true);//LEAK; Deleting previous node?
-	if (node != NULL) {
-	  node->recalculate_non_leaf_children(); //can we tell what this would be instead of recalculating?
+	
+	Node *T1_a_gp = T1_a_p->parent();
+	Node *T1_new_a_p = T1_a_p;
+	//If the child is a sibling group, there is a possibility contract()
+	//will delete it, so we need to update it in the sibling groups
 
-	  if (node->is_sibling_group()) {
-	    if (was_sibling_group) {
-	      list<Node*>::iterator i = find(sibling_groups->begin(), sibling_groups->end(), possible_previous_sibling);
-	      *i = node;
-	    }
-	    else{
-	      sibling_groups->push_front(node);
-	    }
+	if (T1_a_p->parent() == NULL) {
+	  if (was_sibling_group){
+	    list<Node*>::iterator i = find(sibling_groups->begin(), sibling_groups->end(), possible_previous_sibling);
+	    *i = T1_new_a_p;	    
+	    //cout << "Exchanging... " << endl;
+	  }
+	}
+	else {
+	  T1_new_a_p = possible_previous_sibling;
+	}
+
+        T1_a_p->contract(true);
+	T1_new_a_p->recalculate_non_leaf_children();
+	//After contracting this, the grandparent may be a sibling group now
+	if (T1_a_gp != NULL) {
+	  T1_a_gp->recalculate_non_leaf_children(); //can we tell what this would be instead of recalculating?
+	  if (T1_a_gp->is_sibling_group()) {	 
+	    sibling_groups->push_front(T1_a_gp);	 
 	  }
 	}
       }
+
     }//!singletons->empty()
 
     //NOTE: we know there are no singletons left here

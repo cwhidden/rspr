@@ -361,7 +361,6 @@ class Node {
 	*/
 
 	// delete a subtree
-  //LEAK: contracted children
 	void delete_tree() {
 		list<Node *>::iterator c = children.begin();
 		while(c!= children.end()) {
@@ -369,19 +368,20 @@ class Node {
 			c++;
 			n->delete_tree();
 		}
-
+		cut_parent();
 #ifdef COPY_CONTRACTED
 		if (contracted_lc != NULL) {
 			contracted_lc->delete_tree();
+			contracted_lc = NULL;
 		}
-		contracted_lc = NULL;
 		if (contracted_rc != NULL) {
 			contracted_rc->delete_tree();
+			contracted_rc = NULL;
 		}
-		contracted_rc = NULL;
 		for (auto i = contracted_children.begin(); i != contracted_children.end(); i++) {
 		  (*i)->delete_tree();
 		}
+		contracted_children.clear();
 #endif
 		delete this;
 	}
@@ -895,6 +895,16 @@ class Node {
 					if (child->contracted_rc != NULL)
 						contracted_rc = child->contracted_rc;
 					pre_num = child->get_preorder_number();
+
+					c = child->contracted_children.begin();
+					while(c!= child->contracted_children.end()) {
+						Node *new_child = *c;
+						c++;
+						new_child->set_parent(this);
+						add_contracted_child(new_child);
+						contracted = true;
+					}
+					child->contracted_children.clear();
 					if (remove) {
 						child->contracted_lc = NULL;
 						child->contracted_rc = NULL;
