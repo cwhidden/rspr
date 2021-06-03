@@ -803,6 +803,12 @@ int main(int argc, char *argv[]) {
 				Forest F1 = Forest(T1);
 				Forest F2 = Forest(T2);
 				sync_twins(&F1, &F2);
+				if (MULTIFURCATING) {
+				  reduction_leaf_mult(&F1, &F2);
+				}
+				else {
+				  reduction_leaf(&F1, &F2);
+				}
 				F1.print_components();
 				F2.print_components();
 				continue;

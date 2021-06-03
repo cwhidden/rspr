@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RSPR
 //#define DEBUG 1
-//#define DEBUG_CONTRACTED 1
+#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -134,6 +134,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, int min_k, int max_k);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest **out_F1, Forest **out_F2);
+void reduction_leaf_mult(Forest *T1, Forest *T2);
 void reduction_leaf(Forest *T1, Forest *T2);
 void reduction_leaf(Forest *T1, Forest *T2, UndoMachine *um);
 bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end);
@@ -253,6 +254,10 @@ int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2, bool sync) {
 	if (sync) {
 if (!sync_twins(T1, T2))
 	return 0;
+	}
+
+	if (LEAF_REDUCTION) {
+	  //reduction_leaf_mult(T1, T2);
 	}
 //	cout << "T1: "; T1->print_components();
 //	cout << "T2: "; T2->print_components();
@@ -762,7 +767,9 @@ int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int en
       exact_spr = 0;
       continue;
     }
-
+    if (LEAF_REDUCTION) {
+      reduction_leaf_mult(F1, F2);
+    }
     #ifdef DEBUG
     cout << "Trying K = " << k << endl << "------------------" << endl;
     #else
@@ -773,11 +780,14 @@ int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int en
     cout << "------------------" << endl;
     cout << "Finished K = " << k << " return value : " << exact_spr << endl;   
     #endif
-    
+    if (exact_spr >= 0) {
+      F1->swap(T1);
+      F2->swap(T2);
+    }
     delete F1;
     delete F2;
 
-    if (exact_spr >= 0) {
+    if (exact_spr >= 0) {    
       break;
     }
   }
@@ -800,7 +810,6 @@ int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
   int final_k = rSPR_branch_and_bound_mult_hlpr(T1, T2, k, sibling_groups, &singletons, NULL, &AFs);  
 
   //print AFs
-
   if (!AFs.empty() && final_k > -1) {
     cout << endl << endl << "FOUND ANSWER" << endl;
     // TODO: this is a cheap hack
@@ -810,6 +819,10 @@ int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
       cout << "\tT2: ";
       x->second.print_components();
     }
+      AFs.front().first.swap(T1);
+  AFs.front().second.swap(T2);
+  sync_twins(T1,T2);
+
   }
 
   
@@ -1090,9 +1103,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  T1_sibling_group = (*i);
 	  break;
 	}
-	else {
-	  //delete identical_sibling_groups;
-	}
       }
       
       #ifdef DEBUG
@@ -1163,6 +1173,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 
       // Case 3
       else {
+
 	//copies for the approx so we dont clobber this tree
 	map<Node*, Node*> approx_map = map<Node*, Node*>();
 	//LEAK?
@@ -1184,6 +1195,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  #endif
 	  return -1;
 	}
+
 	#ifdef DEBUG
 	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
 	#endif
@@ -1217,7 +1229,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	#endif
 	best_k = -1;
 
-	
+
 	//step 7
 	/*
 	  if a1 == prot, x = 2 else x = 1
@@ -5226,7 +5238,59 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest **out_F1,
 }
 
 // T1 and T2 are assumed to already be synced
+void reduction_leaf_mult(Forest *T1, Forest* T2) {
+  
+  list<Node *> *sibling_groups = T1->find_sibling_groups();
+  while (!sibling_groups->empty()) {
+    //Get a sibling group with identical siblings
+    list<Node*>::reverse_iterator i = sibling_groups->rbegin();
+    Node *T1_sibling_group = sibling_groups->back();
+    list<list<Node*>> identical_sibling_groups;
+    T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
+    for (; i != sibling_groups->rend(); i++ ){
+      (*i)->find_identical_sibling_groups(&identical_sibling_groups);
+      if (identical_sibling_groups.size() > 0) {
+	T1_sibling_group = (*i);
+	break;
+      }
+    }
 
+    // Checked all sibling groups, found none with identical groups in T2
+    // Therefore there are no more contractions to be made
+    if (identical_sibling_groups.size() == 0) {
+      delete sibling_groups;
+      return;
+    }
+    // Contract them
+    else {	  		
+      list<list<Node *>>::iterator i;
+      for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
+	list<Node *> T2_group = (*i);
+	Node *T2_p = T2_group.front()->parent();
+	Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
+	Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
+	  
+	T1_group_new->set_twin(T2_group_new);
+	T2_group_new->set_twin(T1_group_new);			
+
+	if (T1_sibling_group->parent() != NULL) {
+	  //Check if the contraction made a new sibling group
+	  T1_sibling_group->parent()->recalculate_non_leaf_children();
+	  if (T1_sibling_group->parent()->is_sibling_group()) {
+	    sibling_groups->push_front(T1_sibling_group->parent());
+	  }
+	}
+	//Check if this contraction removed a sibling group
+	if (!T1_sibling_group->is_sibling_group()) {
+	  sibling_groups->remove(T1_sibling_group);
+	}	  
+      }
+    }
+  }
+  delete sibling_groups;
+}
+  
+// T1 and T2 are assumed to already be synced
 void reduction_leaf(Forest *T1, Forest *T2) {
 	reduction_leaf(T1, T2, NULL);
 }
