@@ -1,9 +1,7 @@
 #!/bin/bash
 echo "Building..."
 make rspr
-#if (! test -d "test_output" ) then
- #  mkdir test_output
-#fi
+
 
 declare -a tests=(
     		  "trees2.txt"
@@ -26,6 +24,7 @@ declare -a tests=(
 		  "multi_tree_8.6_test_00.txt"
 		  "multi_tree_8.7_test_00.txt"
 		  "multi_tree_8.7_test_01.txt"
+		  "cluster_test"
 		  )
 		  
 for i in ${tests[@]}
@@ -33,7 +32,15 @@ do
     echo "\n\n////////////////////////////////////////////////////////"
     echo $i
     echo "////////////////////////////////////////////////////////\n\n"
-    time ./rspr -multifurcating < test_trees/$i    
+    if [ -n "$1" ]
+       then
+	   if [ $1 == "-cluster" ]
+	   then
+	       time ./rspr -multifurcating -cluster_test -leaf_reduction2 < test_trees/$i
+	   fi
+    else
+	time ./rspr -multifurcating < test_trees/$i    
+    fi
 done
 
 echo "Finished"

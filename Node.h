@@ -1506,7 +1506,7 @@ class Node {
 		  }
 		}
 		non_leaf_children = total_non_leaves;
-		if (total_non_leaves == 0)
+		if (is_sibling_group())
 		  sibling_groups->push_back(this);		
     }
 
@@ -1686,6 +1686,7 @@ class Node {
         Node *find_arbitrary_lca(vector<Node *> components, vector<int> &descendants) {	        
 		for (int i = 0; i < components.size(); i++) {
 		  Node* root = components[i];
+		  if (root->get_preorder_number() == -1) {continue;}
 		  if (descendants[root->get_preorder_number()] > 1) {
 		    return root->find_arbitrary_lca_hlpr(descendants);
 		  }

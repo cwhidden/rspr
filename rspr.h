@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RSPR
 //#define DEBUG 1
-#define DEBUG_CONTRACTED 1
+//#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -189,6 +189,7 @@ bool CLUSTER_REDUCTION = false;
 bool PREFER_RHO = false;
 bool MAIN_CALL = true;
 bool MEMOIZE = false;
+bool MULTIFURCATING = false;
 bool ALL_MAFS = false;
 int NUM_CLUSTERS = 0;
 int MAX_CLUSTERS = -1;
@@ -1023,25 +1024,29 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       #ifdef DEBUG
       cout << "Handling singleton: " << T2_a->str() << endl;
       #endif
+      
       // find twin in T1
       Node *T1_a = T2_a->get_twin();
-      // if this is in the first component of T_2 then
-      // it is not really a singleton.
-      // TODO: problem when we cluster and have a singleton as the
-      //		first comp of T2
-      //    NEED TO MODIFY CUTTING?
-      // 		HERE AND IN BB?
-      if (T2_a == T2->get_component(0))
-	continue;
-
       Node *T1_a_p = T1_a->parent();
+      
       if (T1_a_p == NULL)
 	continue;      
+      
+      if (T2_a == T2->get_component(0))
+	{
+	  if (!T1->contains_rho()) {
+	    T1->add_rho();
+	    T2->add_rho();
+	    k--;
+	  }
+	}
+
+
       bool is_sibling_group = T1_a_p->is_sibling_group();
       // cut the edge above T1_a
       T1_a->cut_parent();
       if (!T1_a->is_leaf()) {
-	T1_a_p->decrement_non_leaf_children();//although would this ever be a non leaf?
+	T1_a_p->decrement_non_leaf_children();
       }
       T1->add_component(T1_a);
 
@@ -1063,9 +1068,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	
 	Node *T1_a_gp = T1_a_p->parent();
 	Node *T1_new_a_p = T1_a_p;
+	
 	//If the child is a sibling group, there is a possibility contract()
 	//will delete it, so we need to update it in the sibling groups
-
 	if (T1_a_p->parent() == NULL) {
 	  if (was_sibling_group){
 	    list<Node*>::iterator i = find(sibling_groups->begin(), sibling_groups->end(), possible_previous_sibling);
@@ -1209,6 +1214,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	if (arbitrary_lca == NULL) {	
 	  siblings_by_depth = vector<vector<Node *>>(10);
 	  for (int i = 0; i != T2->components.size(); i++) {
+	    //if preorder is -1 then this is rho
+	    if (T2->components[i]->get_preorder_number() == -1) { continue; }
 	    T2->components[i]->get_deepest_siblings(descendant_count, siblings_by_depth);
 	  }
 	}
@@ -1977,6 +1984,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 
   } //while(!sibling_groups->empty() && !singletons->empty()
   // if the first component of the forests differ then we have cut p
+  /*
   if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
     if (!T1->contains_rho()) {
       T1->add_rho();
@@ -1986,9 +1994,16 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
     // hack to ignore rho when it shouldn't be in a cluster
     //num_cut -=3;
   }
-
+  */
   if (k >= 0) {
-    AFs->push_front(make_pair(Forest(T1),Forest(T2)));
+    if (PREFER_RHO && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
+      if (!ALL_MAFS)
+	AFs->clear();	
+      AFs->push_front(make_pair(Forest(T1),Forest(T2)));      
+    }
+    else if (ALL_MAFS || AFs->empty()) {
+      AFs->push_back(make_pair(Forest(T1),Forest(T2)));
+    }
   }
 
   /*
@@ -4634,8 +4649,13 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		cout << "T2: ";
 		F2.print_components();
 	}
-
-	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	int full_approx_spr;
+	if (MULTIFURCATING) {
+	  full_approx_spr = rSPR_worse_3_mult_approx(&F3, &F4);
+	}
+	else {
+	  full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	}
 	if (full_approx_spr < CLUSTER_TUNE) {
 		do_cluster = false;
 	}
@@ -4673,7 +4693,12 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		F2.get_component(0)->edge_preorder_interval();
 	}
 	if (LEAF_REDUCTION2) {
-		reduction_leaf(&F1, &F2);
+	  if (MULTIFURCATING) {
+	    reduction_leaf_mult(&F1, &F2);
+	  }
+	  else {	    
+	    reduction_leaf(&F1, &F2);
+	  }
 //		F1.get_component(0)->preorder_number();
 //		F2.get_component(0)->preorder_number();
 //		F1.get_component(0)->edge_preorder_interval();
@@ -4771,8 +4796,13 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 			cout << "C" << i << "_2: ";
 			f2.print_components();
 		}
-
-		int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
+		int approx_spr;
+		if (MULTIFURCATING) {
+		  approx_spr = rSPR_worse_3_mult_approx(&f1a, &f2a);
+		}
+		else {
+		  approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
+		}
 		if (verbose) {
 			cout << "cluster approx drSPR=" << f2a.num_components()-1 << endl;
 			//cout << "cluster approx drSPR=" << approx_spr << endl;
@@ -4819,7 +4849,12 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 						f1t.add_rho();
 						f2t.add_rho();
 					}
-					exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
+					if (MULTIFURCATING) {
+					  exact_spr = rSPR_branch_and_bound_mult(&f1t, &f2t, k);
+					}
+					else {
+					  exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
+					}
 				}
 				if (exact_spr >= 0 || k + total_k > max_k ||
 						k > CLUSTER_MAX_SPR) {
@@ -4860,7 +4895,14 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 						else {
 							Forest f1a = Forest(f1);
 							Forest f2a = Forest(f2);
-							int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
+							
+							int approx_spr;
+							if (MULTIFURCATING) {
+							  approx_spr = rSPR_worse_3_mult_approx(&f1a, &f2a);
+							}
+							else{
+							  approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
+							}
 								//total_k += min_spr;
 								total_k += approx_spr / 3;
 						}
@@ -5053,7 +5095,13 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		F2.print_components();
 	}
 
-	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	int full_approx_spr;
+	if (MULTIFURCATING) {
+	  full_approx_spr = rSPR_worse_3_mult_approx(&F3, &F4);
+	}
+	else {
+	  full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	}
 	if (full_approx_spr <= CLUSTER_TUNE) {
 		do_cluster = false;
 	}
@@ -5107,7 +5155,14 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 			}
 			Forest f1 = Forest(cluster.F1);
 			Forest f2 = Forest(cluster.F2);
-			int min_spr = rSPR_worse_3_approx(&f1, &f2);
+			
+			int min_spr;
+			if (MULTIFURCATING) {
+			  min_spr = rSPR_worse_3_mult_approx(&f1, &f2);
+			}
+			else {
+			  min_spr = rSPR_worse_3_approx(&f1, &f2);
+			}
 			min_spr /= 3;
 
 			if (verbose) {
@@ -5132,9 +5187,14 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 					cluster.F1->add_rho();
 					cluster.F2->add_rho();
 				}
-
-				cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
+				if (MULTIFURCATING) {
+				  cluster_spr = rSPR_branch_and_bound_mult_range(cluster.F1,
 						cluster.F2, min_spr, MAX_SPR - total_k);
+				}
+				else {
+				  cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
+						cluster.F2, min_spr, MAX_SPR - total_k);
+				}
 				if (cluster_spr >= 0) {
 					if (verbose) {
 	  				cout << endl;
@@ -5189,7 +5249,12 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 			delete cluster_points;
 		}
 		full_approx_spr /= 3;
-		total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
+		if (MULTIFURCATING) {
+		  total_k = rSPR_branch_and_bound_mult_range(&F1, &F2, full_approx_spr, MAX_SPR);
+		}
+		else {
+		  total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
+		}
 		int i = 1;
 		if (total_k < 0)
 			if (CLAMP)

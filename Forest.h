@@ -387,6 +387,7 @@ bool add_rho() {
 	if (rho)
 		return false;
 	Node *T_p = new Node("p");
+	T_p->set_preorder_number(-1);
 	add_component(T_p);
 	rho = true;
 	return true;

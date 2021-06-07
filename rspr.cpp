@@ -189,7 +189,6 @@ bool DEFAULT_OPTIMIZATIONS=true;
 
 
 bool MULTI_APPROX = false;
-bool MULTIFURCATING = false;
 bool FPT = false;
 bool RF = false;
 bool QUIET = false;
