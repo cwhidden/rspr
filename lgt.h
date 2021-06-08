@@ -29,7 +29,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef LGT
 #define LGT
 
-//#define DEBUG_LGT
+#define DEBUG_LGT
 
 #include <cstdio>
 #include <cstdlib>
@@ -412,7 +412,13 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 
 	Forest F1 = Forest(T1);
 	Forest F2 = Forest(T2);
-	int approx_spr = rSPR_worse_3_approx(&F1, &F2);
+	int approx_spr;
+	if (MULTIFURCATING) {
+	  approx_spr = rSPR_worse_3_mult_approx(&F1, &F2);
+	}
+	else {
+	  approx_spr = rSPR_worse_3_approx(&F1, &F2);
+	}
 	if (approx_spr > 0) {
 		cout << "WARNING: final tree does not match T2" << endl;
 	}

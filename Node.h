@@ -185,10 +185,20 @@ class Node {
 		else
 			contracted_rc = new Node(*(n.contracted_rc), this);
 		this->contracted = n.contracted;
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  Node* contracted_node = new Node(**i, this);
+		  add_contracted_child(contracted_node);
+		  contracted_node->set_parent(this);
+		} 
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
 		this->contracted = n.contracted;
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  add_contracted_child(**i);
+		  contracted_node->set_parent(this);
+		} 
+
 #endif
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
@@ -300,14 +310,21 @@ class Node {
 		else
 			contracted_rc = new Node(*(n.contracted_rc), this);
 		this->contracted = n.contracted;
-		/*for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
 		  Node* contracted_node = new Node(**i, this);
-		  contracted_children.push_back(contracted_node);
-		  } */
+		  add_contracted_child(contracted_node);
+		  contracted_node->set_parent(this);
+		} 
+
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
 		this->contracted = n.contracted;
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  add_contracted_child(**i);
+		  contracted_node->set_parent(this);
+		} 
+
 #endif
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
@@ -1043,12 +1060,6 @@ class Node {
 	      return NULL;
 	    }
 	  }
-	  string new_name;
-#if DEBUG_CONTRACTED
-	  new_name = "<";
-#else
-	  new_name = "(";
-#endif
 	  //contract all children into this
 	  if (nodes->size() == children.size()) {
 	    //TODO: Both have references to children, double free?
@@ -1064,19 +1075,8 @@ class Node {
 	      (*i)->set_parent(this);
 	      //children.remove(*i); already removed in setting children
 	      add_contracted_child(*i);
-	     
-	      
-	      new_name += (*i)->str() + ",";
 	    }	    
 	    recalculate_non_leaf_children();
-	    new_name.pop_back();
-#if DEBUG_CONTRACTED
-	    new_name += ">";
-#else
-	    new_name += ")";
-#endif
-	    
-	    name = new_name.c_str();
 	    return this;
 	  }
 	  //Otherwise we create a new node and contract them into that
@@ -1092,9 +1092,6 @@ class Node {
 		{
 		  min_pre_num = (*i)->get_preorder_number();
 		}
-	      if ((*i)->str() != "")
-		new_name += (*i)->str() + ",";
-
 	    }
 	    new_child->set_preorder_number(min_pre_num);
 	    
@@ -1108,13 +1105,6 @@ class Node {
 	    new_child->set_parent(this);
 	    recalculate_non_leaf_children();
 	    new_child->recalculate_non_leaf_children();
-	    new_name.pop_back();
-#if DEBUG_CONTRACTED
-	    new_name += ">";
-#else
-	    new_name += ")";
-#endif
-	    new_child->set_name(new_name.c_str());
 	    return new_child;
 	  }
 	}
@@ -1224,7 +1214,7 @@ class Node {
 	void str_hlpr(string *s) {
 		if (!name.empty())
 			*s += name.c_str();
-		if (contracted_lc != NULL || contracted_rc != NULL) {
+		if (contracted_lc != NULL || contracted_rc != NULL || !contracted_children.empty()) {
 			#ifdef DEBUG_CONTRACTED
 				*s += "<";
 			#else
@@ -1232,10 +1222,18 @@ class Node {
 			#endif
 			if (contracted_lc != NULL) {
 				contracted_lc->str_c_subtree_hlpr(s);
+				*s += ",";
 			}
-			*s += ",";
+			for (auto c = contracted_children.begin(); c != contracted_children.end(); c++) {
+			  (*c)->str_c_subtree_hlpr(s);
+			  *s += ",";
+			}
+
 			if (contracted_rc != NULL) {
 				contracted_rc->str_c_subtree_hlpr(s);
+			}
+			else {
+			  s->pop_back();
 			}
 			#ifdef DEBUG_CONTRACTED
 				*s += ">";
@@ -1831,7 +1829,7 @@ class Node {
 		return same_component(n, lca_depth, a);
 	}
 
-
+ 
 	void labels_to_numbers(map<string, int> *label_map, map<int, string> *reverse_label_map) {
 		if (name != "") {
 			map<string, int>::iterator i = label_map->find(name);
@@ -1856,9 +1854,13 @@ class Node {
 			contracted_lc->labels_to_numbers(label_map, reverse_label_map);
 		if (contracted_rc != NULL)
 			contracted_rc->labels_to_numbers(label_map, reverse_label_map);
+		for(c = contracted_children.begin(); c != contracted_children.end(); c++) {
+			(*c)->labels_to_numbers(label_map, reverse_label_map);
+		}
 	}
-	
-	void numbers_to_labels(map<int, string> *reverse_label_map) {
+
+
+  	void numbers_to_labels(map<int, string> *reverse_label_map) {
 		if (name != "") {
 			string converted_name = "";
 			string current_num = "";
@@ -1896,6 +1898,10 @@ class Node {
 			contracted_lc->numbers_to_labels(reverse_label_map);
 		if (contracted_rc != NULL)
 			contracted_rc->numbers_to_labels(reverse_label_map);
+		for(c = contracted_children.begin(); c != contracted_children.end(); c++) {
+			(*c)->numbers_to_labels(reverse_label_map);
+		}
+
 	}
 
 	void build_name_to_pre_map(map<string, int> *name_to_pre) {
@@ -2311,6 +2317,7 @@ Node *undo_expand_parent_edge() {
  *		NULL if no spr occured)
  *
  * Note: binary only
+ * TODO (ben): multifurcating
  */
 Node *spr(Node *new_sibling, int &which_child) {
 	Node *reverse;
@@ -2546,6 +2553,7 @@ Node *find_by_prenum_full(int prenum) {
 
 // expand all contracted nodes of a subtree starting at n
 void expand_contracted_nodes() {
+  	list<Node *>::iterator c;
 	if (is_leaf()) {
 		if (contracted_lc != NULL) {
 			add_child(contracted_lc);
@@ -2555,8 +2563,11 @@ void expand_contracted_nodes() {
 			add_child(contracted_rc);
 			contracted_rc = NULL;
 		}
+		for(c = contracted_children.begin(); c != contracted_children.end(); c++) {
+		  add_child(*c);
+		}
+		contracted_children.clear();
 	}
-	list<Node *>::iterator c;
 	for(c = get_children().begin(); c != get_children().end(); c++) {
 		(*c)->expand_contracted_nodes();
 	}

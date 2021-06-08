@@ -812,13 +812,15 @@ int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
 
   //print AFs
   if (!AFs.empty() && final_k > -1) {
-    cout << endl << endl << "FOUND ANSWER" << endl;
-    // TODO: this is a cheap hack
-    for (list<pair<Forest,Forest> >::iterator x = AFs.begin(); x != AFs.end(); x++) {
-      cout << "\tT1: ";
-      x->first.print_components();
-      cout << "\tT2: ";
-      x->second.print_components();
+    if (ALL_MAFS) {
+      cout << endl << endl << "FOUND ANSWER" << endl;
+      // TODO: this is a cheap hack
+      for (list<pair<Forest,Forest> >::iterator x = AFs.begin(); x != AFs.end(); x++) {
+	cout << "\tT1: ";
+	x->first.print_components();
+	cout << "\tT2: ";
+	x->second.print_components();
+      }
     }
       AFs.front().first.swap(T1);
   AFs.front().second.swap(T2);
