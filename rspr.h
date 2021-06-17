@@ -69,13 +69,10 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2);
 int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2, bool sync);
 
-//int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2);
-//int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int start_k);
-//int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int start_k, int end_k);
 int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k);
 int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int end_k);
 int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k);
-int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_stack, list<pair<Forest,Forest>> *AFs);
+int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_stack, list<pair<Forest,Forest>> *AFs, int* num_ties);
 
 
 
@@ -190,6 +187,8 @@ bool PREFER_RHO = false;
 bool MAIN_CALL = true;
 bool MEMOIZE = false;
 bool MULTIFURCATING = false;
+bool MULT_4_BRANCH = false;
+bool USE_CASE_7 = true;
 bool ALL_MAFS = false;
 int NUM_CLUSTERS = 0;
 int MAX_CLUSTERS = -1;
@@ -301,7 +300,7 @@ if (!sync_twins(T1, T2))
 	Forest *F1;
 	Forest *F2;
 
-	T2->max_preorder = T2->components[0]->preorder_number(0);
+	T2->max_preorder = T2->components[0]->get_max_preorder_number(0);//preorder_number(0);
 	int ans = rSPR_worse_3_mult_approx_hlpr(T1, T2, &singletons, sibling_groups, &F1, &F2, true);
 
 	F1->swap(T1);
@@ -465,7 +464,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
 	#endif
 	//vector of ints describing how many of the siblings are in its descendants, indexed by preorder number
-	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(T2->max_preorder);
+	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(T2->max_preorder + 1);
 	Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
 	vector<Node *> deepest_siblings;
 	
@@ -802,13 +801,14 @@ int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
   if (!sync_twins(T1,T2)) {
     return 0;      
   }
-  T2->max_preorder = T2->components[0]->preorder_number(0);          
+  T2->max_preorder = T2->components[0]->get_max_preorder_number(0);//preorder_number(0);          
   list<Node *> *sibling_groups = T1->find_sibling_groups();
   list<Node *> singletons     = T1->find_singletons();
   list<pair<Forest,Forest>> AFs = list<pair<Forest,Forest>>();
   //list<Node *> protected_stack = list<Node*>();
+  int num_ties = 2;
   
-  int final_k = rSPR_branch_and_bound_mult_hlpr(T1, T2, k, sibling_groups, &singletons, NULL, &AFs);  
+  int final_k = rSPR_branch_and_bound_mult_hlpr(T1, T2, k, sibling_groups, &singletons, NULL, &AFs, &num_ties);  
 
   //print AFs
   if (!AFs.empty() && final_k > -1) {
@@ -922,10 +922,14 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
     list<Node*> all_but_a1 = list<Node*>(parent->get_children());
     all_but_a1.remove(T2_a1);	    
     T2_b1 = parent->expand_children_out(all_but_a1);
+    T2_b1->set_preorder_number(parent->get_preorder_number());
   }
   //hack for now
   //We immediately contract a1 up so we know the parent's preorder number is available
-  T2_b1->set_preorder_number(parent->get_preorder_number());
+  
+  //T2_b1->set_edge_pre_start(T2_b1->get_preorder_number());
+  //T2_b1->edge_preorder_interval();
+  //T2_b1->copy_edge_pre_interval(parent);
   //Cut connections
   T2_b1->cut_parent();
 
@@ -966,7 +970,7 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
     num_cuts++;								\
   }									\
   Node* protect = next_data->node_map[node_to_protect];			\
-  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - num_cuts, next_data->sibling_groups, next_data->singletons, protect, AFs); \
+  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - num_cuts, next_data->sibling_groups, next_data->singletons, protect, AFs, num_ties); \
   delete next_data->T1;							\
   delete next_data->T2;							\
   delete next_data->sibling_groups;					\
@@ -980,37 +984,12 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
   }									\
 }
 
-/*
-//Consider struct for parameters to reduce stack use
-bool rSPR_branch_and_bound_mult_cut_hlpr(Forest *T1, Forest *T2,
-					 int k,
-					 list<Node*> *sibling_groups, list<Node*> *singletons,
-					 Node *protected_node, list<pair<Forest,Forest>> *AFs,
-					 Node* to_cut, int *best_k) {
-  bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
-  Node* T2_ax_next = next_data->node_map[T2_ax];
-  mult_cut_and_cleanup(T2_ax_next, next_data->T2, next_data->singletons);
-	    
-  //recurse on this cut
-  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, protected_node, AFs);
-  delete next_data;
-  if (result_k > best_k) {
-    best_k = result_k;
-    if (!ALL_MAFS && best_k > -1) {
-      return best_k;
-    }
-  }  
-}
-bool rSPR_branch_and_bound_mult_cut_all_except_hlpr(Forest *T1, Forest *T2,
-					 int k,
-					 list<Node*> *sibling_groups, list<Node*> *singletons,
-					 Node *protected_node, list<pair<Forest,Forest>> *AFs,
-					 Node *all_except, int *best_k) {
-}
-  
-*/
 //TODO: UndoMachine, then cleanup all constructors, bb_mult_recurse_data relying on copies of trees
-int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_node, list<pair<Forest,Forest>> *AFs) {
+int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
+				    int k,
+				    list<Node*> *sibling_groups, list<Node*> *singletons,
+				    Node *protected_node, list<pair<Forest,Forest>> *AFs,
+				    int* num_ties) {
   if (k < 0) {
     return k;
   }
@@ -1036,11 +1015,13 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       
       if (T2_a == T2->get_component(0))
 	{
+	  /*
 	  if (!T1->contains_rho()) {
 	    T1->add_rho();
 	    T2->add_rho();
 	    k--;
-	  }
+	    }*/
+	  continue;
 	}
 
 
@@ -1111,14 +1092,20 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	  break;
 	}
       }
-      
+      /*
+      Node *T1_sibling_group = sibling_groups->back();
+      list<list<Node*>> identical_sibling_groups;
+      T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
+      */
       #ifdef DEBUG
       cout << "K = " << k << endl;
       cout << "F2: ";
       T2->print_components();
+      //T2->print_components_with_edge_pre_interval();
       cout << endl;
       cout << "F1: ";
       T1->print_components();
+      //T1->print_components_with_edge_pre_interval();
       cout << endl;
       #endif
 
@@ -1207,7 +1194,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
 	#endif
 	//vector of ints describing how many of the siblings are in its descendants, indexed by preorder number
-	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(T2->max_preorder);
+	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(T2->max_preorder + 1);
 	Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
 	vector<Node *> deepest_siblings;
 	vector<vector<Node*>> siblings_by_depth;
@@ -1238,7 +1225,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	#endif
 	best_k = -1;
 
-
+	if (!MULT_4_BRANCH) {
 	//step 7
 	/*
 	  if a1 == prot, x = 2 else x = 1
@@ -1392,6 +1379,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 	    }
 	  }
 	}
+
 	//step 8
 	else {
 	  bool all_but_ar_s1 = true;
@@ -1846,8 +1834,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 
 	}
 
-
-	if(0) {
+	}
+	else { //4_MULT_BRANCH
 
 #ifdef DEBUG
 	  cout << "Backup 4 branch case" << endl;
@@ -1986,17 +1974,36 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
 
   } //while(!sibling_groups->empty() && !singletons->empty()
   // if the first component of the forests differ then we have cut p
-  /*
   if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
     if (!T1->contains_rho()) {
       T1->add_rho();
       T2->add_rho();
+      k--;
     }
     //else
-    // hack to ignore rho when it shouldn't be in a cluster
-    //num_cut -=3;
+      // hack to ignore rho when it shouldn't be in a cluster
+      //num_cut -=3;
   }
-  */
+
+  if (k >= 0) {
+    if (PREFER_RHO && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
+      if (!ALL_MAFS)
+	AFs->clear();
+      AFs->push_front(make_pair(Forest(T1),Forest(T2)));
+      *num_ties = 2;
+    }
+    else if (ALL_MAFS || AFs->empty()) {
+      AFs->push_back(make_pair(Forest(T1),Forest(T2)));
+    }
+    else if (!PREFER_RHO || AFs->front().first.contains_rho() == T1->contains_rho()) {
+      if (rand() < RAND_MAX/ *num_ties) {
+	AFs->clear();
+	AFs->push_back(make_pair(Forest(T1),Forest(T2)));
+      }
+      (*num_ties)++;
+    }
+  }
+  /*
   if (k >= 0) {
     if (PREFER_RHO && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
       if (!ALL_MAFS)
@@ -2007,12 +2014,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *
       AFs->push_back(make_pair(Forest(T1),Forest(T2)));
     }
   }
-
-  /*
-    if (save_forests) {
-    *F1 = new Forest(T1);
-    *F2 = new Forest(T2);
-    }
   */
   return k;
 }
@@ -5258,11 +5259,14 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		  total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
 		}
 		int i = 1;
-		if (total_k < 0)
-			if (CLAMP)
+		if (total_k < 0) {
+			if (CLAMP) {
 				total_k = MAX_SPR;
-			else
+			}
+			else {
 				total_k = full_approx_spr;
+			}
+		}
 
 	}
 

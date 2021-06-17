@@ -90,7 +90,6 @@ class Node {
 	int sibling_pair_status;
 	int num_clustered_children;
 	Forest *forest;
-	// TODO: contracted_list ?
         list <Node *> contracted_children;
 	Node *contracted_lc;
 	Node *contracted_rc;
@@ -505,24 +504,11 @@ class Node {
 	      add_child(*i);
 	    }
 	}
-        //TODO: clean this up to a function
-        static list<Node *> *get_combined_children(list<Node *> *nodes) {
-	        list<Node *> *combined = new list<Node *>();
-		list<Node *>::iterator i;
-		for (i = nodes->begin(); i != nodes->end(); i++) {
-		    list<Node *> children = (*i)->get_children();
-		    combined->insert(combined->end(), children.begin(), children.end());
-		}
-		return combined;
-	}
-
-
 	Node *set_twin(Node *n) {
 		twin = n;
 		return twin;
 	}
-  //Why does this return a node?
-	Node *set_name(string n) {
+	void set_name(string n) {
 		name = string(n);
 	}
 	int set_depth(int d) {
@@ -562,6 +548,12 @@ class Node {
 	}
 
 
+	void copy_edge_pre_interval_complete(Node *n) {
+	        edge_pre_start = n->edge_pre_start;
+		edge_pre_end = n->edge_pre_end;
+	}
+
+  
 	void copy_edge_pre_interval(Node *n) {
 		if (n->edge_pre_start > -1) {
 			edge_pre_start = n->edge_pre_start;
@@ -573,6 +565,7 @@ class Node {
   
 	int set_component_number(int c) {
 		component_number = c;
+		return c;
 	}
 	list<Node *>& get_children() {
 		return children;
@@ -584,10 +577,10 @@ class Node {
 		return contracted_rc;
 	}
 
-	Node *set_contracted_lc(Node *n) {
+	void set_contracted_lc(Node *n) {
 		contracted_lc = n;
 	}
-	Node *set_contracted_rc(Node *n) {
+	void set_contracted_rc(Node *n) {
 		contracted_rc = n;
 	}
 
@@ -702,28 +695,28 @@ class Node {
 	double get_support() {
 		return support;
 	}
-	double set_support(double s) {
+	void set_support(double s) {
 		support = s;
 	}
-	double a_inc_support() {
+	void a_inc_support() {
 #pragma omp atomic
 		support += 1;
 	}
-	double a_dec_support() {
+	void a_dec_support() {
 #pragma omp atomic
 		support -= 1;
 	}
 	double get_support_normalization() {
 		return support_normalization;
 	}
-	double set_support_normalization(double s) {
+        void set_support_normalization(double s) {
 		support_normalization = s;
 	}
-	double a_inc_support_normalization() {
+	void a_inc_support_normalization() {
 #pragma omp atomic
 		support_normalization += 1;
 	}
-	double a_dec_support_normalization() {
+	void a_dec_support_normalization() {
 #pragma omp atomic
 		support_normalization -= 1;
 	}
@@ -746,7 +739,7 @@ class Node {
 	void decrease_clustered_children() {
 		num_clustered_children--;
 	}
-	int set_num_clustered_children(int c) {
+	void set_num_clustered_children(int c) {
 		num_clustered_children = c;
 	}
 	int get_num_clustered_children() {
@@ -761,7 +754,7 @@ class Node {
 	int get_sibling_pair_status(){
 		return sibling_pair_status;
 	}
-	int set_sibling_pair_status(int s){
+	void set_sibling_pair_status(int s){
 		sibling_pair_status = s;
 	}
 	void set_forest(Forest *f) {
@@ -1031,10 +1024,6 @@ class Node {
 		contracted_rc = NULL;
 	}
 
-        void append_node_to_name(Node *node) {
-	        name.insert(name.length(), node->str());	    
-	}
-
         int recalculate_non_leaf_children() {
 	        int total = 0;
 		list<Node *>::iterator i;
@@ -1050,7 +1039,19 @@ class Node {
         void add_contracted_child(Node *node) {
                 contracted_children.push_back(node);
 		node->contracted = true;
+		node->set_parent(this);
 	}
+
+        list<Node *> *get_combined_children(list<Node *> *nodes) {
+	        list<Node *> *combined = new list<Node *>();
+		list<Node *>::iterator i;
+		for (i = nodes->begin(); i != nodes->end(); i++) {
+		  list<Node *> children = (*i)->get_children();
+		  combined->insert(combined->end(), children.begin(), children.end());
+		}
+		return combined;
+	}
+
   
         Node *contract_sibling_group(list<Node *> *nodes) {
 	  //check to make sure all nodes are siblings
@@ -1063,19 +1064,25 @@ class Node {
 	  //contract all children into this
 	  if (nodes->size() == children.size()) {
 	    //TODO: Both have references to children, double free?
-	    list<Node*> *new_children = Node::get_combined_children(nodes);
+	    list<Node*> *new_children = get_combined_children(nodes);
 	    children.clear();
 	    for (i = new_children->begin(); i != new_children->end(); i++) {
 	      children.push_back(*i);
 	    }
 	    delete new_children;
-	      
-
+	    //int min_pre_num = 0x7FFFFFFF; //max value constant?
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
-	      (*i)->set_parent(this);
 	      //children.remove(*i); already removed in setting children
 	      add_contracted_child(*i);
-	    }	    
+	      /*if ((*i)->get_preorder_number() < min_pre_num) {
+		  min_pre_num = (*i)->get_preorder_number();
+		  }*/
+
+	    }
+	    //edge_pre_start = -1;
+	    //edge_pre_end = -1;
+	    //set_preorder_number(min_pre_num);
+	    //edge
 	    recalculate_non_leaf_children();
 	    return this;
 	  }
@@ -1086,16 +1093,14 @@ class Node {
 	    int min_pre_num = 0x7FFFFFFF; //max value constant?
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
 	      new_child->add_contracted_child((*i));
-	      (*i)->set_parent(new_child);
 	      children.remove((*i));
-	      if ((*i)->get_preorder_number() < min_pre_num)
-		{
+	      if ((*i)->get_preorder_number() < min_pre_num) {
 		  min_pre_num = (*i)->get_preorder_number();
 		}
 	    }
 	    new_child->set_preorder_number(min_pre_num);
 	    
-	    list<Node*> *new_children = Node::get_combined_children(nodes);
+	    list<Node*> *new_children = get_combined_children(nodes);
 	     new_child->add_children(new_children);
 	    for (i = new_children->begin(); i != new_children->end(); i++) {
 	      (*i)->set_parent(new_child);
@@ -1614,6 +1619,8 @@ class Node {
 	      return 1 + (*i)->get_deepest_siblings_hlpr(descendants, to_be_placed);
 	    }
 	  }
+	  return -300; //shouldn't get here, it should break when it tries to index -300.
+	  //should really assert
 	}
 
         void get_deepest_siblings(vector<int> &descendants, vector<vector<Node*>> &siblings_by_depth) {
@@ -1931,6 +1938,16 @@ class Node {
 			contracted_rc->count_numbered_labels(label_counts);
 	}
 
+  int get_max_preorder_number(int next) {
+    if (next < get_preorder_number()) {
+      next = get_preorder_number();
+    }
+    for (auto c = children.begin(); c != children.end(); c++) {
+      next = (*c)->get_max_preorder_number(next);
+    }
+    return next;
+  }
+  
 	void preorder_number() {
 		preorder_number(0);
 	}
@@ -2340,7 +2357,7 @@ Node *spr(Node *new_sibling, int &which_child) {
 
 		old_sibling->cut_parent();
 		//p->delete_child(old_sibling);
-		p->cut_parent();
+		p->cut_parent(); //LEAK?
 //		grandparent->delete_child(p);
 		if (leftc && !grandparent->is_leaf()) {
 				Node *ns = grandparent->children.front();
@@ -2436,9 +2453,43 @@ Node *spr(Node *new_sibling, int &which_child) {
 
 Node *spr(Node *new_sibling) {
 	int na = 0;
-	spr(new_sibling, na);
+	return spr(new_sibling, na);
 }
 
+  /*
+    prune this subtree and attach as a sibling of new_sibiling
+   */
+
+void spr_mult(Node *new_sibling) {
+  //prune
+  Node* parent = p;
+  if (parent != NULL) {
+    cut_parent();
+    if (parent->get_children().size() == 1) {
+      parent->contract(true);
+    }
+  }
+  else {
+    return;
+  }
+  //regraft
+  if (new_sibling->parent() != NULL) {
+    Node* new_parent = new Node();
+    new_sibling->parent()->add_child(new_parent);
+    //new_parent->set_parent(new_sibling->parent());
+    new_parent->add_child(new_sibling);
+    new_parent->add_child(this);
+    }
+  else {
+    Node* new_parent = new_sibling;//new Node();
+    Node* replace = new Node(*new_sibling);
+    new_parent->get_children().clear();
+    new_parent->add_child(replace);
+    new_parent->add_child(this);
+  }
+}
+
+  
 void find_descendant_counts_hlpr(vector<int> *dc) {
 	int num_descendants = 0;
 	list<Node *>::iterator c;
@@ -2564,7 +2615,7 @@ void expand_contracted_nodes() {
 			contracted_rc = NULL;
 		}
 		for(c = contracted_children.begin(); c != contracted_children.end(); c++) {
-		  add_child(*c);
+		        add_child(*c);
 		}
 		contracted_children.clear();
 	}
@@ -2865,18 +2916,9 @@ vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_dep
 	    if (siblings_by_depth[j].size() != 0) {
 	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
 		deepest_siblings.push_back(siblings_by_depth[j][k]);
-		#ifdef DEBUG_APPROX
-		cout << "Inserting... : " << siblings_by_depth[j][k]->str() << " of depth " << j << endl;
-		#endif
 	      }
 	    }
 	  }
-	  #ifdef DEBUG_APPROX
-	  for (int j = 0; j < deepest_siblings.size(); j++) {
-	    cout <<"item: [" << j << "] = " << deepest_siblings[j]->str() << endl;;
-	  }
-	  #endif
-	  
 	  return deepest_siblings; 
 	}
 vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_depth, map<Node*, int> *s_map) {	  
@@ -2886,20 +2928,15 @@ vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_dep
 	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
 		deepest_siblings.push_back(siblings_by_depth[j][k]);
 		s_map->insert({siblings_by_depth[j][k], j - 1});
-		#ifdef DEBUG_APPROX
-		cout << "Inserting... : " << siblings_by_depth[j][k]->str() << " of depth " << j << endl;
-		#endif
 	      }
 	    }
 	  }
-	  #ifdef DEBUG_APPROX
-	  for (int j = 0; j < deepest_siblings.size(); j++) {
-	    cout <<"item: [" << j << "] = " << deepest_siblings[j]->str() << endl;;
-	  }
-	  #endif
 	  
 	  return deepest_siblings; 
 	}
+
+
+
 
 
 #endif

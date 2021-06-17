@@ -26,21 +26,46 @@ declare -a tests=(
 		  "multi_tree_8.7_test_01.txt"
 		  "cluster_test"
 		  )
-		  
-for i in ${tests[@]}
-do
-    echo "\n\n////////////////////////////////////////////////////////"
-    echo $i
-    echo "////////////////////////////////////////////////////////\n\n"
-    if [ -n "$1" ]
+
+declare -a move_tests=(
+    		  "trees2.txt"
+		  "trees3.txt"
+		  "multi_tree_7.1_test_00.txt"
+		  "multi_tree_7.3_test_00.txt"
+		  "multi_tree_7.4_test_00.txt"
+		  "multi_tree_8.2_test_00.txt"
+		  "multi_tree_8.4_test_00.txt"
+		  "multi_tree_8.4_test_01.txt"
+		  "multi_tree_8.5_test_00.txt"
+		  "multi_tree_8.6_test_00.txt"
+		  "multi_tree_8.7_test_00.txt"
+		  "multi_tree_8.7_test_01.txt"
+		  "cluster_test"
+		  )
+if [ -n "$1" ] && [ $1 == "-show_moves" ]
+then
+   for i in ${move_tests[@]}
+   do
+       echo "\n\n////////////////////////////////////////////////////////"
+       echo $i
+       echo "////////////////////////////////////////////////////////\n\n"
+       time ./rspr -multifurcating -multi_4_branch -show_moves < test_trees/$i
+   done    
+else    
+   for i in ${tests[@]}
+   do
+       echo "\n\n////////////////////////////////////////////////////////"
+       echo $i
+       echo "////////////////////////////////////////////////////////\n\n"
+       if [ -n "$1" ]
        then
 	   if [ $1 == "-cluster" ]
 	   then
 	       time ./rspr -multifurcating -cluster_test -leaf_reduction2 < test_trees/$i
 	   fi
-    else
-	time ./rspr -multifurcating < test_trees/$i    
-    fi
-done
-
+       else
+	   time ./rspr -multifurcating < test_trees/$i    
+       fi
+   done
+fi
 echo "Finished"

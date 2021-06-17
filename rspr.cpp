@@ -407,7 +407,13 @@ int main(int argc, char *argv[]) {
 			MULTIFURCATING = true;
 			DEFAULT_OPTIMIZATIONS = false;
 		}
-
+		else if (strcmp(arg, "-multi_4_branch") == 0) {
+		        DEFAULT_ALGORITHM = false;
+			BB = true;
+			MULTIFURCATING = true;
+			DEFAULT_OPTIMIZATIONS = false;
+			MULT_4_BRANCH = true;
+		}
 
 		else if (strcmp(arg, "-a_cob") == 0) {
 			APPROX_CUT_ONE_B = true;
@@ -889,6 +895,8 @@ int main(int argc, char *argv[]) {
 			int min_spr;
 			if (MULTI_APPROX || MULTIFURCATING)
 			{
+			  F1.components[0]->preorder_number(0);
+			  F2.components[0]->preorder_number(0);
 			    approx_spr = rSPR_worse_3_mult_approx(&F1, &F2);
 				min_spr = approx_spr / 3;				
 			}
@@ -959,6 +967,9 @@ int main(int argc, char *argv[]) {
 				Forest F2 = Forest(F4);
 				int exact_spr;
 				if (MULTIFURCATING) {
+				   F1.components[0]->preorder_number(0);
+				   F2.components[0]->preorder_number(0);
+			 
 				  exact_spr = rSPR_branch_and_bound_mult_range(&F1, &F2, min_spr);
 				}
 				else {
