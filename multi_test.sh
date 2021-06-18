@@ -49,7 +49,7 @@ then
        echo "\n\n////////////////////////////////////////////////////////"
        echo $i
        echo "////////////////////////////////////////////////////////\n\n"
-       time ./rspr -multifurcating -multi_4_branch -show_moves < test_trees/$i
+       time ./rspr -multi_4_branch  -show_moves -leaf_reduction2 < test_trees/$i
    done    
 else    
    for i in ${tests[@]}

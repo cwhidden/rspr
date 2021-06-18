@@ -1554,6 +1554,18 @@ class Node {
 		return leaves;
 	}
 
+      
+  //find the preorder numbers of the leaves in this node's subtree
+        vector<int> find_leaf_preorders() {
+	  vector<Node*> leaves = find_leaves();
+	  vector<int> preorders = vector<int>();
+	  for (int i = 0; i < leaves.size(); i++) {
+	    preorders.push_back(leaves[i]->get_preorder_number());
+	  }
+	  
+	  return preorders;
+	}
+
 	void find_interior_hlpr(vector<Node *> &interior) {
 		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {

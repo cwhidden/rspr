@@ -234,10 +234,10 @@ void list_transfers(list<transfer> *transfer_list, Node *super_tree,
 			*/
 #ifdef DEBUG_LGT
 			
-			//cout << "\tT1: "; F1.print_components();
-			//cout << "\tT2: "; F2.print_components();
-			cout << "\tT1: "; F1.print_components_with_edge_pre_interval();
-			cout << "\tT2: "; F2.print_components_with_edge_pre_interval();
+			cout << "\tT1: "; F1.print_components();
+			cout << "\tT2: "; F2.print_components();
+			//cout << "\tT1: "; F1.print_components_with_edge_pre_interval();
+			//cout << "\tT2: "; F2.print_components_with_edge_pre_interval();
 			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
 			cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
 #endif
@@ -268,14 +268,21 @@ void add_transfers(list<transfer> *transfer_list, Forest *F1,
 		vector<int> source_child_pre_nums = vector<int>();
 		vector<int> target_child_pre_nums = vector<int>();
 		//if (F1_source->get_edge_pre_start() == -1) {
+		
+		
 		for (auto c = F1_source->get_children().begin();
 		     c != F1_source->get_children().end();
 		     c++) {
 		  if ((*c)->get_preorder_number() == F1_source->get_preorder_number()) {
+		    /*
 		    for (auto i = F1_source->get_children().begin();
 			 i != F1_source->get_children().end();
 			 i++) {
 		      source_child_pre_nums.push_back((*i)->get_preorder_number());
+		      }*/
+		    vector<Node*> leaves = F1_source->find_leaves();
+		    for (int i = 0; i < leaves.size(); i++) {
+		      source_child_pre_nums.push_back(leaves[i]->get_preorder_number());
 		    }
 		    break;
 		  }
@@ -284,15 +291,22 @@ void add_transfers(list<transfer> *transfer_list, Forest *F1,
 		     c != F1_target->get_children().end();
 		     c++) {
 		  if ((*c)->get_preorder_number() == F1_target->get_preorder_number()) {
+		    /*
 		    for (auto i = F1_target->get_children().begin();
 			 i != F1_target->get_children().end();
 			 i++) {
 		      target_child_pre_nums.push_back((*i)->get_preorder_number());
 		    }
+		    */
+		    vector<Node*> leaves = F1_target->find_leaves();
+		    for (int i = 0; i < leaves.size(); i++) {
+		      target_child_pre_nums.push_back(leaves[i]->get_preorder_number());
+		    }
+
 		    break;
 		  }
 		}
-
+		
 		/*
 
 		else if (F2_source->get_edge_pre_start() == -1) {
@@ -437,6 +451,36 @@ void add_lcas_to_groups(vector<int> *pre_to_group, Node *subtree) {
 		(*pre_to_group)[subtree->get_preorder_number()] = group;
 }
 
+bool contains_any(vector<int>& A, vector<int>& B)
+{
+  for (int i = 0; i < B.size(); i++) {
+    for (int j = 0; j < A.size(); j++) {
+      if (B[i] == A[j]) {
+	return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool is_subset(vector<int>& A, vector<int>& B)
+{
+  if (B.size() == 0 && A.size() > 0) { return false; }
+  for (int i = 0; i < A.size(); i++) {
+    bool found = false;
+    for (int j = 0; j < B.size(); j++) {
+      if (B[j] == A[i]) {
+	found = true;
+	break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		map<int, string> *reverse_label_map) {
 	T1->preorder_number();
@@ -453,6 +497,7 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		list<transfer> transfer_list = list<transfer>();
 		list_transfers(&transfer_list, T1, T2);
 		T1->numbers_to_labels(reverse_label_map);
+	choose_different_tranfer:
 		transfer trans = transfer_list.front();
 		transfer_list.pop_front();
 		Node *s = T1->find_by_prenum_full(trans.source_pre);
@@ -464,40 +509,97 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		print_leaf_list(t);
 		cout << endl;
 
+		//TODO (ben): Write a safeguard before we expand or spr ,
+		//where it checks to see if the target node is in the source nodes subtree.
+		//If it is then choose a different transfer
 		if (MULTIFURCATING) {
+
+		  vector<Node*> source_nodes_to_expand = vector<Node*>();
+		  
+		  if (trans.source_child_pre_nums.size() > 0) {
+		    //move up until all the preorders are in s's subtree
+		    s = s->parent();
+		    vector<int> leaf_preorders = s->find_leaf_preorders();
+		    bool leaf_is_subset = is_subset(trans.source_child_pre_nums, leaf_preorders);
+		    while (!leaf_is_subset){
+			s = s->parent();
+			leaf_preorders = s->find_leaf_preorders();
+			leaf_is_subset = is_subset(trans.source_child_pre_nums, leaf_preorders);
+		    }
+		    
+		    //get the children that have the preorders in their subtree
+		    for (auto i = s->get_children().begin(); i != s->get_children().end(); i++) {
+		      vector<int> this_childs_preorder_list = (*i)->find_leaf_preorders();
+		      if (contains_any(trans.source_child_pre_nums, this_childs_preorder_list)){
+			source_nodes_to_expand.push_back(*i);
+		      }
+		    }
+
+		    //before we expand, we need to check if the target is in any of the nodes_to_expand's subtrees
+		  }
+
+		  
 		  //want to get the subset of children
 		  //the prenum will be the child though, so move up one
-		  if (trans.target_child_pre_nums.size() > 0) {		      
+		  vector<Node*> target_nodes_to_expand = vector<Node*>();
+		  if (trans.target_child_pre_nums.size() > 0) {
+		    //move up until all the preorders are in t's subtree
 		    t = t->parent();
-		    if (t->get_children().size() > trans.target_child_pre_nums.size()) {
-		      Node* new_t = new Node();
-		      t->add_child(new_t);
-		      
-		      for (int i = 0; i < trans.target_child_pre_nums.size(); i++) {
-			Node* new_child = t->find_by_prenum_full(trans.target_child_pre_nums[i]);
-			if (new_child != NULL) {
-			  new_t->add_child(new_child);
-			}
-		      }		      
-		      t = new_t;
+		    vector<int> leaf_preorders = t->find_leaf_preorders();
+		    bool leaf_is_subset = is_subset(trans.target_child_pre_nums, leaf_preorders);
+		    while (!leaf_is_subset){
+			t = t->parent();
+			leaf_preorders = t->find_leaf_preorders();
+			leaf_is_subset = is_subset(trans.target_child_pre_nums, leaf_preorders);
+		      }
+		    
+		    //get the children that have the preorders in their subtree
+		    for (auto i = t->get_children().begin(); i != t->get_children().end(); i++) {
+		      vector<int> this_childs_preorder_list = (*i)->find_leaf_preorders();
+		      if (contains_any(trans.target_child_pre_nums, this_childs_preorder_list)){
+			target_nodes_to_expand.push_back(*i);
+		      }
+		    }		   
+		  }
+
+		  //check if the target will be in any of the source nodes subtrees
+		    //if it is then we are attaching it to itself and it is an invalid spr
+		  if (source_nodes_to_expand.size() > 0) {		    
+		    for (int i = 0; i < source_nodes_to_expand.size(); i++) {
+		      if (source_nodes_to_expand[i]->find_by_prenum_full(t->get_preorder_number()) != NULL) {
+			cout << "INVALID MOVE, RETRYING..." << endl;
+			goto choose_different_tranfer;
+		      }
 		    }
 		  }
-		  if (trans.source_child_pre_nums.size() > 0) {		      
-		      s = s->parent();
-		      if (s->get_children().size() > trans.source_child_pre_nums.size() ) {
+		  else {
+		    if (s->find_by_prenum_full(t->get_preorder_number()) != NULL) {
+		      cout << "INVALID MOVE, RETRYING..." << endl;
+		      goto choose_different_tranfer;
+		    }
+		  }
+		  if (trans.source_child_pre_nums.size() > 0) {
+		    //if there are children who don't have the correct preorders, expand the others
+		    if (source_nodes_to_expand.size() < s->get_children().size()) {
 		      Node* new_s = new Node();
 		      s->add_child(new_s);
-		      
-		      for (int i = 0; i < trans.source_child_pre_nums.size(); i++) {
-			Node* new_child = s->find_by_prenum_full(trans.source_child_pre_nums[i]);
-			if (new_child != NULL) {
-			  new_s->add_child(new_child);
-			}
-		      }		      
+		      for (int i = 0; i < source_nodes_to_expand.size(); i++) {
+			new_s->add_child(source_nodes_to_expand[i]);
+		      }
 		      s = new_s;
 		    }
 		  }
-		  
+		  if (trans.target_child_pre_nums.size() > 0) {
+		    //if there are children who don't have the correct preorders, expand the others
+		    if (target_nodes_to_expand.size() < t->get_children().size()){
+		      Node* new_t = new Node();
+		      t->add_child(new_t);
+		      for (int i = 0; i < target_nodes_to_expand.size(); i++) {
+			new_t->add_child(target_nodes_to_expand[i]);
+		      }
+		      t = new_t;
+		    }
+		  }
 		  if (s->parent() != NULL &&
 		      s->parent()->get_children().size() > 2) {
 		    Node* new_s = new Node();
