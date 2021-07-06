@@ -548,12 +548,6 @@ class Node {
 	}
 
 
-	void copy_edge_pre_interval_complete(Node *n) {
-	        edge_pre_start = n->edge_pre_start;
-		edge_pre_end = n->edge_pre_end;
-	}
-
-  
 	void copy_edge_pre_interval(Node *n) {
 		if (n->edge_pre_start > -1) {
 			edge_pre_start = n->edge_pre_start;
@@ -1070,19 +1064,14 @@ class Node {
 	      children.push_back(*i);
 	    }
 	    delete new_children;
-	    //int min_pre_num = 0x7FFFFFFF; //max value constant?
+	    int min_pre_num = 0x7FFFFFFF; //max value constant?
 	    for (i = nodes->begin(); i != nodes->end(); i++) {
 	      //children.remove(*i); already removed in setting children
 	      add_contracted_child(*i);
-	      /*if ((*i)->get_preorder_number() < min_pre_num) {
+	      if ((*i)->get_preorder_number() < min_pre_num) {
 		  min_pre_num = (*i)->get_preorder_number();
-		  }*/
-
+	      }
 	    }
-	    //edge_pre_start = -1;
-	    //edge_pre_end = -1;
-	    //set_preorder_number(min_pre_num);
-	    //edge
 	    recalculate_non_leaf_children();
 	    return this;
 	  }
@@ -2630,10 +2619,22 @@ void expand_contracted_nodes() {
 		        add_child(*c);
 		}
 		contracted_children.clear();
+
 	}
 	for(c = get_children().begin(); c != get_children().end(); c++) {
 		(*c)->expand_contracted_nodes();
 	}
+	/*
+	//if -1 then this is a node we created for a contraction, and it should go up one
+	if (get_edge_pre_end() == -1) {
+	  if (p != NULL) {
+	    while (!children.empty()) {
+	      p->add_child(children.front());
+	    }
+	    delete this;
+	    return;
+	  }
+	  }*/
 }
 
 int get_name_num() {

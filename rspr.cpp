@@ -213,6 +213,7 @@ bool REDUCE_ONLY = false;
 bool PRINT_ROOTED_TREES = false;
 bool SHOW_MOVES = false;
 bool SEQUENCE = false;
+bool DEBUG_REVERSE = false;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -402,17 +403,20 @@ int main(int argc, char *argv[]) {
 			DEFAULT_OPTIMIZATIONS = false;
 		}
 		else if (strcmp(arg, "-multifurcating") == 0) {
-		        DEFAULT_ALGORITHM = false;
+		  //DEFAULT_ALGORITHM = false;
 			BB = true;
 			MULTIFURCATING = true;
-			DEFAULT_OPTIMIZATIONS = false;
+			//DEFAULT_OPTIMIZATIONS = false;
 		}
 		else if (strcmp(arg, "-multi_4_branch") == 0) {
-		        DEFAULT_ALGORITHM = false;
+		  //DEFAULT_ALGORITHM = false;
 			BB = true;
 			MULTIFURCATING = true;
-			DEFAULT_OPTIMIZATIONS = false;
+			//DEFAULT_OPTIMIZATIONS = false;
 			MULT_4_BRANCH = true;
+		}
+		else if (strcmp(arg, "-debug_reverse_trees") == 0) {
+		        DEBUG_REVERSE = true;
 		}
 
 		else if (strcmp(arg, "-a_cob") == 0) {
@@ -792,8 +796,16 @@ int main(int argc, char *argv[]) {
 		string T1_line = "";
 		string T2_line = "";
 		while (getline(cin, T1_line) && getline(cin, T2_line)) {
-			Node *T1 = build_tree(T1_line);
-			Node *T2 = build_tree(T2_line);
+		  Node *T1;
+		  Node *T2;
+		        if (DEBUG_REVERSE) {
+			        T1 = build_tree(T2_line);
+				T2 = build_tree(T1_line);
+		        }
+		        else {
+			        T1 = build_tree(T1_line);
+				T2 = build_tree(T2_line);
+		        }
 
 			if (MULTI_TEST > 0) {
 				vector<Node *> interior = T2->find_interior();
@@ -805,8 +817,19 @@ int main(int argc, char *argv[]) {
 			}
 			// TODO: should we sync here to prune out additional leaves?
 			if (REDUCE_ONLY) {
+
+				T1->preorder_number();
+				T1->edge_preorder_interval();
+				T2->preorder_number();
+				T2->edge_preorder_interval();
+
+			  
 				Forest F1 = Forest(T1);
 				Forest F2 = Forest(T2);
+				
+				F1.print_components();
+				F2.print_components();
+
 				sync_twins(&F1, &F2);
 				if (MULTIFURCATING) {
 				  reduction_leaf_mult(&F1, &F2);
@@ -814,6 +837,7 @@ int main(int argc, char *argv[]) {
 				else {
 				  reduction_leaf(&F1, &F2);
 				}
+				
 				F1.print_components();
 				F2.print_components();
 				continue;

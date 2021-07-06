@@ -29,7 +29,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef LGT
 #define LGT
 
-//#define DEBUG_LGT
+#define DEBUG_LGT
 
 #include <cstdio>
 #include <cstdlib>
@@ -105,10 +105,10 @@ void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
 			expand_contracted_nodes(MAF2);
 #ifdef DEBUG_LGT			
 			cout << i << ": " << distance << endl;
-			cout << "\tT1: "; F1.print_components();
-			cout << "\tT2: "; F2.print_components();
-			//cout << "\tT1: "; F1.print_components_with_edge_pre_interval();
-			//cout << "\tT2: "; F2.print_components_with_edge_pre_interval();
+			//cout << "\tT1: "; F1.print_components();
+			//cout << "\tT2: "; F2.print_components();
+			cout << "\tT1: "; F1.print_components_with_edge_pre_interval();
+			cout << "\tT2: "; F2.print_components_with_edge_pre_interval();
 			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
 			cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
 #endif
@@ -224,14 +224,6 @@ void list_transfers(list<transfer> *transfer_list, Node *super_tree,
 			int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
 			expand_contracted_nodes(MAF1);
 			expand_contracted_nodes(MAF2);
-			/*
-			for (auto i = MAF1->components.begin(); i < MAF1->components.end(); i++ ) {
-			  (*i)->edge_preorder_interval();
-			}
-			for (auto i = MAF2->components.begin(); i < MAF2->components.end(); i++ ) {
-			  (*i)->edge_preorder_interval();
-			}
-			*/
 #ifdef DEBUG_LGT
 			
 			cout << "\tT1: "; F1.print_components();
@@ -509,9 +501,8 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		print_leaf_list(t);
 		cout << endl;
 
-		//TODO (ben): Write a safeguard before we expand or spr ,
-		//where it checks to see if the target node is in the source nodes subtree.
-		//If it is then choose a different transfer
+		//TODO (ben): try updating the preorder interval when contracting
+
 		if (MULTIFURCATING) {
 
 		  vector<Node*> source_nodes_to_expand = vector<Node*>();
