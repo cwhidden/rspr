@@ -954,6 +954,24 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
     singletons->push_front(T2_b1);
 }
 
+//Adds rho and a certain singleton to cut. Basically its for realising when we have cut rho but it is already a singleton so we explicitly continue on 
+#define MULT_RHO_CUT_AND_RESOLVE(rho_to_singleton, node_to_protect) {			\
+  bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons); \
+  Node* protect = NULL;							\
+  next_data->T1->add_rho();						\
+  next_data->T2->add_rho();						\
+  next_data->singletons->push_front(next_data->node_map[rho_to_singleton]);	\
+  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, protect, AFs, num_ties); \
+  delete next_data->T1;							\
+  delete next_data->T2;						\
+  delete next_data->sibling_groups;				\
+  delete next_data->singletons;					\
+  delete next_data;						\
+  if (result_k > best_k) {					\
+    best_k = result_k;						\
+  }								\
+  }								\
+
 //TODO (Ben): try using a routine instead of a macro, I suspect it will slow down because of
 //            stack and parameter passing though
 #define MULT_BB_CUT_AND_RESOLVE(nodes_to_cut, nodes_to_exclude_cutting, node_to_protect) { \
@@ -1013,48 +1031,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	continue;      
 
       // find twin in T1
-      /*
-      //TODO: is this the right thing to do?
-      if (T2_a == T2->get_component(0) && T1_a != T1->get_component(0)) {
-	//continue;
-	cout << "CHECKING COMP 0 T2" << endl;
-	cout << "T1_a == " << T1_a->str() << endl;
-	if (T1_a->parent() == T1->components[0]) { continue; }
-
-	/*
-	vector<Node*> leaves = T1->components[0]->find_leaves();
-	bool twin_in_root_subtree = false;
-	for (int i = 0; i < leaves.size(); i++) {
-	  if (leaves[i] == T1_a) {
-	    twin_in_root_subtree = true;
-	    break;
-	  }
-	}
-
-	cout << twin_in_root_subtree << endl;
-	if (!twin_in_root_subtree) { 
-	   if (!T1->contains_rho()) {
-	    T1->add_rho();
-	    T2->add_rho();
-	    k--;
-	    //continue;
-	  }
-	
-	  }
-	
-	else {
-	  //continue;
-	  }
-	  if (!T1->contains_rho()) {
-	    T1->add_rho();
-	    T2->add_rho();
-	    k--;
-	  }
-
-	//continue;
-	}
-      */
-      
       if (T2_a == T2->get_component(0)){// && T1_a != T1->get_component(0)) {
 	if (!T1->contains_rho()) {
 	  T1->add_rho();
@@ -1063,8 +1039,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  //continue;
 	}
       }
-      
-      
 
       bool is_sibling_group = T1_a_p->is_sibling_group();
       // cut the edge above T1_a
@@ -1073,8 +1047,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	T1_a_p->decrement_non_leaf_children();
       }
       T1->add_component(T1_a);
-
-      
       
       //only contract if one node
       if (T1_a_p->get_children().size() == 1) {
@@ -1316,14 +1288,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
 	    }
-	    /*
-	    else if (T2_ax == T2->get_component(0)) {
-	      if (!T1->contains_rho()) {
-		T1->add_rho();
-		T2->add_rho();
-		k--;
-	      }
-	      }*/
 	  }
 
 	  //step 7.2
@@ -1469,22 +1433,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    }
 	    else if (T2_a1 == T2->get_component(0)) {
 	      if (!T1->contains_rho()) {
-		bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
-		
-		Node* protect = NULL;
-		next_data->T1->add_rho();
-		next_data->T2->add_rho();
-		next_data->singletons->push_front(next_data->node_map[T2_a1]);
-			
-		int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, protect, AFs, num_ties); 
-		delete next_data->T1;							
-		delete next_data->T2;							
-		delete next_data->sibling_groups;					
-		delete next_data->singletons;						
-		delete next_data;							
-		if (result_k > best_k) {						
-		  best_k = result_k;							
-		}									
+		MULT_RHO_CUT_AND_RESOLVE(T2_a1, NULL);
 	      }
 	    }
 #ifdef DEBUG
@@ -1498,22 +1447,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    }
 	    else if (T2_a2 == T2->get_component(0)) {
 	      if (!T1->contains_rho()) {
-		bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);
-		
-		Node* protect = NULL;
-		next_data->T1->add_rho();
-		next_data->T2->add_rho();
-		next_data->singletons->push_front(next_data->node_map[T2_a2]);
-			
-		int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, protect, AFs, num_ties); 
-		delete next_data->T1;							
-		delete next_data->T2;							
-		delete next_data->sibling_groups;					
-		delete next_data->singletons;						
-		delete next_data;							
-		if (result_k > best_k) {						
-		  best_k = result_k;							
-		}									
+		MULT_RHO_CUT_AND_RESOLVE(T2_a2, NULL);
 	      }
 	    }
 	  
@@ -1984,13 +1918,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 		  }
 		  if (a2_p_one_sibling && a2_p_sibling_in_group && (a1_p_is_root || a1_p_sibling_not_in_group)) {
 		    x_2 = true;
-
 		  }
 		}
 	      }
-	      //num_cut += 2;
 	      if (x_2){
-	    
 		cut_a2   = true;
 		cut_b2 = true;
 	      }
@@ -2003,10 +1934,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      cut a1 and a1_p
 	    */
 	    else if (previous_group == T1_sibling_group) {
-
 	      cut_a1   = true;
 	      cut_b1 = true;
-	      //num_cut += 2;
 	    }
 	  }
 	  /*
@@ -2016,21 +1945,25 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 
 	  if (cut_a1) {	  
 	    if (T2_a1_p != NULL) {
-	      #ifdef DEBUG
+#ifdef DEBUG
 	      cout << "Case Cut a1" << endl;
 #endif
-
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	    }	     
+	    }
+	    //mimics case 8.1, should add rho
+	    else if (T2_a1 == T2->get_component(0) && arbitrary_lca == NULL) {
+	      if (!T1->contains_rho()) {
+		MULT_RHO_CUT_AND_RESOLVE(T2_a1, NULL);
+	      }
+	    }
 	  }
 	  if (cut_b1) {
 	    if (T2_a1_p != NULL) {
-	      	      #ifdef DEBUG
+#ifdef DEBUG
 	      cout << "Case Cut b1" << endl;
 #endif
-
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a1};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
@@ -2043,55 +1976,40 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    //if (T2_a2->is_leaf() && T2_a2_p == NULL && T2_a2 != T2->get_component(0)) {
 	    //singletons->push_front(T2_a2);
 	    //}
-	    	      #ifdef DEBUG
+#ifdef DEBUG
 	      cout << "Case Cut a2" << endl;
 #endif
-
 	    if (T2_a2_p != NULL) {
 	      vector<Node*> to_cut = {T2_a2};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
+	    else if (T2_a2 == T2->get_component(0) && arbitrary_lca == NULL) {
+	      
+	      if (!T1->contains_rho()) {
+		MULT_RHO_CUT_AND_RESOLVE(T2_a2, NULL);
+	      }
+	    }
+
 	  }
 	  if (cut_b2) {
 	    if (T2_a2_p != NULL) {
-	      	      #ifdef DEBUG
+#ifdef DEBUG
 	      cout << "Case Cut b2" << endl;
 #endif
-
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_a2};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
 	    }
-	  
 	  }
 	}
 	sibling_groups->pop_back();
-
 	return best_k;
-      }//else
-      //delete identical_sibling_groups;
+      }//else (cutting)
       previous_group = T1_sibling_group;
-
     }//!sibling_groups->empty()
 
   } //while(!sibling_groups->empty() && !singletons->empty()
-  // if the first component of the forests differ then we have cut p
-  /*
-  if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
-  //if (T1->get_component(0)->str_subtree() != T2->get_component(0)->str_subtree()) {
-  
-    if (!T1->contains_rho()) {
-      T1->add_rho();
-      T2->add_rho();
-      k--;
-      cout << "ADDED RHO " << endl << endl;
-    }
-    //else
-      // hack to ignore rho when it shouldn't be in a cluster
-      //num_cut -=3;
-      }*/
-
   if (k >= 0) {
     //if (PREFER_RHO && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
     if (true && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
@@ -2112,18 +2030,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
       (*num_ties)++;
     }
   }
-  /*
-  if (k >= 0) {
-    if (PREFER_RHO && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
-      if (!ALL_MAFS)
-	AFs->clear();	
-      AFs->push_front(make_pair(Forest(T1),Forest(T2)));      
-    }
-    else if (ALL_MAFS || AFs->empty()) {
-      AFs->push_back(make_pair(Forest(T1),Forest(T2)));
-    }
-  }
-  */
   return k;
 }
 
