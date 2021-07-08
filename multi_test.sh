@@ -66,6 +66,8 @@ reverse=""
 leaf_reduction=""
 show_moves=""
 binary="-multifurcating"
+incremental_tests=false
+clean_incremental=false
 
 for arg in "$@"
 do
@@ -81,8 +83,41 @@ do
 	leaf_reduction=true
     elif [ "$arg" = "-show_moves" ] ;    then
 	show_moves="-show_moves"
+    elif [ "$arg" = "-incremental" ] ;    then
+	incremental_tests=true
+    elif [ "$arg" = "-clean_incremental_test_output" ] ;    then
+	clean_incremental=true
+
     fi
 done
+
+elapsed=0
+
+if [ "$clean_incremental" = true ] ; then
+    rm ../../incremental_output/*.csv
+    exit 1
+fi
+
+if [ "$incremental_tests" = true ] ; then
+    TIMEFORMAT="%U"
+    for d in `seq 0 20`
+    do
+	filename=../../incremental_output/100_leaf_"$d"_spr_timings.csv
+	if [ ! -f $filename ]
+	then
+	    touch $filename
+	fi
+	for i in `seq 1 30`
+	do
+	    #python3 ../../randomMultifurcatingTree.py 1000 | ./rspr -multifurcating -random_spr 5 | time ./rspr -multifurcating -leaf_reduction
+	    #time ls > /dev/null | tr -d . > ../../timeout
+	    { time python3 ../../randomMultifurcatingTree.py 100 | ./rspr -multifurcating -random_spr "$d" | time ./rspr -multifurcating -leaf_reduction 2> ../../sleep.stderr > /dev/null; } 2>> $filename
+	    #printf ',' >> ../../time.txt
+	done
+	echo "Finished dSPR test $d"
+    done
+    exit 1
+fi
 
 if [ "$binary_tests" = true ] ; then
    for i in ${binary_tests_array[@]}
