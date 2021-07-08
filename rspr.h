@@ -32,7 +32,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 
 #define RSPR
 //#define DEBUG 1
-//#define DEBUG_CONTRACTED 1
+#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
@@ -158,7 +158,7 @@ bool outgroup_root(Node *n, vector<int> &num_in, vector<int> &num_out);
 bool outgroup_reroot(Node *n, vector<int> &num_in, vector<int> &num_out);
 void count_in_out(Node *n, vector<int> &num_in, vector<int> &num_out,
 		set<string, StringCompare> &outgroup);
-
+void randomize_tree_with_spr(Node* T1, Node* T2, int count);
 /*Joel's part*/
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2);
@@ -256,8 +256,8 @@ if (!sync_twins(T1, T2))
 	return 0;
 	}
 
-	if (LEAF_REDUCTION2) {
-	  //reduction_leaf_mult(T1, T2);
+	if (LEAF_REDUCTION) {
+	  reduction_leaf_mult(T1, T2);
 	}
 //	cout << "T1: "; T1->print_components();
 //	cout << "T2: "; T2->print_components();
@@ -768,7 +768,7 @@ int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int en
       continue;
     }
     if (LEAF_REDUCTION) {
-      //reduction_leaf_mult(F1, F2);
+      reduction_leaf_mult(F1, F2);
     }
     #ifdef DEBUG
     cout << "Trying K = " << k << endl << "------------------" << endl;
@@ -4653,6 +4653,11 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		max_k = MAX_SPR;
 	else if (max_k == -1)
 		max_k = INT_MAX;
+
+	if (T2->get_preorder_number() == -1) {
+	  T2->preorder_number();
+	}
+
 	ClusterForest F1 = ClusterForest(T1);
 	ClusterForest F2 = ClusterForest(T2);
 	Forest F3 = Forest(F1);
@@ -6719,3 +6724,45 @@ void strip_trailing_whitespace(string &str) {
 	str.erase(end_pos, str.size()-end_pos);
 }
 
+//randomizes T2 with count number of sprs. If T1 equals T2 at the beginning,
+//then the spr distance between T1 and T2 is equal to (or possibly less than) count
+//Assumes they are already synced, assumes there are valid sprs to be made
+void randomize_tree_with_spr(Forest* T1, Forest* T2, int count) {
+  for (int spr = 0; spr < count; spr++) {
+    vector<Node*> all_nodes = T2->get_component(0)->find_nodes_in_subtree();
+    Node* source = all_nodes[rand() % all_nodes.size()];
+    Node* target = all_nodes[rand() % all_nodes.size()];
+    bool target_in_subtree = false;
+    Node* first_leaf = target->find_leaves()[0];
+    vector<Node*> source_leaves = source->find_leaves();
+    for (int i = 0; i < source_leaves.size(); i++) {
+      if (source_leaves[i] == first_leaf) {
+	target_in_subtree = true;
+	break;
+      }
+    }
+
+    //Get random node
+    //if target is in source's subtree repick
+    //spr
+    while (source == target ||
+	   source->is_sibling_of(target) ||
+	   target_in_subtree) {	   
+      source = all_nodes[rand() % all_nodes.size()];
+      target = all_nodes[rand() % all_nodes.size()];
+      target_in_subtree = false;
+      Node* first_leaf = target->find_leaves()[0];
+      vector<Node*> source_leaves = source->find_leaves();
+      for (int i = 0; i < source_leaves.size(); i++) {
+	if (source_leaves[i] == first_leaf) {
+	  target_in_subtree = true;
+	  break;
+	}
+      }
+    } 
+    //cout << "SPR: " << leaves[leaf_source]->str() << " and " << leaves[leaf_target]->str() << endl;
+    source->spr_mult(target);
+    //T1->print_components();
+    //T2->print_components();
+  }
+}

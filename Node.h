@@ -639,6 +639,13 @@ class Node {
 		}
 	}
 
+        bool is_sibling_of(Node* other) {
+	  if (parent() != NULL && other->parent() != NULL) {	    
+	    return parent() == other->parent();
+	  }
+	  return false;
+	}
+
 
 	int num_lost_children() {
 		return lost_children;
@@ -1088,6 +1095,7 @@ class Node {
 		}
 	    }
 	    new_child->set_preorder_number(min_pre_num);
+
 	    
 	    list<Node*> *new_children = get_combined_children(nodes);
 	     new_child->add_children(new_children);
@@ -1541,6 +1549,19 @@ class Node {
 		else
 			find_leaves_hlpr(leaves);
 		return leaves;
+	}
+        void find_nodes_in_subtree_hlpr(vector<Node*> *nodes) {
+	  for  (auto i = children.begin(); i != children.end(); i++) {
+	    (*i)->find_nodes_in_subtree_hlpr(nodes);
+	  }
+	  nodes->push_back(this);
+	}
+        vector<Node*> find_nodes_in_subtree() {
+                vector<Node*> nodes = vector<Node*>();
+		for (auto i = children.begin(); i != children.end(); i++) {
+		  (*i)->find_nodes_in_subtree_hlpr(&nodes);
+		}
+		return nodes;
 	}
 
       

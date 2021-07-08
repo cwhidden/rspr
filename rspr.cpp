@@ -214,6 +214,8 @@ bool PRINT_ROOTED_TREES = false;
 bool SHOW_MOVES = false;
 bool SEQUENCE = false;
 bool DEBUG_REVERSE = false;
+bool RANDOM_SPR = false;
+int RANDOM_SPR_COUNT = 0;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -686,6 +688,17 @@ int main(int argc, char *argv[]) {
 			cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
 					<< endl;
 		}
+		
+		//nocheckin
+		else if (strcmp(arg, "-random_spr") == 0) {
+			RANDOM_SPR = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					RANDOM_SPR_COUNT = atoi(arg2);
+			}
+		}
+
 		else if (strcmp(arg, "-support") == 0) {
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
@@ -769,6 +782,9 @@ int main(int argc, char *argv[]) {
 			DEEPEST_PROTECTED_ORDER = true;
 			DEEPEST_ORDER = true;
 		if (CLUSTER_TUNE == -1) {
+		    if (MULTIFURCATING)
+		        CLUSTER_TUNE = 5;
+		    else
 			CLUSTER_TUNE = 30;
 		}
 	}
@@ -807,6 +823,19 @@ int main(int argc, char *argv[]) {
 				T2 = build_tree(T2_line);
 		        }
 
+			//nocheckin
+			if (RANDOM_SPR) {
+			  Forest F1 = Forest(T1);
+			  Forest F2 = Forest(T2);
+			  sync_twins(&F1, &F2);
+			  randomize_tree_with_spr(&F1, &F2, RANDOM_SPR_COUNT);
+			  F1.get_component(0)->print_subtree_hlpr();
+			  cout << ";" << endl;
+			  F2.get_component(0)->print_subtree_hlpr();
+			  cout << ";";
+			  continue;
+			}
+			
 			if (MULTI_TEST > 0) {
 				vector<Node *> interior = T2->find_interior();
 				vector<Node *> remove = random_select(interior, MULTI_TEST);
@@ -889,11 +918,18 @@ int main(int argc, char *argv[]) {
 //			ClusterForest F2 = ClusterForest(T2);
 //			ClusterForest F3 = ClusterForest(T1);
 //			ClusterForest F4 = ClusterForest(T2);			
+			
 			ClusterForest F1 = ClusterForest(T1);
 			ClusterForest F2 = ClusterForest(T2);
 			Forest F3 = Forest(T1);
 			Forest F4 = Forest(T2);
 
+			if (MULTIFURCATING) {
+			  T1->preorder_number();
+			  T2->preorder_number();
+			}
+			
+			
 			if (RF) {
 				int rf_d = rf_distance(T1, T2);
 				cout << "RF Distance=" << rf_d << endl;
@@ -906,6 +942,8 @@ int main(int argc, char *argv[]) {
 				T1->edge_preorder_interval();
 				T2->preorder_number();
 				T2->edge_preorder_interval();
+				
+				
 				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true, &label_map, &reverse_label_map);
 				//int exact_k = rSPR_branch_and_bound_simple_clustering(&F3,&F4,true, &label_map, &reverse_label_map);
 
@@ -921,6 +959,7 @@ int main(int argc, char *argv[]) {
 			{
 			  F1.components[0]->preorder_number(0);
 			  F2.components[0]->preorder_number(0);
+
 			    approx_spr = rSPR_worse_3_mult_approx(&F1, &F2);
 				min_spr = approx_spr / 3;				
 			}
@@ -1248,7 +1287,7 @@ int main(int argc, char *argv[]) {
 				if (UNROOTED) {
 					distance = rSPR_total_approx_distance_unrooted(T1,trees);
 				}
-				else
+				else 
 					distance = rSPR_total_approx_distance(T1,trees);
 				cout << "total approx distance= " << distance << endl;
 			}
