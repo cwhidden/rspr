@@ -1991,6 +1991,7 @@ cout << "  ";
 				Node *T1_s = T1_ac->get_sibling();
 				if (T1_s->is_leaf()) {
 					Node *T2_l = T2_a->parent()->parent();
+					// Note: is this too harsh? If T2_l is nonbinary then can we do cut_b_only_if_not_a_or_c ?
 					if (T2_l != NULL && T2_l->get_children().size() <= 2) {
 						if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
 								&& ((T2_a->parent()->get_children().size() <= 2
