@@ -776,7 +776,7 @@ int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int en
       continue;
     }
     if (LEAF_REDUCTION) {
-      //reduction_leaf_mult(F1, F2);
+      reduction_leaf_mult(F1, F2);
     }
     #ifdef DEBUG
     cout << "Trying K = " << k << endl << "------------------" << endl;
@@ -811,6 +811,8 @@ int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
   }
   T2->max_preorder = T2->components[0]->get_max_preorder_number(0);//preorder_number(0);          
   list<Node *> *sibling_groups = T1->find_sibling_groups();
+  //sibling_groups->push_front(sibling_groups->back());
+  //sibling_groups->pop_back();
   list<Node *> singletons     = T1->find_singletons();
   
   list<pair<Forest,Forest>> AFs = list<pair<Forest,Forest>>();
@@ -899,8 +901,8 @@ void mult_cut_and_cleanup(Node* to_cut, Forest *T2, list<Node*> *singletons) {
   if (to_cut_p->get_children().size() == 1) {
     if (to_cut_p->parent() == NULL) {
       to_cut_p->contract(true);
-      if (to_cut_p->is_singleton()){ //&& to_cut_p != T2->get_component(0)) {
-	singletons->push_front(to_cut_p);
+      if (to_cut_p->is_singleton()){ // && to_cut_p != T2->get_component(0)) {
+      singletons->push_front(to_cut_p);
       }
     }
     else {
@@ -1342,12 +1344,14 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  }	
 	    
 
+	  //TODO: Is component 0 considered a root?
+	  //If we do get component 0 can we consider this if rho has been added?
 	  //step 7.3
 	  else if (deepest_siblings.size() == 2 &&
 		   T2_ax->parent() == arbitrary_lca &&
 		   a0_descendant_of_lca &&
 		   (
-		    arbitrary_lca->parent() == NULL ||
+		    (arbitrary_lca->parent() == NULL && arbitrary_lca != T2->get_component(0)) ||
 		    pl_has_aj_child
 		    )) {
 	    /*
@@ -1356,13 +1360,26 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    //7.3 cut Bx
 
 	    #ifdef DEBUG
-	    cout << "Case 7.3 T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	    cout << "Case 7.3 Cut T2_bx T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
 	    #endif
 	    {
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_ax};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
 	    }
+	    /*
+
+	      This is NOT in the cases. Figure out whats happening with 8.2 with r = 2
+
+	     */
+	    /*
+	    {
+	      cout << "Case 7.3 Cut T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	      vector<Node*> to_cut = {T2_ax};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	      }
+	    */
 	  }
 
 
@@ -1504,7 +1521,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);
 	      }
 	      // }
-	    /*
+	      /*
 	    if (T1_sibling_group->parent() != NULL && T1_sibling_group->parent()->get_children().size() == 2) {
 	      Node* gp = T1_sibling_group->parent();
 	      Node* aunt = gp->get_children().front() == T1_sibling_group ?
@@ -1519,7 +1536,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 		}
 	      }
 	    }
-	    */
+	      */
 	  }
 	  
 
