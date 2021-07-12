@@ -783,7 +783,7 @@ int main(int argc, char *argv[]) {
 			DEEPEST_ORDER = true;
 		if (CLUSTER_TUNE == -1) {
 		    if (MULTIFURCATING)
-		        CLUSTER_TUNE = 5;
+		        CLUSTER_TUNE = 30;
 		    else
 			CLUSTER_TUNE = 30;
 		}

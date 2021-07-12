@@ -808,6 +808,7 @@ int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
   T2->max_preorder = T2->components[0]->get_max_preorder_number(0);//preorder_number(0);          
   list<Node *> *sibling_groups = T1->find_sibling_groups();
   list<Node *> singletons     = T1->find_singletons();
+  
   list<pair<Forest,Forest>> AFs = list<pair<Forest,Forest>>();
   //list<Node *> protected_stack = list<Node*>();
   int num_ties = 2;
@@ -1184,26 +1185,28 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
       // Case 3
       else {
 
-	//copies for the approx so we dont clobber this tree
-	map<Node*, Node*> approx_map = map<Node*, Node*>();
-	//LEAK?
-	Forest T1_approx = Forest(T1, &approx_map);
-	Forest T2_approx = Forest(T2, &approx_map);
-	sync_twins(&T1_approx, &T2_approx);
-	list<Node*> sibling_group_approx = list<Node*>();
-	for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
-	  sibling_group_approx.push_back(approx_map[*n]);
-	}
-	list<Node*> singletons_approx = list<Node*>();
-	for (auto n = singletons->begin(); n != singletons->end(); n++) {
-	  singletons_approx.push_back(approx_map[*n]);
-	}
-	int approx_spr = rSPR_worse_3_mult_approx_hlpr(&T1_approx, &T2_approx, &singletons_approx, &sibling_group_approx, NULL, NULL, false);
-	if (approx_spr > 3*k) {
-	  #ifdef DEBUG
-	  cout << "approx failed approx k = " << approx_spr  <<  endl;
-	  #endif
-	  return -1;
+	if (BB) {
+	  //copies for the approx so we dont clobber this tree
+	  map<Node*, Node*> approx_map = map<Node*, Node*>();
+	  //LEAK?
+	  Forest T1_approx = Forest(T1, &approx_map);
+	  Forest T2_approx = Forest(T2, &approx_map);
+	  sync_twins(&T1_approx, &T2_approx);
+	  list<Node*> sibling_group_approx = list<Node*>();
+	  for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
+	    sibling_group_approx.push_back(approx_map[*n]);
+	  }
+	  list<Node*> singletons_approx = list<Node*>();
+	  for (auto n = singletons->begin(); n != singletons->end(); n++) {
+	    singletons_approx.push_back(approx_map[*n]);
+	  }
+	  int approx_spr = rSPR_worse_3_mult_approx_hlpr(&T1_approx, &T2_approx, &singletons_approx, &sibling_group_approx, NULL, NULL, false);
+	  if (approx_spr > 3*k) {
+#ifdef DEBUG
+	    cout << "approx failed approx k = " << approx_spr  <<  endl;
+#endif
+	    return -1;
+	  }
 	}
 
 	#ifdef DEBUG
@@ -1497,16 +1500,12 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);
 	      }
 	    }
-	    /***
-
-		This may not be the right thing to do here. 
-
-	     ***/
+	    /*
 	    else if (deepest_siblings.size() == 2) {
 		vector<Node*> to_cut = {T2_a2};
 		vector<Node*> to_cut_except = {};
 	      	MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	    }
+	    }*/
 	  }
 
 	  //step 8.3
@@ -5525,10 +5524,13 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 		MULTIFURCATING = false;
 		if (k != mult_k) {
 		  cout << "BINARY DOES NOT MATCH MULT -> T2: " << gene_trees[i]->str_subtree() << endl;
-		  cout << "T1: " << T1->str_subtree();
+		  cout << "T1: " << T1->str_subtree() << endl;;
+		  cout << "BINARY k = " << k << " mult_k = " << mult_k << endl;
 		  break;
 		  }
-
+		else {
+		  cout << "MATCHES: " << gene_trees[i]->str_subtree() << endl;
+		}
 
 //		k *= mylog2(gene_trees[i]->size());
 
