@@ -2553,8 +2553,12 @@ cout << "  ";
 					while(T1_a_ancestor != NULL && T1_a_ancestor != B_1_lca) {
 						T1_a_ancestor = T1_a_ancestor->parent();
 					}
-					if (T1_a_ancestor != NULL)
+					if (T1_a_ancestor != NULL) {
+						#ifdef DEBUG
+							cout << "multifurcating cut_b_only so will also cut c" << endl;
+						#endif
 						cut_b_only=false;
+					}
 				}
 
 				// cut T2_b
