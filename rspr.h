@@ -2555,7 +2555,7 @@ cout << "  ";
 					}
 					if (T1_a_ancestor != NULL) {
 						#ifdef DEBUG
-							cout << "multifurcating cut_b_only so will also cut c" << endl;
+							cout << "\tmultifurcating cut_b_only so will also cut c" << endl;
 						#endif
 						cut_b_only=false;
 					}
