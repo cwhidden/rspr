@@ -1485,7 +1485,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    //this would only happen if r > 2
 
 
-	    if (deepest_siblings.size() > 2){
+	    //if (deepest_siblings.size() > 2){
 	      for (int i = 0; i < deepest_siblings.size() - 1; i++) {
 #ifdef DEBUG
 	      cout << "Case 8.2b for all ai cut all other B" << endl;
@@ -1499,14 +1499,25 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 		}
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);
 	      }
-	    }
+	      // }
 	    /*
-	    else if (deepest_siblings.size() == 2) {
-		vector<Node*> to_cut = {T2_a2};
-		vector<Node*> to_cut_except = {};
-	      	MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
-	    }*/
+	    if (T1_sibling_group->parent() != NULL && T1_sibling_group->parent()->get_children().size() == 2) {
+	      Node* gp = T1_sibling_group->parent();
+	      Node* aunt = gp->get_children().front() == T1_sibling_group ?
+		gp->get_children().back() :
+		gp->get_children().front();
+	      if (aunt->is_leaf() &&
+		  aunt->get_twin()->is_sibling_of(T2_a1)) {
+		if (deepest_siblings.size() == 2) {
+		  vector<Node*> to_cut = {T2_a2};
+		  vector<Node*> to_cut_except = {};
+		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+		}
+	      }
+	    }
+	    */
 	  }
+	  
 
 	  //step 8.3
 	  else if (T1_sibling_group->get_children().size() == 2 &&
