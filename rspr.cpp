@@ -860,6 +860,7 @@ int main(int argc, char *argv[]) {
 				F2.print_components();
 
 				sync_twins(&F1, &F2);
+				
 				if (MULTIFURCATING) {
 				  reduction_leaf_mult(&F1, &F2);
 				}

@@ -89,6 +89,10 @@ int rSPR_worse_3_approx_binary(Forest *T1, Forest *T2, bool sync);
 int rSPR_worse_3_approx_binary(Forest *T1, Forest *T2);
 int rSPR_branch_and_bound(Forest *T1, Forest *T2);
 int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k);
+int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k,
+		map<string, int> *label_map,
+		map<int, string> *reverse_label_map);
+
 int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int end_k);
 int rSPR_branch_and_bound_range(Forest *T1, Forest *T2, int start_k,
 		int end_k);
@@ -3339,6 +3343,10 @@ k = -1;
 	return k;
 }
 
+int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
+	return rSPR_branch_and_bound(T1, T2, k, NULL, NULL);
+}
+
 /* rSPR_branch_and_bound
  * Calculate a maximum agreement forest and SPR distance
  * Uses a branch and bound optimization to not explore paths
@@ -3346,7 +3354,9 @@ k = -1;
  * RETURN The rSPR distance
  * NOTE: destructive. The computed forests replace T1 and T2.
  */
-int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k) {
+int rSPR_branch_and_bound(Forest *T1, Forest *T2, int k,
+		map<string, int> *label_map,
+		map<int, string> *reverse_label_map) {
 	// find sibling pairs of T1
 //	cout << "foo1" << endl;
 	if (!sync_twins(T1, T2))
@@ -3385,10 +3395,18 @@ if (ALL_MAFS
 	cout << endl << endl << "FOUND ANSWERS" << endl;
 	// TODO: this is a cheap hack
 	for (list<pair<Forest,Forest> >::iterator x = AFs.begin(); x != AFs.end(); x++) {
+		if (label_map != NULL && reverse_label_map != NULL) {
+			x->first.numbers_to_labels(reverse_label_map);
+			x->second.numbers_to_labels(reverse_label_map);
+		}
 		cout << "\tT1: ";
 		x->first.print_components();
 		cout << "\tT2: ";
 		x->second.print_components();
+		if (label_map != NULL && reverse_label_map != NULL) {
+			x->first.labels_to_numbers(label_map, reverse_label_map);
+			x->second.labels_to_numbers(label_map, reverse_label_map);
+		}
 	}
 }
 AFs.front().first.swap(T1);
@@ -3810,7 +3828,8 @@ cout << "  ";
 				Node *T1_s = T1_ac->get_sibling();
 				if (T1_s->is_leaf()) {
 					Node *T2_l = T2_a->parent()->parent();
-					if (T2_l != NULL) {
+					// Note: is this too harsh? If T2_l is nonbinary then can we do cut_b_only_if_not_a_or_c ?
+					if (T2_l != NULL && T2_l->get_children().size() <= 2) {
 						if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
 								&& ((T2_a->parent()->get_children().size() <= 2
 										&& T2_c->parent()->get_children().size() <= 2)
@@ -3827,7 +3846,8 @@ cout << "  ";
 						else if ((T2_l = T2_l->parent()) != NULL
 								&& T2_c->parent() == T2_l
 								&& ((T2_a->parent()->get_children().size() <= 2
-										&& T2_a->parent()->parent()->get_children().size() <= 2)
+										&& T2_a->parent()->parent()->get_children().size() <= 2
+										&& T2_l->get_children().size() <= 2)
 									|| T1_s->get_twin()->is_protected())) {
 							if (T2_l->get_sibling() == T1_s->get_twin()) {
 								cut_b_only=true;
@@ -6693,7 +6713,7 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 		Node *T1_s = T1_a->parent()->get_sibling();
 		if (T1_s->is_leaf()) {
 			Node *T2_l = T2_a->parent()->parent();
-			if (T2_l != NULL) {
+			if (T2_l != NULL && T2_l->get_children().size() <= 2) {
 				if (T2_c->parent() != NULL && T2_c->parent()->parent() == T2_l
 						&& ((T2_a->parent()->get_children().size() <= 2
 						&& T2_c->parent()->get_children().size() <= 2)
@@ -6710,7 +6730,8 @@ bool is_nonbranching(Forest *T1, Forest *T2, Node *T1_a, Node *T1_c, Node *T2_a,
 				else if ((T2_l = T2_l->parent()) != NULL
 						&& T2_c->parent() == T2_l
 						&& ((T2_a->parent()->get_children().size() <= 2
-						&& T2_a->parent()->parent()->get_children().size() <= 2)
+						&& T2_a->parent()->parent()->get_children().size() <= 2
+						&& T2_l->get_children().size() <= 2)
 						|| T1_s->get_twin()->is_protected())){
 					if (T2_l->get_sibling() == T1_s->get_twin()) {
 						return true;

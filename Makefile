@@ -42,6 +42,13 @@ test: rspr fill_matrix
 	@cat test_trees/big_test* | ./rspr -pairwise | ./fill_matrix > _test/pairwise_new; \
 	diff _test/pairwise_new tests/pairwise || (echo FAILED -pairwise test >&2; return 1)
 	@echo ""
+	./rspr < test_trees/cluster_6.txt
+	@val=`./rspr < test_trees/cluster_6.txt | grep 'total exact' | grep -o '[0-9]\+$$'`; \
+	if [ $$val -ne "5" ]; then \
+		echo FAILED: $$val != 5; \
+		return 1; \
+	fi
+	@echo ""
 	@echo SUCCESS: all tests passed
 
 debug:
