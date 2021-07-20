@@ -390,7 +390,6 @@ class Node {
 		children.clear();
 		*/
 
-
 #ifdef COPY_CONTRACTED
 		if (contracted_lc != NULL) {
 			contracted_lc->delete_tree();
