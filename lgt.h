@@ -76,7 +76,7 @@ void print_leaf_list(Node *F1_source, map<int, string> *reverse_label_map);
 bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
 		Node **F1_source_out, Node **F1_target_out);
 Node *find_best_target(Node *source, Forest *AF);
-Node *find_best_target(Node *source, Node *target, Node **best_target);
+void find_best_target(Node *source, Node *target, Node **best_target);
 void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		map<int, string> *reverse_label_map);
 
@@ -336,7 +336,7 @@ Node *find_best_target(Node *source, Forest *AF) {
 	return best_target;
 }
 
-Node *find_best_target(Node *source, Node *target, Node **best_target) {
+void find_best_target(Node *source, Node *target, Node **best_target) {
 	if (target->get_edge_pre_start() <= source->get_preorder_number()
 			&& target->get_edge_pre_end() >= source->get_preorder_number()
 			&& (*best_target == NULL || target->get_edge_pre_start() >

@@ -412,7 +412,7 @@ class Node {
 		twin = n;
 		return twin;
 	}
-	Node *set_name(string n) {
+	void set_name(string n) {
 		name = string(n);
 	}
 	int set_depth(int d) {
@@ -450,7 +450,7 @@ class Node {
 		}
 	}
 
-	int set_component_number(int c) {
+	void set_component_number(int c) {
 		component_number = c;
 	}
 	list<Node *>& get_children() {
@@ -463,10 +463,10 @@ class Node {
 		return contracted_rc;
 	}
 
-	Node *set_contracted_lc(Node *n) {
+	void set_contracted_lc(Node *n) {
 		contracted_lc = n;
 	}
-	Node *set_contracted_rc(Node *n) {
+	void set_contracted_rc(Node *n) {
 		contracted_rc = n;
 	}
 
@@ -581,28 +581,28 @@ class Node {
 	double get_support() {
 		return support;
 	}
-	double set_support(double s) {
+	void  set_support(double s) {
 		support = s;
 	}
-	double a_inc_support() {
+	void a_inc_support() {
 #pragma omp atomic
 		support += 1;
 	}
-	double a_dec_support() {
+	void a_dec_support() {
 #pragma omp atomic
 		support -= 1;
 	}
 	double get_support_normalization() {
 		return support_normalization;
 	}
-	double set_support_normalization(double s) {
+	void set_support_normalization(double s) {
 		support_normalization = s;
 	}
-	double a_inc_support_normalization() {
+	void a_inc_support_normalization() {
 #pragma omp atomic
 		support_normalization += 1;
 	}
-	double a_dec_support_normalization() {
+	void a_dec_support_normalization() {
 #pragma omp atomic
 		support_normalization -= 1;
 	}
@@ -625,7 +625,7 @@ class Node {
 	void decrease_clustered_children() {
 		num_clustered_children--;
 	}
-	int set_num_clustered_children(int c) {
+	void set_num_clustered_children(int c) {
 		num_clustered_children = c;
 	}
 	int get_num_clustered_children() {
@@ -640,7 +640,7 @@ class Node {
 	int get_sibling_pair_status(){
 		return sibling_pair_status;
 	}
-	int set_sibling_pair_status(int s){
+	void set_sibling_pair_status(int s){
 		sibling_pair_status = s;
 	}
 	void set_forest(Forest *f) {
@@ -756,6 +756,7 @@ class Node {
 				 * the forest
 				 */
 				if (child->num_clustered_children > 0) {
+					// TODO: redundant?
 					delete_child(child);
 					if (remove)
 						delete this;
@@ -778,6 +779,7 @@ class Node {
 						name = child->get_name().c_str();
 //						name = child->str();
 					}
+					// TODO: redundant?
 					child->cut_parent();
 					list<Node *>::iterator c = child->children.begin();
 					while(c!= child->children.end()) {
@@ -1969,7 +1971,7 @@ Node *spr(Node *new_sibling, int &which_child) {
 
 Node *spr(Node *new_sibling) {
 	int na = 0;
-	spr(new_sibling, na);
+	return spr(new_sibling, na);
 }
 
 void find_descendant_counts_hlpr(vector<int> *dc) {
