@@ -87,8 +87,11 @@ class UndoMachine {
 	}
 
 	void undo(int num) {
-		while (num > 0)
+		int temp_num = num;
+		while (temp_num > 0) {
 			undo();
+			temp_num--;
+		}
 	}
 
 	void undo_all() {
@@ -417,8 +420,7 @@ class ChangeName : public Undoable {
 
 		ChangeName(Node *n) {
 			node = n;
-			name = n->get_name();//str();
-//			name = n->str();
+			name = string(n->get_name());
 		}
 
 		void undo() {
@@ -687,7 +689,7 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 				if (child->get_num_clustered_children() > 0) {
 					//um->add_event(new CutParent(n));
 				}
-				else {
+				if (child->get_num_clustered_children() <= 0) {
 					// if child is a leaf then get rid of this so we don't lose refs
 					// problem: if the child is not c, then we want to copy
 					// otherwise we don't
@@ -704,7 +706,8 @@ void ContractEvent(UndoMachine *um, Node *n, list<Undoable *>::iterator
 						um->add_event(new ChangeName(n));
 					}
 					um->add_event(new ChangePreNum(n));
-					//um->add_event(new CutParent(n));
+					// redundant?
+					//um->add_event(new CutParent(child));
 					list<Node *>::iterator c;
 					for(c = child->get_children().begin();
 							c != child->get_children().end();

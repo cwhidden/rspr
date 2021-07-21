@@ -37,7 +37,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
-// #define DEBUG_UNDO 1
+//#define DEBUG_UNDO 1
 //#define DEBUG_DEPTHS 1
 
 #include <cstdio>
@@ -3120,7 +3120,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 				}
 			}
 			done_split = done_cluster;
-			bool num_splits = 0;
+			int num_splits = 0;
 			while (SPLIT_APPROX && !done_split) {
 				//IN_SPLIT_APPROX = true;
 				Node *original_split_node = find_subtree_of_approx_distance(
