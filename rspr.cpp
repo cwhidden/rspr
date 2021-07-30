@@ -406,13 +406,13 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-multifurcating") == 0) {
 		  //DEFAULT_ALGORITHM = false;
-			BB = true;
+		  //	BB = true;
 			MULTIFURCATING = true;
 			//DEFAULT_OPTIMIZATIONS = false;
 		}
 		else if (strcmp(arg, "-multi_4_branch") == 0) {
 		  //DEFAULT_ALGORITHM = false;
-			BB = true;
+		  //	BB = true;
 			MULTIFURCATING = true;
 			//DEFAULT_OPTIMIZATIONS = false;
 			MULT_4_BRANCH = true;

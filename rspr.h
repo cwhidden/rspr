@@ -1946,10 +1946,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	else { //4_MULT_BRANCH
 
 	  //To debug: set all to true. Make all cuts all the time
-	  bool cut_a1 = false;
-	  bool cut_b1 = false;
-	  bool cut_a2 = false;
-	  bool cut_b2 = false;
+	  bool cut_a1 = true;
+	  bool cut_b1 = true;
+	  bool cut_a2 = true;
+	  bool cut_b2 = true;
 
 	  if (T1_sibling_group->get_children().size() == 2) {
 	    /*
@@ -2010,6 +2010,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      if (x_2){
 		cut_a2 = true;
 		cut_b2 = true;
+		//cut_a1 = true;
+		//cut_b1 = true;
 	      }
 	      else {
 		cut_a1 = true;
@@ -2059,11 +2061,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  }
 	  Node *T2_a2_p = T2_a2->parent();
 	  if (cut_a2){
-	    //could have cut a2's parent in previous steps, so could be singleton now
-	    //not possible anymore?
-	    //if (T2_a2->is_leaf() && T2_a2_p == NULL && T2_a2 != T2->get_component(0)) {
-	    //singletons->push_front(T2_a2);
-	    //}
 #ifdef DEBUG
 	      cout << "Case Cut a2" << endl;
 #endif
@@ -6870,14 +6867,40 @@ void randomize_tree_with_spr(Forest* T1, Forest* T2, int count) {
     //spr
     while (source == target ||
 	   source->is_sibling_of(target) ||
+	   source->parent() == target || 
 	   target_in_subtree) {	   
       source = all_nodes[rand() % all_nodes.size()];
       target = all_nodes[rand() % all_nodes.size()];
+      //cout << "Trying: " << source->str_subtree() << " and "<<  target->str_subtree() << endl;
       target_in_subtree = false;
       Node* first_leaf = target->find_leaves()[0];
+      
+      int child_count = source->get_children().size();
+      if (child_count > 2) {
+	int rand_count = rand() % (child_count + 1);
+	if (rand_count == child_count || rand_count == 0){
+	  //cout << "moving whole tree" << endl;
+	}
+	else if (rand_count == 1) {
+	  source = source->get_children().front();
+	  //cout << "moving first child" << endl;
+	}
+	else {
+	  list<Node*> to_expand = list<Node*>();
+	  list<Node*>::iterator c = source->get_children().begin();
+	  for (int i = 0; i < rand_count; i++) {
+	    to_expand.push_back(*c);
+	    c++;
+	  }	
+	  source = source->expand_children_out(to_expand);
+	  // cout << "Moving part " << rand_count<< endl;
+	}
+      }
+      
       vector<Node*> source_leaves = source->find_leaves();
       for (int i = 0; i < source_leaves.size(); i++) {
 	if (source_leaves[i] == first_leaf) {
+	  //cout << "target in subtree" << endl;
 	  target_in_subtree = true;
 	  break;
 	}
@@ -6885,7 +6908,9 @@ void randomize_tree_with_spr(Forest* T1, Forest* T2, int count) {
     } 
     //cout << "SPR: " << leaves[leaf_source]->str() << " and " << leaves[leaf_target]->str() << endl;
     //source->spr_mult(target);
-    Node* parent = source->parent();
+    //cout << "SPR: " << source->str_subtree() << " and " << target->str_subtree() << endl;
+    
+    Node* parent = source->parent();      
     if (parent != NULL) {
       source->cut_parent();
       if (parent->get_children().size() == 1) {

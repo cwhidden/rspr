@@ -210,7 +210,6 @@ class Node {
 
         /* Temporary until rSPR_branch_and_bound_mult_hlpr uses the UndoMachine */
         // copy constructor
-  //LEAK nodes not being deleted, must be missing links
         Node(const Node &n, map<Node*, Node*> *node_map) {
 		p = NULL;
 		name = n.name.c_str();
@@ -1666,6 +1665,7 @@ class Node {
 	  TODO (Ben): proper counting sort
 	 */
          void get_deepest_siblings_strt(vector<int> &descendants, vector<vector<Node*>> &siblings_by_depth) {
+	   if (get_preorder_number() == -1) { return; } //if -1 then this is rho
 	   //This is the sibling, and is a component
 	   if (descendants[get_preorder_number()] == -1) {
 	     siblings_by_depth[0].push_back(this);
@@ -2271,7 +2271,7 @@ void fixroot() {
 Node *expand_children_out(list<Node*> nodes) {
   Node *new_child = new Node();
   //new_child->set_parent(this);
-  int min_preorder = 0xFFFFFFFF;
+  int min_preorder = 0x7FFFFFFF;
   list<Node *>::iterator i;
   for (i = nodes.begin(); i != nodes.end(); i++) {
     new_child->add_child(*i);
