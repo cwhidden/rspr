@@ -31,7 +31,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #define RSPR
-//#define DEBUG 1
+#define DEBUG 1
 #define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
@@ -1154,11 +1154,11 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  list<Node *> T2_group = (*i);
 	  Node *T2_p = T2_group.front()->parent();
 	  #ifdef DEBUG
-	  cout << "Contracting T1... " << endl;
+	  //cout << "Contracting T1... " << endl;
 	  #endif
 	  Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
 	  #ifdef DEBUG
-	  cout << "Contracting T2... " << endl;
+	  //cout << "Contracting T2... " << endl;
 	  #endif
 	  Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
 	  
@@ -1175,14 +1175,14 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    if (T1_sibling_group->parent()->is_sibling_group()) {
 	      sibling_groups->push_front(T1_sibling_group->parent());
 	      #ifdef DEBUG
-	      cout << "Added new sibling group after contraction: " << T1_sibling_group->parent()->str_subtree() << endl;
+	      //cout << "Added new sibling group after contraction: " << T1_sibling_group->parent()->str_subtree() << endl;
 	      #endif
 	    }
 	  }
 	  if (!T1_sibling_group->is_sibling_group()) {
 	    sibling_groups->remove(T1_sibling_group);
 	      #ifdef DEBUG
-	      cout << "Removed new sibling group after contraction: " << T1_sibling_group->str() << endl;
+	    //cout << "Removed new sibling group after contraction: " << T1_sibling_group->str() << endl;
 	      #endif
 
 	  }	  
@@ -1352,6 +1352,20 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
 	      }     
 	    }
+	     /*
+
+	      Not part of the outlined special cases
+
+	     */
+	    //if (T2_a1->parent()->get_children().size() == 2)
+	    {
+	      #ifdef DEBUG
+	      cout << "Case 7.2c Cut a2 T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	      #endif
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);	      
+	    }
 	  }	
 	    
 
@@ -1433,6 +1447,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      Not part of the outlined special cases
 
 	     */
+	  
 	    /*
 	    if (T1_sibling_group->get_children().size() == 2 &&
 		deepest_siblings.size() == 2 &&
@@ -5606,13 +5621,13 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 	for(int i = 0; i < end; i++) {
 			//		cout << i << endl;
 	  cout << "Trying tree #" << i << " : " << gene_trees[i]->str_subtree() << endl;
-		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+	  int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
 
-		//MULTIFURCATING = true;
-		MULT_4_BRANCH = true;
+	  MULTIFURCATING = true;
+		//MULT_4_BRANCH = true;
 		int mult_k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
-		//MULTIFURCATING = false;
-		MULT_4_BRANCH = false;
+		MULTIFURCATING = false;
+		//MULT_4_BRANCH = false;
 		
 		if (k != mult_k) {
 		  cout << "BINARY DOES NOT MATCH MULT" << endl;
@@ -5624,6 +5639,7 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 		  cout << "\tMATCHES: k = " << k << endl;
 		}
 		
+		//cout << "\t: k = " << k << endl;
 //		k *= mylog2(gene_trees[i]->size());
 
 		if (original_scores != NULL)
