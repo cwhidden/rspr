@@ -31,7 +31,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #define INCLUDE_NODE
 
 #define COPY_CONTRACTED
-#define DEBUG_SUPPORT 1
+#define DEBUG_SUPPORT 0
 
 #include <cstdio>
 #include <string>
@@ -1680,7 +1680,7 @@ class Node {
 	    if (descendants[(*i)->get_preorder_number()] == 1) {
 	      Node* placed_node;
 	      int depth = (*i)->get_deepest_siblings_hlpr(descendants, &placed_node);
-	      if (siblings_by_depth.size() - 1 < depth)
+	      while (siblings_by_depth.size() - 1 < depth)
 		{
 		  siblings_by_depth.resize(siblings_by_depth.size() * 2);
 		}
