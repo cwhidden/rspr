@@ -31,6 +31,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #define INCLUDE_NODE
 
 #define COPY_CONTRACTED
+#define DEBUG_SUPPORT 1
 
 #include <cstdio>
 #include <string>
@@ -2773,9 +2774,13 @@ int build_tree_helper(int start, const string& s, Node *parent,
 						string info = s.substr(loc, next - loc);
 						if (info[0] != ':') {
 							double support = atof(info.c_str());
-//							cout << "support=" << support << endl;
+							#if DEBUG_SUPPORT
+							cout << "support=" << support << endl;
+							#endif
 							if (REQUIRED_SUPPORT > 0 && support < REQUIRED_SUPPORT && numc > 0) {
- //								cout << "contracting (support)" << endl;
+							  #if DEBUG_SUPPORT
+ 								cout << "contracting (support)" << endl;
+								#endif
 								node->contract_node();
 								contracted = true;
 							}
@@ -2784,9 +2789,13 @@ int build_tree_helper(int start, const string& s, Node *parent,
 						if (next_colon != string::npos) {
 							string length_str = info.substr(next_colon+1);
 							double length = atof(length_str.c_str());
-//							cout << "length=" << length << endl;
+#if DEBUG_SUPPORT
+							cout << "length=" << length << endl;
+							#endif
 							if (MIN_LENGTH >= 0 && !contracted && length <= MIN_LENGTH && numc > 0) {
-//								cout << "contracting (length)" << endl;
+#if DEBUG_SUPPORT
+								cout << "contracting (length)" << endl;
+								#endif
 								node->contract_node();
 								contracted = true;
 							}
