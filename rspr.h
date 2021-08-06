@@ -31,7 +31,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #define RSPR
-#define DEBUG 1
+//#define DEBUG 1
 #define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
@@ -762,7 +762,7 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
     *F1 = new Forest(T1);
     *F2 = new Forest(T2);
   }
-
+  //if (num_cut) num_cut--;
   return num_cut;
 }
 /*
@@ -1126,20 +1126,13 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  break;
 	}
       }
-      /*
-      Node *T1_sibling_group = sibling_groups->back();
-      list<list<Node*>> identical_sibling_groups;
-      T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
-      */
       #ifdef DEBUG
       cout << "K = " << k << endl;
       cout << "F2: ";
       T2->print_components();
-      //T2->print_components_with_edge_pre_interval();
       cout << endl;
       cout << "F1: ";
       T1->print_components();
-      //T1->print_components_with_edge_pre_interval();
       cout << endl;
       #endif
 
@@ -1205,7 +1198,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	if (BB) {
 	  //copies for the approx so we dont clobber this tree
 	  map<Node*, Node*> approx_map = map<Node*, Node*>();
-	  //LEAK?
 	  Forest T1_approx = Forest(T1, &approx_map);
 	  Forest T2_approx = Forest(T2, &approx_map);
 	  sync_twins(&T1_approx, &T2_approx);
@@ -1218,7 +1210,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    singletons_approx.push_back(approx_map[*n]);
 	  }
 	  int approx_spr = rSPR_worse_3_mult_approx_hlpr(&T1_approx, &T2_approx, &singletons_approx, &sibling_group_approx, NULL, NULL, false);
-	  if (approx_spr > 3*k) {
+	  //TODO: Sometimes approx returns 1 over the right amount. For example 4 for a 1 cut tree or 16 for a 3 cut tree
+	  if (approx_spr > 3*k + 1) {
 #ifdef DEBUG
 	    cout << "approx failed approx k = " << approx_spr  <<  endl;
 #endif
@@ -1447,7 +1440,17 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      Not part of the outlined special cases
 
 	     */
-	  
+	    {
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);	     
+	    }
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a1};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);	     
+	    }
+
 	    /*
 	    if (T1_sibling_group->get_children().size() == 2 &&
 		deepest_siblings.size() == 2 &&
