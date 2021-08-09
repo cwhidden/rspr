@@ -79,7 +79,7 @@ MULTIFURCATING COMPARISON OPTIONS
 *******************************************************************************
 
 -support x     Collapse bipartitions with less than x support
--length x      Collapse bipartitions with branch lengths less than or
+-min_length x      Collapse bipartitions with branch lengths less than or
                 equal to x
 
 *******************************************************************************
@@ -282,7 +282,7 @@ string USAGE =
 "*******************************************************************************\n"
 "\n"
 "-support x     Collapse bipartitions with less than x support\n"
-"-length x      Collapse bipartitions with branch lengths less than or\n"
+"-min_length x      Collapse bipartitions with branch lengths less than or\n"
 "                equal to x\n"
 "\n"
 "*******************************************************************************\n"
