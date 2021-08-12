@@ -445,7 +445,8 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
 	  T2_group_new->set_twin(T1_group_new);			
 
 	  // check if T2_p is a singleton after the contraction
-	  if (T2_p->is_singleton() && T1_sibling_group != T1->get_component(0) && T2_p != T2->get_component(0)) {
+	  if (T2_p->is_singleton() && T2_p != T2->get_component(0)) {
+	    //(T2_p->is_singleton() && T1_sibling_group != T1->get_component(0) && T2_p != T2->get_component(0)) {
 	    singletons->push_front(T2_p);
 	  }
 	  if (T1_sibling_group->parent() != NULL) {
@@ -6912,7 +6913,7 @@ void randomize_tree_with_spr(Forest* T1, Forest* T2, int count) {
 	    c++;
 	  }	
 	  source = source->expand_children_out(to_expand);
-	  // cout << "Moving part " << rand_count<< endl;
+	  //cout << "Moving part " << rand_count<< endl;
 	}
       }
       
@@ -6925,9 +6926,8 @@ void randomize_tree_with_spr(Forest* T1, Forest* T2, int count) {
 	}
       }
     } 
-    //cout << "SPR: " << leaves[leaf_source]->str() << " and " << leaves[leaf_target]->str() << endl;
-    //source->spr_mult(target);
-    //cout << "SPR: " << source->str_subtree() << " and " << target->str_subtree() << endl;
+
+    //cout << "Moving : " << source->str_subtree() << " to " << target->str_subtree() << endl;
     
     Node* parent = source->parent();      
     if (parent != NULL) {
