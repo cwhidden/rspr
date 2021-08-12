@@ -79,7 +79,7 @@ MULTIFURCATING COMPARISON OPTIONS
 *******************************************************************************
 
 -support x     Collapse bipartitions with less than x support
--length x      Collapse bipartitions with branch lengths less than or
+-min_length x      Collapse bipartitions with branch lengths less than or
                 equal to x
 
 *******************************************************************************
@@ -286,7 +286,7 @@ string USAGE =
 "*******************************************************************************\n"
 "\n"
 "-support x     Collapse bipartitions with less than x support\n"
-"-length x      Collapse bipartitions with branch lengths less than or\n"
+"-min_length x      Collapse bipartitions with branch lengths less than or\n"
 "                equal to x\n"
 "\n"
 "*******************************************************************************\n"
@@ -704,8 +704,8 @@ int main(int argc, char *argv[]) {
 				char *arg2 = argv[argc+1];
 				if (arg2[0] != '-')
 					REQUIRED_SUPPORT = atof(arg2);
-				cout << "REQUIRED_SUPPORT=" << REQUIRED_SUPPORT
-						<< endl;
+				//cout << "REQUIRED_SUPPORT=" << REQUIRED_SUPPORT
+				//<< endl;
 			}
 		}
 		else if (strcmp(arg, "-min_length") == 0) {
