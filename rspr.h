@@ -38,6 +38,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 //#define DEBUG_SYNC 1
 // #define DEBUG_UNDO 1
 //#define DEBUG_DEPTHS 1
+//#define DEBUG_CASE_COUNTER 1
 
 #include <cstdio>
 #include <cstdlib>
@@ -766,14 +767,31 @@ int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singleto
   //if (num_cut) num_cut--;
   return num_cut;
 }
-/*
-int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2){
-  //return rSPR_branch_and_bound_mult(T1, T2, MAX_SPR);
+
+#ifdef DEBUG_CASE_COUNTER
+struct mult_case_counter {
+  int case_71, case_72, case_73, case_74;
+  int case_81, case_82, case_83, case_84;
+  int case_85, case_86, case_87;
+};
+static mult_case_counter case_counter = {};
+void print_mult_case_count() {
+  cout << "Stats:" << endl;
+  cout << "\tCase 7.1:" << case_counter.case_71 << endl;
+  cout << "\tCase 7.2:" << case_counter.case_72 << endl;
+  cout << "\tCase 7.3:" << case_counter.case_73 << endl;
+  cout << "\tCase 7.4:" << case_counter.case_74 << endl;
+  cout << "\tCase 8.1:" << case_counter.case_81 << endl;
+  cout << "\tCase 8.2:" << case_counter.case_82 << endl;
+  cout << "\tCase 8.3:" << case_counter.case_83 << endl;
+  cout << "\tCase 8.4:" << case_counter.case_84 << endl;
+  cout << "\tCase 8.5:" << case_counter.case_85 << endl;
+  cout << "\tCase 8.6:" << case_counter.case_86 << endl;
+  cout << "\tCase 8.7:" << case_counter.case_87 << endl;
 }
-int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int end_k){
-  //return rSPR_branch_and_bound_mult(); 
-}
-*/
+  
+#endif
+
 int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k){
   return rSPR_branch_and_bound_mult_range(T1, T2, start_k, MAX_SPR);
 }
@@ -811,6 +829,9 @@ int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int en
       break;
     }
   }
+  #ifdef DEBUG_CASE_COUNTER
+  print_mult_case_count();
+  #endif
   if (k > end_k) {
     k = -1;
   }
@@ -1297,6 +1318,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    #ifdef DEBUG
 	    cout << "Case 7.1 T2_ax: " << T2_ax->str() << endl;
 	    #endif
+	    #ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_71++;
+	    #endif
 	    /* 
 	       recurse on cut ax prot protected node
 	    */
@@ -1317,6 +1341,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    #ifdef DEBUG
 	    cout << "Case 7.2a cut all B1's Protected Node: " << protected_node->str() <<  endl;
 	    #endif
+	    #ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_72++;
+	    #endif
+
 	    {
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
@@ -1381,6 +1409,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    #ifdef DEBUG
 	    cout << "Case 7.3 Cut T2_bx T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
 	    #endif
+	    #ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_73++;
+	    #endif
+
 	    {
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {T2_ax};
@@ -1413,6 +1445,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    #ifdef DEBUG
 	    cout << "Case 7.4 T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
 	    #endif
+	    #ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_74++;
+	    #endif
+
 	    {
 	      vector<Node*> to_cut = {T2_ax};
 	      vector<Node*> to_cut_except = {};
@@ -1497,6 +1533,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 #ifdef DEBUG
 	    cout << "Case 8.1a cut a1" << endl;
 #endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_81++;
+#endif
+
 	    //8.1 : Cut a1
 	    if (T2_a1->parent() != NULL) {
 	      vector<Node*> to_cut = {T2_a1};
@@ -1538,6 +1578,10 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 #ifdef DEBUG
 	    cout << "Case 8.2a cut B1 - B(r-1)" << endl;
 #endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_82++;
+#endif
+
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      for (int i = 0; i < deepest_siblings.size() - 1; i++) {
@@ -1554,7 +1598,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	      for (int i = 0; i < deepest_siblings.size() - 1; i++) {
 #ifdef DEBUG
 	      cout << "Case 8.2b for all ai cut all other B" << endl;
-#endif	      	   
+#endif
+
 		vector<Node*> to_cut = {};
 		vector<Node*> to_cut_except = {};
 		for (int j = 0; j < deepest_siblings.size() - 1; j++) {
@@ -1612,6 +1657,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 #ifdef DEBUG
 	      cout << "Case 8.3a cut a1" << endl;
 #endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_83++;
+#endif
 
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
@@ -1666,13 +1714,16 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	       cut b1 and b2 no prot
 	       cut all except b1 off of lca, b1
 	       cut all except b2 off of lca, b2
-	       (TODO: special case)
 	    */
 	    //8.4 : Cut a1 and a2
 	    {
 #ifdef DEBUG
 	    cout << "Case 8.4a cut a1 & a2" << endl;
 #endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_84++;
+#endif
+
 	      vector<Node*> to_cut = {T2_a1, T2_a2};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
@@ -1772,6 +1823,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 #ifdef DEBUG
 	    cout << "Case 8.5a cut all a1-ar" << endl;
 #endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_85++;
+#endif	    
 	      vector<Node*> to_cut = {};
 	      vector<Node*> to_cut_except = {};
 	      for (int i = 0; i < deepest_siblings.size(); i++) {
@@ -1845,6 +1899,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 #ifdef DEBUG	     
 	      cout << "Case 8.6a cut a1" << endl;
 #endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_86++;
+#endif
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
 	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
@@ -1891,6 +1948,9 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	    {
 #ifdef DEBUG	     
 	      cout << "Case 8.7a cut a1" << endl;
+#endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_87++;
 #endif
 	      vector<Node*> to_cut = {T2_a1};
 	      vector<Node*> to_cut_except = {};
@@ -5219,6 +5279,10 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	}
 	cout << endl << endl;
 */
+	#ifdef DEBUG_CASE_COUNTER
+	print_mult_case_count();
+        #endif
+
 	return total_k;
 }
 
