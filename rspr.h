@@ -39,6 +39,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 // #define DEBUG_UNDO 1
 //#define DEBUG_DEPTHS 1
 //#define DEBUG_CASE_COUNTER 1
+//#define MULT_PICK_LARGEST_GROUP 1
 
 #include <cstdio>
 #include <cstdlib>
@@ -323,7 +324,6 @@ if (!sync_twins(T1, T2))
 // rSPR_worse_3_mult_approx recursive helper function
 int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_groups, Forest **F1, Forest **F2, bool save_forests) {
 
-  //int max_preorder = T2->components[0]->preorder_number(0);  
   int num_cut = 0;
   Node* previous_group = NULL;
   while(!singletons->empty() || !sibling_groups->empty()) {
@@ -969,10 +969,6 @@ void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singl
   }
   //hack for now
   //We immediately contract a1 up so we know the parent's preorder number is available
-  
-  //T2_b1->set_edge_pre_start(T2_b1->get_preorder_number());
-  //T2_b1->edge_preorder_interval();
-  //T2_b1->copy_edge_pre_interval(parent);
   //Cut connections
 
   T2_b1->cut_parent();
@@ -1051,6 +1047,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 				    list<Node*> *sibling_groups, list<Node*> *singletons,
 				    Node *protected_node, list<pair<Forest,Forest>> *AFs,
 				    int* num_ties) {
+  //run out of cuts if k < 0
   if (k < 0) {
     return k;
   }
@@ -1067,7 +1064,6 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
       cout << "Handling singleton: " << T2_a->str() << endl;
       #endif
       
-      
       Node *T1_a = T2_a->get_twin();
       Node *T1_a_p = T1_a->parent();
       
@@ -1075,6 +1071,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	continue;      
 
       // find twin in T1
+      //If we have added component 0, then we have made a B cut and added rho
       if (T2_a == T2->get_component(0)){// && T1_a != T1->get_component(0)) {
 	if (!T1->contains_rho()) {
 	  T1->add_rho();
@@ -1120,7 +1117,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	else {
 	  T1_new_a_p = possible_previous_sibling;
 	}
-
+       
         T1_a_p->contract(true);
 	T1_new_a_p->recalculate_non_leaf_children();
 	//After contracting this, the grandparent may be a sibling group now
@@ -1136,18 +1133,34 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 
     //NOTE: we know there are no singletons left here
     if(!sibling_groups->empty()) {
+      //Find identical sibling groups
       //Get the first group that has identical sibling groups, otherwise default to the group on the back
       list<Node*>::reverse_iterator i = sibling_groups->rbegin();
       Node *T1_sibling_group = sibling_groups->back();
       list<list<Node*>> identical_sibling_groups;
       T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
+      bool found_identical = false;
       for (; i != sibling_groups->rend(); i++ ){
 	(*i)->find_identical_sibling_groups(&identical_sibling_groups);
 	if (identical_sibling_groups.size() > 0) {
 	  T1_sibling_group = (*i);
+	  found_identical = true;
 	  break;
 	}
       }
+      #ifdef MULT_PICK_LARGEST_GROUP
+      if (!found_identical) {
+	int max_size = 0;
+	Node* largest_group = NULL;
+	for (auto i = sibling_groups->begin(); i != sibling_groups->end(); i++) {
+	  if ((*i)->get_children().size() > max_size) {
+	    max_size = (*i)->get_children().size();
+	    largest_group = (*i);
+	  }
+	}
+	T1_sibling_group = largest_group;
+      }
+      #endif
       #ifdef DEBUG
       cout << "K = " << k << endl;
       cout << "F2: ";
@@ -1160,12 +1173,12 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 
       /* 
 	 Case where a subset of the group have the same parent both in T1 and T2
-	 Step 5 in paper
       */
       // Case 2 - Contract identical sibling pair
       if (identical_sibling_groups.size() > 0) {	  		
 	list<list<Node *>>::iterator i;
 	for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
+	  //Contract the groups
 	  list<Node *> T2_group = (*i);
 	  Node *T2_p = T2_group.front()->parent();
 	  #ifdef DEBUG
@@ -1176,7 +1189,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  //cout << "Contracting T2... " << endl;
 	  #endif
 	  Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
-	  
+
+	  //Maintain twins
 	  T1_group_new->set_twin(T2_group_new);
 	  T2_group_new->set_twin(T1_group_new);			
 
@@ -1217,6 +1231,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
       // Case 3
       else {
 
+	//Check branch and bound
 	if (BB) {
 	  //copies for the approx so we dont clobber this tree
 	  map<Node*, Node*> approx_map = map<Node*, Node*>();
@@ -1233,6 +1248,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  }
 	  int approx_spr = rSPR_worse_3_mult_approx_hlpr(&T1_approx, &T2_approx, &singletons_approx, &sibling_group_approx, NULL, NULL, false);
 	  //TODO: Sometimes approx returns 1 over the right amount. For example 4 for a 1 cut tree or 16 for a 3 cut tree
+	  //If approx_spr > 3k then we will not have enough cuts
 	  if (approx_spr > 3*k + 1) {
 #ifdef DEBUG
 	    cout << "approx failed approx k = " << approx_spr  <<  endl;
@@ -1241,6 +1257,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  }
 	}
 
+	//Finding deepest siblings
 	#ifdef DEBUG
 	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
 	#endif
@@ -1249,8 +1266,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
 	vector<Node *> deepest_siblings;
 	vector<vector<Node*>> siblings_by_depth;
-	//All siblings are in different components, ie no path between them
 	//Get depth of siblings from root of each component
+	//If the lca is null, all siblings are in different components, ie no path between them
 	if (arbitrary_lca == NULL) {	
 	  siblings_by_depth = vector<vector<Node *>>(10);
 	  for (int i = 0; i != T2->components.size(); i++) {
@@ -1264,6 +1281,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	  siblings_by_depth = arbitrary_lca->get_deepest_siblings(descendant_count);
 	}
 	map<Node*, int> s_map = map<Node*, int>();
+	//Get deepest siblings returns sparse vector, this compacts it
 	deepest_siblings = contract_deepest_siblings(siblings_by_depth, &s_map);      
 	// Should assert here
 	if (deepest_siblings.size() < 2) { cout << "improper length" << endl; }
@@ -1276,6 +1294,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	#endif
 	best_k = -1;
 
+	//MULT_4_BRANCH is naive approach of making 4 cuts every time
 	if (!MULT_4_BRANCH) {
 	//step 7
 	/*
@@ -2025,6 +2044,7 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
 	else { //4_MULT_BRANCH
 
 	  //To debug: set all to true. Make all cuts all the time
+	  //Otherwise uses same logic as approximation algorithm
 	  bool cut_a1 = true;
 	  bool cut_b1 = true;
 	  bool cut_a2 = true;
@@ -2174,6 +2194,8 @@ int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
     }//!sibling_groups->empty()
 
   } //while(!sibling_groups->empty() && !singletons->empty()
+
+  //Made it to end, so add to results
   if (k >= 0) {
     //if (PREFER_RHO && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
     if (true && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
