@@ -81,6 +81,10 @@ MULTIFURCATING COMPARISON OPTIONS
 -support x     Collapse bipartitions with less than x support
 -min_length x      Collapse bipartitions with branch lengths less than or
                 equal to x
+-multifurcating Calculate the exact rSPR distance with a branch-and-bound FPT 
+                algorithm. Both trees may be multifurcating
+-multi_4_branch Calculate the exact rSPR distance with a branch-and-bound FPT
+                algorithm. Both trees may be multifurcating. Use 4-way branching
 
 *******************************************************************************
 UNROOTED COMPARISON OPTIONS
@@ -288,6 +292,10 @@ string USAGE =
 "-support x     Collapse bipartitions with less than x support\n"
 "-min_length x      Collapse bipartitions with branch lengths less than or\n"
 "                equal to x\n"
+"-multifurcating Calculate the exact rSPR distance with a branch-and-bound FPT\n"
+"                algorithm. Both trees may be multifurcating\n"
+"-multi_4_branch Calculate the exact rSPR distance with a branch-and-bound FPT\n"
+"                algorithm. Both trees may be multifurcating. Use 4-way branching\n"
 "\n"
 "*******************************************************************************\n"
 "UNROOTED COMPARISON OPTIONS\n"
