@@ -58,7 +58,7 @@ class Forest {
 		bool rho;
 		Forest *twin;
 		ClusterInstance *cluster;
-
+                int max_preorder;
 	public:
 	Forest() {
 		init(vector<Node *>());
@@ -99,7 +99,24 @@ class Forest {
 		cluster = f->cluster;
 		//label_nodes_with_forest();
 	}
+        /* Temporary until rSPR_branch_and_bound_mult_hlpr uses the UndoMachine */
+        Forest(Forest *f, map<Node*, Node*> *node_map) {
+		components = vector<Node *>(f->components.size());
+		for(int i = 0; i < f->components.size(); i++) {
+			//if (f->components[i] != NULL)
+		        Node* new_node = new Node(*f->components[i], node_map);
+		        components[i] = new_node;
+			node_map->emplace(pair<Node*,Node*>(f->components[i], new_node));
+		}
+		deleted_nodes = vector<Node *>();
+		rho = f->rho;
+		twin = NULL;
+		cluster = f->cluster;
+		max_preorder = f->max_preorder;
+		//label_nodes_with_forest();
+	}
 
+  
 	Forest(Forest *f, bool b) {
 		components = vector<Node *>(f->components.size());
 		for(int i = 0; i < f->components.size(); i++) {
@@ -288,6 +305,18 @@ class Forest {
 		return sibling_pairs;
 	}
 
+  	// return a list of the sibling groups
+	list<Node *> *find_sibling_groups() {
+		list<Node *> *sibling_groups = new list<Node *>();
+		vector<Node *>::iterator i;
+		for(i = components.begin(); i != components.end(); i++) {
+			Node *component = *i;
+			component->append_sibling_groups(sibling_groups);
+		}
+		return sibling_groups;
+	}
+
+  
 	// return a deque of the singleton leaves
 	list<Node *> find_singletons() {
 		list<Node *> singletons = list<Node *>();
@@ -358,6 +387,7 @@ bool add_rho() {
 	if (rho)
 		return false;
 	Node *T_p = new Node("p");
+	T_p->set_preorder_number(-1);
 	add_component(T_p);
 	rho = true;
 	return true;

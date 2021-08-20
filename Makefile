@@ -38,6 +38,13 @@ test: rspr fill_matrix
 		return 1; \
 	fi
 	@echo ""
+	./rspr -multifurcating < test_trees/multi_cluster_test
+	@val=`./rspr -multifurcating < test_trees/multi_cluster_test | grep 'total exact' | grep -o '[0-9]\+$$'`; \
+	if [ $$val -ne "10" ]; then \
+		echo FAILED: $$val != 10; \
+		return 1; \
+	fi
+	@echo ""
 	cat test_trees/big_test* | ./rspr -pairwise | ./fill_matrix
 	@cat test_trees/big_test* | ./rspr -pairwise | ./fill_matrix > _test/pairwise_new; \
 	diff _test/pairwise_new tests/pairwise || (echo FAILED -pairwise test >&2; return 1)

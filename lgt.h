@@ -29,7 +29,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef LGT
 #define LGT
 
-//#define DEBUG_LGT
+#define DEBUG_LGT
 
 #include <cstdio>
 #include <cstdlib>
@@ -58,12 +58,22 @@ class transfer {
 	int source_pre;
 	int target_pre;
 	int final_source_depth;
+        vector<int> source_child_pre_nums;
+        vector<int> target_child_pre_nums;
 
 	transfer(int s, int t, int f_d) {
 		source_pre = s;
 		target_pre = t;
 		final_source_depth = f_d;
 	}
+  transfer(int s, int t, int f_d, vector<int> scpn, vector<int> tcpn) {
+		source_pre = s;
+		target_pre = t;
+		final_source_depth = f_d;
+		source_child_pre_nums = scpn;
+		target_child_pre_nums = tcpn;
+	}
+
 };
 
 void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
@@ -76,7 +86,7 @@ void print_leaf_list(Node *F1_source, map<int, string> *reverse_label_map);
 bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
 		Node **F1_source_out, Node **F1_target_out);
 Node *find_best_target(Node *source, Forest *AF);
-void find_best_target(Node *source, Node *target, Node **best_target);
+Node *find_best_target(Node *source, Node *target, Node **best_target);
 void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		map<int, string> *reverse_label_map);
 
@@ -95,8 +105,10 @@ void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
 			expand_contracted_nodes(MAF2);
 #ifdef DEBUG_LGT			
 			cout << i << ": " << distance << endl;
-			cout << "\tT1: "; F1.print_components();
-			cout << "\tT2: "; F2.print_components();
+			//cout << "\tT1: "; F1.print_components();
+			//cout << "\tT2: "; F2.print_components();
+			cout << "\tT1: "; F1.print_components_with_edge_pre_interval();
+			cout << "\tT2: "; F2.print_components_with_edge_pre_interval();
 			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
 			cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
 #endif
@@ -212,9 +224,12 @@ void list_transfers(list<transfer> *transfer_list, Node *super_tree,
 			int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
 			expand_contracted_nodes(MAF1);
 			expand_contracted_nodes(MAF2);
-#ifdef DEBUG_LGT			
+#ifdef DEBUG_LGT
+			
 			cout << "\tT1: "; F1.print_components();
 			cout << "\tT2: "; F2.print_components();
+			//cout << "\tT1: "; F1.print_components_with_edge_pre_interval();
+			//cout << "\tT2: "; F2.print_components_with_edge_pre_interval();
 			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
 			cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
 #endif
@@ -242,9 +257,68 @@ void add_transfers(list<transfer> *transfer_list, Forest *F1,
 			continue;
 		}
 
+		vector<int> source_child_pre_nums = vector<int>();
+		vector<int> target_child_pre_nums = vector<int>();
+		//if (F1_source->get_edge_pre_start() == -1) {
+		
+		
+		for (auto c = F1_source->get_children().begin();
+		     c != F1_source->get_children().end();
+		     c++) {
+		  if ((*c)->get_preorder_number() == F1_source->get_preorder_number()) {
+		    /*
+		    for (auto i = F1_source->get_children().begin();
+			 i != F1_source->get_children().end();
+			 i++) {
+		      source_child_pre_nums.push_back((*i)->get_preorder_number());
+		      }*/
+		    vector<Node*> leaves = F1_source->find_leaves();
+		    for (int i = 0; i < leaves.size(); i++) {
+		      source_child_pre_nums.push_back(leaves[i]->get_preorder_number());
+		    }
+		    break;
+		  }
+		}
+		for (auto c = F1_target->get_children().begin();
+		     c != F1_target->get_children().end();
+		     c++) {
+		  if ((*c)->get_preorder_number() == F1_target->get_preorder_number()) {
+		    /*
+		    for (auto i = F1_target->get_children().begin();
+			 i != F1_target->get_children().end();
+			 i++) {
+		      target_child_pre_nums.push_back((*i)->get_preorder_number());
+		    }
+		    */
+		    vector<Node*> leaves = F1_target->find_leaves();
+		    for (int i = 0; i < leaves.size(); i++) {
+		      target_child_pre_nums.push_back(leaves[i]->get_preorder_number());
+		    }
+
+		    break;
+		  }
+		}
+		
+		/*
+
+		else if (F2_source->get_edge_pre_start() == -1) {
+		  for (list<Node*>::iterator i = F2_source->get_children().begin(); i != F2_source->get_children().end(); i++) {
+		    source_child_pre_nums.push_back((*i)->get_twin()->get_preorder_number());
+		  }
+		}
+		*/
+		/*
+		if (F1_target->get_edge_pre_start() == -1) {
+		  for (list<Node*>::iterator i = F1_target->get_children().begin(); i != F1_target->get_children().end(); i++) {
+		    target_child_pre_nums.push_back((*i)->get_preorder_number());
+		  }
+		}
+		*/
 		transfer_list->push_back(transfer(F1_source->get_preorder_number(),
 					F1_target->get_preorder_number(),
-					F2_source->get_depth()));
+						  F2_source->get_depth(),
+						  source_child_pre_nums,
+						  target_child_pre_nums));
 	}
 }
 
@@ -300,7 +374,9 @@ bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
 		else
 			cout << "\tF2t: p" << endl;
 	#endif
+
 	Node *F1_source = F2_source->get_twin();
+			//save preorder numbers
 	Node *F1_target;
 	if (F2_target != NULL)
 		F1_target = F2_target->get_twin();
@@ -336,7 +412,7 @@ Node *find_best_target(Node *source, Forest *AF) {
 	return best_target;
 }
 
-void find_best_target(Node *source, Node *target, Node **best_target) {
+Node* find_best_target(Node *source, Node *target, Node **best_target) {
 	if (target->get_edge_pre_start() <= source->get_preorder_number()
 			&& target->get_edge_pre_end() >= source->get_preorder_number()
 			&& (*best_target == NULL || target->get_edge_pre_start() >
@@ -348,6 +424,7 @@ void find_best_target(Node *source, Node *target, Node **best_target) {
 			c != target->get_children().end(); c++) {
 		find_best_target(source, *c, best_target);
 	}
+	return *best_target;
 }
 
 void add_lcas_to_groups(vector<int> *pre_to_group, Node *subtree) {
@@ -366,6 +443,36 @@ void add_lcas_to_groups(vector<int> *pre_to_group, Node *subtree) {
 		(*pre_to_group)[subtree->get_preorder_number()] = group;
 }
 
+bool contains_any(vector<int>& A, vector<int>& B)
+{
+  for (int i = 0; i < B.size(); i++) {
+    for (int j = 0; j < A.size(); j++) {
+      if (B[i] == A[j]) {
+	return true;
+      }
+    }
+  }
+  return false;
+}
+
+bool is_subset(vector<int>& A, vector<int>& B)
+{
+  if (B.size() == 0 && A.size() > 0) { return false; }
+  for (int i = 0; i < A.size(); i++) {
+    bool found = false;
+    for (int j = 0; j < B.size(); j++) {
+      if (B[j] == A[i]) {
+	found = true;
+	break;
+      }
+    }
+    if (!found) {
+      return false;
+    }
+  }
+  return true;
+}
+
 void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		map<int, string> *reverse_label_map) {
 	T1->preorder_number();
@@ -382,13 +489,126 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		list<transfer> transfer_list = list<transfer>();
 		list_transfers(&transfer_list, T1, T2);
 		T1->numbers_to_labels(reverse_label_map);
+	choose_different_tranfer:
 		transfer trans = transfer_list.front();
 		transfer_list.pop_front();
 		Node *s = T1->find_by_prenum_full(trans.source_pre);
 		Node *t = T1->find_by_prenum_full(trans.target_pre);
 //					cout << trans.source_pre << endl;
 //					cout << trans.target_pre << endl;
-		s->spr(t);
+		print_leaf_list(s);
+		cout << " : ";
+		print_leaf_list(t);
+		cout << endl;
+
+		//TODO (ben): try updating the preorder interval when contracting
+
+		if (MULTIFURCATING) {
+
+		  vector<Node*> source_nodes_to_expand = vector<Node*>();
+		  
+		  if (trans.source_child_pre_nums.size() > 0) {
+		    //move up until all the preorders are in s's subtree
+		    s = s->parent();
+		    vector<int> leaf_preorders = s->find_leaf_preorders();
+		    bool leaf_is_subset = is_subset(trans.source_child_pre_nums, leaf_preorders);
+		    while (!leaf_is_subset){
+			s = s->parent();
+			leaf_preorders = s->find_leaf_preorders();
+			leaf_is_subset = is_subset(trans.source_child_pre_nums, leaf_preorders);
+		    }
+		    
+		    //get the children that have the preorders in their subtree
+		    for (auto i = s->get_children().begin(); i != s->get_children().end(); i++) {
+		      vector<int> this_childs_preorder_list = (*i)->find_leaf_preorders();
+		      if (contains_any(trans.source_child_pre_nums, this_childs_preorder_list)){
+			source_nodes_to_expand.push_back(*i);
+		      }
+		    }
+
+		    //before we expand, we need to check if the target is in any of the nodes_to_expand's subtrees
+		  }
+
+		  
+		  //want to get the subset of children
+		  //the prenum will be the child though, so move up one
+		  vector<Node*> target_nodes_to_expand = vector<Node*>();
+		  if (trans.target_child_pre_nums.size() > 0) {
+		    //move up until all the preorders are in t's subtree
+		    t = t->parent();
+		    vector<int> leaf_preorders = t->find_leaf_preorders();
+		    bool leaf_is_subset = is_subset(trans.target_child_pre_nums, leaf_preorders);
+		    while (!leaf_is_subset){
+			t = t->parent();
+			leaf_preorders = t->find_leaf_preorders();
+			leaf_is_subset = is_subset(trans.target_child_pre_nums, leaf_preorders);
+		      }
+		    
+		    //get the children that have the preorders in their subtree
+		    for (auto i = t->get_children().begin(); i != t->get_children().end(); i++) {
+		      vector<int> this_childs_preorder_list = (*i)->find_leaf_preorders();
+		      if (contains_any(trans.target_child_pre_nums, this_childs_preorder_list)){
+			target_nodes_to_expand.push_back(*i);
+		      }
+		    }		   
+		  }
+
+		  //check if the target will be in any of the source nodes subtrees
+		    //if it is then we are attaching it to itself and it is an invalid spr
+		  if (source_nodes_to_expand.size() > 0) {		    
+		    for (int i = 0; i < source_nodes_to_expand.size(); i++) {
+		      if (source_nodes_to_expand[i]->find_by_prenum_full(t->get_preorder_number()) != NULL) {
+			cout << "INVALID MOVE, RETRYING..." << endl;
+			goto choose_different_tranfer;
+		      }
+		    }
+		  }
+		  else {
+		    if (s->find_by_prenum_full(t->get_preorder_number()) != NULL) {
+		      cout << "INVALID MOVE, RETRYING..." << endl;
+		      goto choose_different_tranfer;
+		    }
+		  }
+		  if (trans.source_child_pre_nums.size() > 0) {
+		    //if there are children who don't have the correct preorders, expand the others
+		    if (source_nodes_to_expand.size() < s->get_children().size()) {
+		      Node* new_s = new Node();
+		      s->add_child(new_s);
+		      for (int i = 0; i < source_nodes_to_expand.size(); i++) {
+			new_s->add_child(source_nodes_to_expand[i]);
+		      }
+		      s = new_s;
+		    }
+		  }
+		  if (trans.target_child_pre_nums.size() > 0) {
+		    //if there are children who don't have the correct preorders, expand the others
+		    if (target_nodes_to_expand.size() < t->get_children().size()){
+		      Node* new_t = new Node();
+		      t->add_child(new_t);
+		      for (int i = 0; i < target_nodes_to_expand.size(); i++) {
+			new_t->add_child(target_nodes_to_expand[i]);
+		      }
+		      t = new_t;
+		    }
+		  }
+		  if (s->parent() != NULL &&
+		      s->parent()->get_children().size() > 2) {
+		    Node* new_s = new Node();
+		    s->parent()->add_child(new_s);		    
+		    new_s->add_child(s);
+		    new_s->add_child(s->parent()->parent()->lchild());
+		    //s = new_s;
+		  }
+		  print_leaf_list(s);
+		  cout << " : ";
+		  print_leaf_list(t);
+		  cout << endl;
+
+		  s->spr_mult(t);
+		}
+		else {
+		  s->spr(t);
+		}
 
 		print_leaf_list(s);
 		cout << " : ";
@@ -412,7 +632,13 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 
 	Forest F1 = Forest(T1);
 	Forest F2 = Forest(T2);
-	int approx_spr = rSPR_worse_3_approx(&F1, &F2);
+	int approx_spr;
+	if (MULTIFURCATING) {
+	  approx_spr = rSPR_worse_3_mult_approx(&F1, &F2);
+	}
+	else {
+	  approx_spr = rSPR_worse_3_approx(&F1, &F2);
+	}
 	if (approx_spr > 0) {
 		cout << "WARNING: final tree does not match T2" << endl;
 	}

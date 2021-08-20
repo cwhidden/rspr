@@ -31,14 +31,15 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 *******************************************************************************/
 
 #define RSPR
-
 //#define DEBUG 1
-//#define DEBUG_CONTRACTED 1
+#define DEBUG_CONTRACTED 1
 //#define DEBUG_APPROX 1
 //#define DEBUG_CLUSTERS 1
 //#define DEBUG_SYNC 1
 //#define DEBUG_UNDO 1
 //#define DEBUG_DEPTHS 1
+//#define DEBUG_CASE_COUNTER 1
+//#define MULT_PICK_LARGEST_GROUP 1
 
 #include <cstdio>
 #include <cstdlib>
@@ -66,6 +67,17 @@ enum RELAXATION {STRICT, NEGATIVE_RELAXED, ALL_RELAXED};
 const string whitespaces = " \t\f\v\n\r";
 
 // note: not using undo
+int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_pairs, Forest **F1, Forest **F2, bool save_forests);
+int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2);
+int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2, bool sync);
+
+int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k);
+int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int end_k);
+int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k);
+int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2, int k, list<Node*> *sibling_groups, list<Node*> *singletons, Node *protected_stack, list<pair<Forest,Forest>> *AFs, int* num_ties);
+
+
+
 int rSPR_3_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons,
 		list<Node *> *sibling_pairs);
 int rSPR_3_approx(Forest *T1, Forest *T2);
@@ -125,6 +137,7 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, int min_k, int max_k);
 int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map, int min_k, int max_k, Forest **out_F1, Forest **out_F2);
+void reduction_leaf_mult(Forest *T1, Forest *T2);
 void reduction_leaf(Forest *T1, Forest *T2);
 void reduction_leaf(Forest *T1, Forest *T2, UndoMachine *um);
 bool chain_match(Node *T1_node, Node *T2_node, Node *T2_node_end);
@@ -151,7 +164,7 @@ bool outgroup_root(Node *n, vector<int> &num_in, vector<int> &num_out);
 bool outgroup_reroot(Node *n, vector<int> &num_in, vector<int> &num_out);
 void count_in_out(Node *n, vector<int> &num_in, vector<int> &num_out,
 		set<string, StringCompare> &outgroup);
-
+void randomize_tree_with_spr(Node* T1, Node* T2, int count);
 /*Joel's part*/
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose, map<string, int> *label_map, map<int, string> *reverse_label_map);
 int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2);
@@ -179,6 +192,9 @@ bool CLUSTER_REDUCTION = false;
 bool PREFER_RHO = false;
 bool MAIN_CALL = true;
 bool MEMOIZE = false;
+bool MULTIFURCATING = false;
+bool MULT_4_BRANCH = false;
+bool USE_CASE_7 = true;
 bool ALL_MAFS = false;
 int NUM_CLUSTERS = 0;
 int MAX_CLUSTERS = -1;
@@ -225,6 +241,1985 @@ ProblemSolution(Forest *t1, Forest *t2, int new_k) {
 
 	map<string, ProblemSolution> memoized_clusters = map<string, ProblemSolution>();
 
+/*******************************************************************************
+	RSPR WORSE_3_MULT_APPROX
+*******************************************************************************/
+
+/* rSPR_worse_3_mult_approx
+ * Calculate an approximate maximum agreement forest and SPR distance for two multifurcating trees
+ * RETURN At most 3 times the rSPR distance
+ * NOTE: destructive. The computed forests replace T1 and T2.
+ * T1 and T2 can be  multifurcating forests.
+ */
+int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2) {
+	return rSPR_worse_3_mult_approx(T1, T2, true);
+}
+
+int rSPR_worse_3_mult_approx(Forest *T1, Forest *T2, bool sync) {
+	// match up nodes of T1 and T2
+	if (sync) {
+if (!sync_twins(T1, T2))
+	return 0;
+	}
+
+	if (LEAF_REDUCTION) {
+	  reduction_leaf_mult(T1, T2);
+	}
+//	cout << "T1: "; T1->print_components();
+//	cout << "T2: "; T2->print_components();
+	// find sibling pairs of T1
+	list<Node *> *sibling_groups = T1->find_sibling_groups();
+
+
+	/*
+	list<Node *>::iterator c;
+	list<Node *>::iterator ch;
+	
+	for (c = sibling_groups->begin(); c != sibling_groups->end(); c++) {
+	  cout << "Sibling group parent: " << (*c)->str() << endl;
+		list<Node *> children = (*c)->get_children();
+		for (ch = children.begin(); ch != children.end(); ch++) {
+		  cout << "\tChild: " << (*ch)->str() <<endl;
+		}
+		list<list<Node *>> *identical_sibling_groups = (*c)->find_identical_sibling_groups();
+		if (identical_sibling_groups->size() > 0) {
+		  cout << "Printing identical sibling group:" << endl;
+		  for (auto g = identical_sibling_groups->begin(); g != identical_sibling_groups->end(); g++) {
+			cout << "Sibling identical group:" << endl;
+			for (auto ge = g->begin(); ge != g->end(); ge++) {
+			  cout << "\tchild:" << (*ge)->get_name() << endl;
+			}			  
+		  }
+		}
+		else {		  
+		  cout << "No identical sibling groups" <<endl;
+		}
+	}	
+	//return 0;
+	*/
+	
+	
+	// find singletons of T2
+	list<Node *> singletons = T2->find_singletons();
+	//list<pair<Forest,Forest> > AFs = list<pair<Forest,Forest> >();
+
+	Forest *F1;
+	Forest *F2;
+
+	T2->max_preorder = T2->components[0]->get_max_preorder_number(0);//preorder_number(0);
+	int ans = rSPR_worse_3_mult_approx_hlpr(T1, T2, &singletons, sibling_groups, &F1, &F2, true);
+
+	F1->swap(T1);
+	F2->swap(T2);
+	sync_twins(T1,T2);
+
+
+	delete sibling_groups;
+	delete F1;
+	delete F2;
+	return ans;
+}
+
+
+// rSPR_worse_3_mult_approx recursive helper function
+int rSPR_worse_3_mult_approx_hlpr(Forest *T1, Forest *T2, list<Node *> *singletons, list<Node *> *sibling_groups, Forest **F1, Forest **F2, bool save_forests) {
+
+  int num_cut = 0;
+  Node* previous_group = NULL;
+  while(!singletons->empty() || !sibling_groups->empty()) {
+	  
+    // Case 1 - Remove singletons
+    while(!singletons->empty()) {
+      
+      Node *T2_a = singletons->back();
+      singletons->pop_back();
+      #ifdef DEBUG_APPROX
+      cout << "Handling singleton: " << T2_a->str() << endl;
+      #endif
+      // find twin in T1
+      Node *T1_a = T2_a->get_twin();
+      // if this is in the first component of T_2 then
+      // it is not really a singleton.
+      // TODO: problem when we cluster and have a singleton as the
+      //		first comp of T2
+      //    NEED TO MODIFY CUTTING?
+      // 		HERE AND IN BB?
+      Node *T1_a_p = T1_a->parent();
+      if (T1_a_p == NULL)
+	continue;
+
+      
+      if (T2_a == T2->get_component(0)){
+	if (!T1->contains_rho()) {
+	  T1->add_rho();
+	  T2->add_rho();
+	  num_cut++;
+	}
+      }
+	
+	//continue;
+
+      bool is_sibling_group = T1_a_p->is_sibling_group();
+      // cut the edge above T1_a
+      T1_a->cut_parent();      
+      if (!T1_a->is_leaf()) {
+	T1_a_p->decrement_non_leaf_children();//although would this ever be a non leaf?
+      }
+      T1->add_component(T1_a);
+
+      //only contract if one node
+      if (T1_a_p->get_children().size() == 1) {
+	if (is_sibling_group) {
+	  sibling_groups->remove(T1_a_p);
+          #ifdef DEBUG_APPROX	  
+	  cout << "Removed ";
+	  for (list<Node*>::iterator i = T1_a_p->get_children().begin(); i != T1_a_p->get_children().end(); i++) {
+	    cout << (*i)->str();
+	  }
+	  cout  << " from sibling groups" << endl;
+	  #endif
+	}
+	Node *possible_previous_sibling = T1_a_p->get_children().front();
+	bool was_sibling_group = possible_previous_sibling->is_sibling_group();
+	Node *node = T1_a_p->contract(true);
+	if (node != NULL) {
+	  node->recalculate_non_leaf_children(); //can we tell what this would be instead of recalculating?
+
+	  if (node->is_sibling_group()) {
+	    if (was_sibling_group) {
+	      list<Node*>::iterator i = find(sibling_groups->begin(), sibling_groups->end(), possible_previous_sibling);
+	      *i = node;
+	    }
+	    else{
+	      sibling_groups->push_front(node);
+	    }
+	  }
+	}
+      }
+    }//!singletons->empty()
+
+    
+    if(!sibling_groups->empty()) {
+      //Get the first group that has identical sibling groups, otherwise default to the group on the back
+      list<Node*>::iterator i = sibling_groups->end();
+      i--;
+      Node *T1_sibling_group = sibling_groups->back();
+      list<list<Node*>> identical_sibling_groups = list<list<Node*>>();
+      T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
+      for (; i != sibling_groups->begin(); i-- ){
+	(*i)->find_identical_sibling_groups(&identical_sibling_groups);
+	if (identical_sibling_groups.size() > 0) {
+	  T1_sibling_group = (*i);
+	  break;
+	}
+      }
+      
+      #ifdef DEBUG_APPROX
+      cout << "F2: ";
+      T2->print_components();
+      cout << endl;
+      cout << "F1: ";
+      T1->print_components();
+      cout << endl;
+      #endif
+      
+      /* 
+	 Case where a subset of the group have the same parent both in T1 and T2
+	 Step 5 in paper
+      */
+      // Case 2 - Contract identical sibling pair
+      if (identical_sibling_groups.size() > 0) {	  		
+	list<list<Node *>>::iterator i;
+	for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
+	  list<Node *> T2_group = (*i);
+	  Node *T2_p = T2_group.front()->parent();
+	  #ifdef DEBUG_APPROX
+	  cout << "Contracting T1... " << endl;
+	  #endif
+	  Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
+	  #ifdef DEBUG_APPROX
+	  cout << "Contracting T2... " << endl;
+	  #endif
+	  Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
+	  
+	  T1_group_new->set_twin(T2_group_new);
+	  T2_group_new->set_twin(T1_group_new);			
+
+	  // check if T2_p is a singleton after the contraction
+	  if (T2_p->is_singleton() && T2_p != T2->get_component(0)) {
+	    //(T2_p->is_singleton() && T1_sibling_group != T1->get_component(0) && T2_p != T2->get_component(0)) {
+	    singletons->push_front(T2_p);
+	  }
+	  if (T1_sibling_group->parent() != NULL) {
+	    //Check if the contraction made a new sibling group
+	    T1_sibling_group->parent()->recalculate_non_leaf_children();
+	    if (T1_sibling_group->parent()->is_sibling_group()) {
+	      sibling_groups->push_front(T1_sibling_group->parent());
+	    }
+	  }
+	  if (!T1_sibling_group->is_sibling_group()) {
+	    sibling_groups->remove(T1_sibling_group);
+	  }	  
+	}
+      }
+
+      /*
+	4 branching case
+	Step 6-8 in paper
+	Cut above a1, b1, a2, b2
+	Part 1: Get the LCA, this is the numbering to the top part
+	Part 2: Get subset of sibling group that is descendant of this LCA
+	Part 3: Sort them based on depth
+	Part 4: Since this is the approximation, we cut deepest 2
+      */
+
+      // Case 3
+      else {
+	#ifdef DEBUG_APPROX
+	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
+	#endif
+	//vector of ints describing how many of the siblings are in its descendants, indexed by preorder number
+	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(T2->max_preorder + 1);
+	Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
+	vector<Node *> deepest_siblings;
+	
+	//All siblings are in different components, ie no path between them
+	//Get depth of siblings from root of each component
+	if (arbitrary_lca == NULL) {	
+	  vector<vector<Node *>> siblings_by_depth = vector<vector<Node *>>(10);
+	  for (int i = 0; i != T2->components.size(); i++) {
+	    T2->components[i]->get_deepest_siblings(descendant_count, siblings_by_depth);
+	  }
+	  deepest_siblings = contract_deepest_siblings(siblings_by_depth);
+	}
+	//Otherwise they share an LCA
+	else {
+	  vector<vector<Node *>> siblings_by_depth = arbitrary_lca->get_deepest_siblings(descendant_count);
+	  deepest_siblings = contract_deepest_siblings(siblings_by_depth);
+	}
+      
+	// Should assert here
+	if (deepest_siblings.size() < 2) { cout << "improper length" << endl; }
+
+	//Get the deepest two of the siblings
+	Node *T2_a1 = deepest_siblings[0];
+	Node *T2_a2 = deepest_siblings[1];
+	#ifdef DEBUG_APPROX
+	cout << "a1: " << T2_a1->str() << " a2: " << T2_a2->str() << endl;
+	#endif
+	
+	bool cut_a1   = false;
+	bool cut_a1_p = false;
+	bool cut_a2   = false;
+	bool cut_a2_p = false;
+      
+	if (T1_sibling_group->get_children().size() == 2) {
+	  /*
+	    7.1 case
+	    Cut a1, pa1, a2 in F2, add 3 to num_cut
+	    Consider adding 3 regardless if we actually cut 3, 
+	  */	
+	  cut_a1   = true;
+	  cut_a1_p = true;
+	  cut_a2   = true;
+	  //num_cut += 3;
+	  /*
+	    7.2 case
+	    Cut a1, a2, pa1, pa2, add 4 to num_cuts
+	  */
+	  if (previous_group == T1_sibling_group) {
+	    cut_a2_p = true;
+	    #ifdef DEBUG_APPROX
+	    cout <<"Case 7.2" << endl;
+	    #endif
+	    //num_cut += 1;
+	  }
+	  else {
+	    #if DEBUG_APPROX
+	    cout << "Case 7.1" << endl;
+	    #endif
+	  }
+	} // size == 2
+      
+	else if (T1_sibling_group->get_children().size() > 2) {
+	  /*
+	    7.3 case
+	    If a2's parent's only sibling is part of the sibling group, 
+	    and a1's parent is a root or has a sibling that is not part of the sibling group
+	    then cut a2 and a2_p otherwise a1 and a1_p
+	  */
+	  if (previous_group != T1_sibling_group) {
+	    Node* T2_a2_p = T2_a2->parent();
+	    bool x_2 = false;
+	    bool a2_p_one_sibling = (T2_a2_p != NULL) &&
+	      (T2_a2_p->parent() != NULL) &&
+	      (T2_a2_p->parent()->get_children().size() == 2);	  
+	    if (a2_p_one_sibling) {
+	      list<Node *> group = T1_sibling_group->get_children();
+	      //get the other one
+	      Node *a2_p_sibling = T2_a2_p->parent()->get_children().front() == T2_a2_p ?
+		T2_a2_p->parent()->get_children().back() :
+		T2_a2_p->parent()->get_children().front();	
+	      //check if it is part of sibling group
+	      bool a2_p_sibling_in_group = descendant_count[a2_p_sibling->get_preorder_number()] == -1;
+	      if (a2_p_sibling_in_group) {
+		Node* T2_a1_p = T2_a1->parent();
+		bool a1_p_is_root = T2_a1_p->parent() == NULL;
+		bool a1_p_sibling_not_in_group = false;
+		if (!a1_p_is_root) {
+		  list<Node*> a1_p_siblings = T2_a1_p->parent()->get_children();
+		  for (list<Node*>::iterator i = a1_p_siblings.begin(); i != a1_p_siblings.end(); i++) {
+		    if (descendant_count[(*i)->get_preorder_number()] != -1) {
+		      a1_p_sibling_not_in_group = true;
+		      break;
+		    }
+		  }
+		}
+		if (a2_p_one_sibling && a2_p_sibling_in_group && (a1_p_is_root || a1_p_sibling_not_in_group)) {
+		  x_2 = true;
+
+		}
+	      }
+	    }
+	    #ifdef DEBUG_APPROX
+	    cout << "Case 7.3" << endl;
+	    #endif
+	    //num_cut += 2;
+	    if (x_2){
+	    
+	      cut_a2   = true;
+	      cut_a2_p = true;
+	    }
+	    else {
+	      cut_a1   = true;
+	      cut_a1_p = true;
+	    }
+	  }
+	  /*7.4 case
+	    cut a1 and a1_p
+	  */
+	  else if (previous_group == T1_sibling_group) {
+	    #ifdef DEBUG_APPROX
+	    cout << "Case 7.4" << endl;
+	    #endif
+	    cut_a1   = true;
+	    cut_a1_p = true;
+	    //num_cut += 2;
+	  }
+	}
+	/*
+	  Cutting section
+	*/
+	Node* T2_a2_p = NULL;
+	if (cut_a1) {
+	  Node *T2_a1_p = T2_a1->parent();
+	  //singletons? components?
+	  if (T2_a1_p != NULL) {
+	    //Cut connections
+	    T2_a1->cut_parent();
+	    num_cut++;
+	    //add as components
+	    T2->add_component(T2_a1);
+	    //Just cut 1 of two children of a1 parent
+	    if (T2_a1_p->get_children().size() == 1) {
+	      if (T2_a1_p->parent() == NULL) {
+		T2_a1_p->contract(true);
+		if (T2_a1_p->is_singleton() && T2_a1_p != T2->get_component(0)) {
+		  singletons->push_front(T2_a1_p);
+		}
+	      }
+	      else {
+		Node* T2_b1 = T2_a1_p->get_children().front();
+		T2_a1_p->contract(true);
+		T2_a1_p = T2_b1; // <------------------------------------
+	      }
+	    }
+	    //Check for singletons
+	    if (T2_a1->is_singleton()) // wont ever be C0?
+	      singletons->push_front(T2_a1);
+	    
+
+	    if (cut_a1_p) {
+	      if (T2_a1_p->parent() != NULL) {
+		bool aborted_a2 = false;
+		if (T2_a1_p->parent() == T2_a2->parent() &&
+		    T2_a2->parent()->get_children().size() == 2)
+		  {
+		    cut_a2 = false; //cutting a1_p will cause a2 to get contracted up, so there is no more a2 to cut
+		    cut_a2_p = true; //Instead we cut a2_p
+		    aborted_a2 = true;
+		  }
+		Node *T2_a1_gp = T2_a1_p->parent();
+		//Cut connections
+		T2_a1_p->cut_parent();
+		num_cut++;
+		//add as components
+		T2->add_component(T2_a1_p);
+		//Just cut 1 of two children of a1 parent
+		if (T2_a1_gp->get_children().size() == 1) {
+		  if (T2_a1_gp->parent() == NULL) {
+		    T2_a1_gp->contract(true);		    
+		  }
+		  else {
+		    Node* T2_b1_p = T2_a1_gp->get_children().front();
+		    T2_a1_gp->contract(true);
+		    T2_a1_gp = T2_b1_p;
+		  }
+		  if (aborted_a2) { T2_a2_p = T2_a1_gp; }
+		  if (T2_a1_gp != NULL && T2_a1_gp->is_singleton() && (T2_a1_gp != T2->get_component(0) || aborted_a2)) {
+		    singletons->push_front(T2_a1_gp);
+		  }
+		}
+		//Check for singletons
+		if (T2_a1_p->is_singleton() && T2_a1_p != T2->get_component(0)) {
+		  singletons->push_front(T2_a1_p);	      
+		}	
+	      }
+	    }
+	  }//T2_a1_p() != NULL
+	}
+	if (cut_a2){
+	  T2_a2_p = T2_a2->parent();
+	  //could have cut a2's parent in previous steps, so could be singleton now
+	  if (T2_a2->is_leaf() && T2_a2_p == NULL) {
+	    singletons->push_front(T2_a2);
+	  }
+	  else if (T2_a2_p != NULL) {
+	    //Cut connections
+	    T2_a2->cut_parent();
+	    num_cut++;
+	    //add as components
+	    T2->add_component(T2_a2);
+	    //Just cut 1 of two children of a2 parent
+	    if (T2_a2_p->get_children().size() == 1) {
+	      if (T2_a2_p->parent() == NULL) {
+		T2_a2_p->contract(true);
+		if (T2_a2_p->is_singleton() && T2_a2_p != T2->get_component(0)) {
+		  singletons->push_front(T2_a2_p);
+		}
+	      }
+	      else {
+		Node* T2_b2 = T2_a2_p->get_children().front();
+		T2_a2_p->contract(true);
+		T2_a2_p = T2_b2;
+	      }
+	    }
+	    //Check for singletons
+	    if (T2_a2->is_singleton())
+	      singletons->push_front(T2_a2);
+	    
+	  }
+	}
+	if (cut_a2_p) {
+	  if (T2_a2_p != NULL && T2_a2_p->parent() != NULL) {
+	    Node *T2_a2_gp = T2_a2_p->parent();
+	    //Cut connections
+	    T2_a2_p->cut_parent();
+	    	    num_cut++;
+	    //add as components
+	    T2->add_component(T2_a2_p);
+	    //Just cut 1 of two children of a2 parent
+	    if (T2_a2_gp->get_children().size() == 1) {
+	      if (T2_a2_gp->parent() == NULL) {
+		T2_a2_gp->contract(true);
+	      }
+	      else {
+		Node* T2_b2_p = T2_a2_gp->get_children().front();
+		T2_a2_gp->contract(true);
+		T2_a2_gp = T2_b2_p;
+	      }
+
+	      if (T2_a2_gp->is_singleton() && T2_a2_gp != T2->get_component(0)) {
+		singletons->push_front(T2_a2_gp);
+	      }
+	    }
+	    //Check for singletons
+	    if (T2_a2_p->is_singleton()) {
+	      singletons->push_front(T2_a2_p);	      
+	    }
+
+	  }	 	 
+	}
+      
+
+      }//else
+      //delete identical_sibling_groups;
+      previous_group = T1_sibling_group;
+    }//!sibling_groups->empty()
+
+  } //while(!sibling_groups->empty() && !singletons->empty()
+  // if the first component of the forests differ then we have cut p
+  /*
+  if (T1->get_component(0)->get_twin() != T2->get_component(0)) {
+    if (!T1->contains_rho()) {
+      T1->add_rho();
+      T2->add_rho();
+    }
+    else
+      // hack to ignore rho when it shouldn't be in a cluster
+      num_cut -=3;
+  }
+  */
+  if (save_forests) {
+    *F1 = new Forest(T1);
+    *F2 = new Forest(T2);
+  }
+  //if (num_cut) num_cut--;
+  return num_cut;
+}
+
+#ifdef DEBUG_CASE_COUNTER
+struct mult_case_counter {
+  int case_71, case_72, case_73, case_74;
+  int case_81, case_82, case_83, case_84;
+  int case_85, case_86, case_87;
+};
+static mult_case_counter case_counter = {};
+void print_mult_case_count() {
+  cout << "Stats:" << endl;
+  cout << "\tCase 7.1:" << case_counter.case_71 << endl;
+  cout << "\tCase 7.2:" << case_counter.case_72 << endl;
+  cout << "\tCase 7.3:" << case_counter.case_73 << endl;
+  cout << "\tCase 7.4:" << case_counter.case_74 << endl;
+  cout << "\tCase 8.1:" << case_counter.case_81 << endl;
+  cout << "\tCase 8.2:" << case_counter.case_82 << endl;
+  cout << "\tCase 8.3:" << case_counter.case_83 << endl;
+  cout << "\tCase 8.4:" << case_counter.case_84 << endl;
+  cout << "\tCase 8.5:" << case_counter.case_85 << endl;
+  cout << "\tCase 8.6:" << case_counter.case_86 << endl;
+  cout << "\tCase 8.7:" << case_counter.case_87 << endl;
+}
+  
+#endif
+
+int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k){
+  return rSPR_branch_and_bound_mult_range(T1, T2, start_k, MAX_SPR);
+}
+int rSPR_branch_and_bound_mult_range(Forest *T1, Forest *T2, int start_k, int end_k){
+  int exact_spr = -1;
+  int k;
+  for (k = start_k; k <= end_k; k++) {
+    Forest *F1 = new Forest(T1);
+    Forest *F2 = new Forest(T2);
+    if (!sync_twins(F1,F2)) {
+      exact_spr = 0;
+      continue;
+    }
+    if (LEAF_REDUCTION) {
+      reduction_leaf_mult(F1, F2);
+    }
+    #ifdef DEBUG
+    cout << "Trying K = " << k << endl << "------------------" << endl;
+    #else
+    cout << k << " " << endl;
+    #endif
+    exact_spr = rSPR_branch_and_bound_mult(F1, F2, k);
+    #ifdef DEBUG
+    cout << "------------------" << endl;
+    cout << "Finished K = " << k << " return value : " << exact_spr << endl;   
+    #endif
+    if (exact_spr >= 0) {
+      F1->swap(T1);
+      F2->swap(T2);
+    }
+    delete F1;
+    delete F2;
+
+    if (exact_spr >= 0) {    
+      break;
+    }
+  }
+  #ifdef DEBUG_CASE_COUNTER
+  print_mult_case_count();
+  #endif
+  if (k > end_k) {
+    k = -1;
+  }
+  return k;
+}
+int rSPR_branch_and_bound_mult(Forest *T1, Forest *T2, int k){
+
+  if (!sync_twins(T1,T2)) {
+    return 0;      
+  }
+  T2->max_preorder = T2->components[0]->get_max_preorder_number(0);//preorder_number(0);          
+  list<Node *> *sibling_groups = T1->find_sibling_groups();
+  //sibling_groups->push_front(sibling_groups->back());
+  //sibling_groups->pop_back();
+  list<Node *> singletons     = T1->find_singletons();
+  
+  list<pair<Forest,Forest>> AFs = list<pair<Forest,Forest>>();
+  //list<Node *> protected_stack = list<Node*>();
+  int num_ties = 2;
+  int final_k = rSPR_branch_and_bound_mult_hlpr(T1, T2, k, sibling_groups, &singletons, NULL, &AFs, &num_ties);  
+
+  //print AFs
+  if (!AFs.empty() && final_k > -1) {
+    if (ALL_MAFS) {
+      cout << endl << endl << "FOUND ANSWER" << endl;
+      // TODO: this is a cheap hack
+      for (list<pair<Forest,Forest> >::iterator x = AFs.begin(); x != AFs.end(); x++) {
+	cout << "\tT1: ";
+	x->first.print_components();
+	cout << "\tT2: ";
+	x->second.print_components();
+      }
+    }
+      AFs.front().first.swap(T1);
+  AFs.front().second.swap(T2);
+  sync_twins(T1,T2);
+
+  }
+
+  
+  delete sibling_groups;
+  if (final_k >= 0)
+  return k - final_k;
+  else
+    return final_k;
+    
+}
+
+
+class bb_mult_recurse_data {
+public:
+  Forest *T1;
+  Forest *T2;
+  list<Node*> *sibling_groups;
+  list<Node*> *singletons;
+  map<Node *, Node*> node_map;
+};
+
+/* Generates a copy of the data used to recurse on rSPR_branch_and_bound_mult_hlpr so 
+   that original forests aren't clobbered,
+   updates pointers accordingly */
+//TODO: 1 new not 5
+bb_mult_recurse_data *generate_mult_recurse_data(Forest *T1, Forest *T2, list<Node*> *sibling_groups, list<Node*> *singletons) {
+
+  bb_mult_recurse_data *data = new bb_mult_recurse_data();
+
+  data->node_map = map<Node*, Node*>();
+  data->T1 = new Forest(T1, &data->node_map);
+  data->T2 = new Forest(T2, &data->node_map);
+  //TODO: smarter way of syncing
+  //for (auto n = node_map.begin(); n != node_map.end(); n++) {
+    //(*n).first->set_twin(node_map[(*n).first->get_twin()]);
+    /*
+      if ((*n).second->is_leaf()) {
+      (*n).second->set_twin(node_map[(*n).first->get_twin()]);
+      node_map[(*n).first->get_twin()]->set_twin((*n).second);
+      cout << "Synced twin : " << (*n).second->str() << " -> " << (*n).second->get_twin()->str() << endl;}*/
+  //}
+  sync_twins(data->T1, data->T2);
+  data->sibling_groups = new list<Node*>();
+  for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
+    data->sibling_groups->push_back(data->node_map[*n]);
+  }
+  data->singletons = new list<Node*>();
+  for (auto n = singletons->begin(); n != singletons->end(); n++) {
+    data->singletons->push_back(data->node_map[*n]);
+  }
+  return data;
+}
+//Cuts to_cut, adds to components, conditionally adds to singletons
+//Assumes parent is not null and no Null parameters
+void mult_cut_and_cleanup(Node* to_cut, Forest *T2, list<Node*> *singletons) {
+  //Node* T2_a1_next = next_data->node_map[T2_a1];
+  Node* to_cut_p = to_cut->parent();
+  //Cut connections  
+  to_cut->cut_parent();
+  //add as components
+  T2->add_component(to_cut);
+  //Just cut 1 of two children of a1 parent
+  if (to_cut_p->get_children().size() == 1) {
+    if (to_cut_p->parent() == NULL) {
+      to_cut_p->contract(true);
+      if (to_cut_p->is_singleton() && to_cut_p != T2->get_component(0)) {
+      singletons->push_front(to_cut_p);
+      }
+    }
+    else {
+      Node* to_cut_b = to_cut_p->get_children().front();
+      to_cut_p->contract(true);
+      if (to_cut_b->is_singleton() && to_cut_b != T2->get_component(0)) {
+	singletons->push_front(to_cut_b);
+      }
+    }
+  }
+  //Check for singletons
+  if (to_cut->is_singleton())
+    singletons->push_front(to_cut);  
+}
+//cuts everything except node, possibly expanding, adds to components, conditionally adds to singletons
+//Assumes parent is not null and no Null parameters
+//NOTE: potentially unsafe for preorder numbers
+void mult_cut_all_except_and_cleanup(Node* T2_a1, Forest *T2, list<Node*> *singletons) {
+  Node* T2_b1;
+  Node* parent = T2_a1->parent();
+  if (parent->get_children().size() == 2) {
+    T2_b1 = parent->get_children().front() == T2_a1 ?
+      parent->get_children().back() :
+      parent->get_children().front();		
+  }
+  else {
+    list<Node*> all_but_a1 = list<Node*>(parent->get_children());
+    all_but_a1.remove(T2_a1);	    
+    T2_b1 = parent->expand_children_out(all_but_a1);
+    T2_b1->set_preorder_number(parent->get_preorder_number());
+  }
+  //hack for now
+  //We immediately contract a1 up so we know the parent's preorder number is available
+  //Cut connections
+
+  T2_b1->cut_parent();
+
+  //add as components
+  T2->add_component(T2_b1);
+	    
+  //Just cut 1 of two children of a2 parent (will always be in this case?)
+  if (parent->get_children().size() == 1) {
+    if (parent->parent() == NULL) {
+      parent->contract(true);
+      if (parent->is_singleton() && parent != T2->get_component(0)) {
+	singletons->push_front(parent);
+      }
+    }
+    else {
+      parent = parent->contract(true);
+      if (T2_a1->is_singleton() && T2_a1 != T2->get_component(0))
+	singletons->push_front(T2_a1);
+    }
+  }
+  if (T2_b1->is_singleton())
+    singletons->push_front(T2_b1);
+}
+
+//Adds rho and a certain singleton to cut. Basically its for realising when we have cut rho but it is already a singleton so we explicitly continue on 
+#define MULT_RHO_CUT_AND_RESOLVE(rho_to_singleton, node_to_protect) {			\
+  bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons); \
+  Node* protect = NULL;							\
+  next_data->T1->add_rho();						\
+  next_data->T2->add_rho();						\
+  next_data->singletons->push_front(next_data->node_map[rho_to_singleton]);	\
+  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - 1, next_data->sibling_groups, next_data->singletons, protect, AFs, num_ties); \
+  delete next_data->T1;							\
+  delete next_data->T2;						\
+  delete next_data->sibling_groups;				\
+  delete next_data->singletons;					\
+  delete next_data;						\
+  if (result_k > best_k) {					\
+    best_k = result_k;						\
+  }								\
+  }								\
+
+//TODO (Ben): try using a routine instead of a macro, I suspect it will slow down because of
+//            stack and parameter passing though
+#define MULT_BB_CUT_AND_RESOLVE(nodes_to_cut, nodes_to_exclude_cutting, node_to_protect) { \
+  bb_mult_recurse_data *next_data = generate_mult_recurse_data(T1, T2, sibling_groups, singletons);\
+  int num_cuts = 0;							\
+  for (int i = 0; i < nodes_to_cut.size(); i++) {			\
+    Node* T2_ax_next = next_data->node_map[nodes_to_cut[i]];		\
+    mult_cut_and_cleanup(T2_ax_next, next_data->T2, next_data->singletons);\
+    num_cuts++;								\
+  }									\
+  for (int i = 0; i < nodes_to_exclude_cutting.size(); i++) {		\
+    Node* T2_ax_next = next_data->node_map[nodes_to_exclude_cutting[i]]; \
+    mult_cut_all_except_and_cleanup(T2_ax_next, next_data->T2, next_data->singletons); \
+    num_cuts++;								\
+  }									\
+  Node* protect = next_data->node_map[node_to_protect];			\
+  int result_k = rSPR_branch_and_bound_mult_hlpr(next_data->T1, next_data->T2, k - num_cuts, next_data->sibling_groups, next_data->singletons, protect, AFs, num_ties); \
+  delete next_data->T1;							\
+  delete next_data->T2;							\
+  delete next_data->sibling_groups;					\
+  delete next_data->singletons;						\
+  delete next_data;							\
+  if (result_k > best_k) {						\
+    best_k = result_k;							\
+    if (!ALL_MAFS && best_k > -1) {					\
+    }									\
+  }									\
+}
+
+//TODO: UndoMachine, then cleanup all constructors, bb_mult_recurse_data relying on copies of trees
+int rSPR_branch_and_bound_mult_hlpr(Forest *T1, Forest *T2,
+				    int k,
+				    list<Node*> *sibling_groups, list<Node*> *singletons,
+				    Node *protected_node, list<pair<Forest,Forest>> *AFs,
+				    int* num_ties) {
+  //run out of cuts if k < 0
+  if (k < 0) {
+    return k;
+  }
+  Node* previous_group = sibling_groups->back();
+  int best_k = -1;
+  while(!singletons->empty() || !sibling_groups->empty()) {
+	  
+    // Case 1 - Remove singletons
+    while(!singletons->empty()) {
+      
+      Node *T2_a = singletons->back();
+      singletons->pop_back();
+      #ifdef DEBUG
+      cout << "Handling singleton: " << T2_a->str() << endl;
+      #endif
+      
+      Node *T1_a = T2_a->get_twin();
+      Node *T1_a_p = T1_a->parent();
+      
+      if (T1_a_p == NULL)
+	continue;      
+
+      // find twin in T1
+      //If we have added component 0, then we have made a B cut and added rho
+      if (T2_a == T2->get_component(0)){// && T1_a != T1->get_component(0)) {
+	if (!T1->contains_rho()) {
+	  T1->add_rho();
+	  T2->add_rho();
+	  k--;
+	  //continue;
+	}
+      }
+
+      bool is_sibling_group = T1_a_p->is_sibling_group();
+      // cut the edge above T1_a
+      T1_a->cut_parent();
+      if (!T1_a->is_leaf()) {
+	T1_a_p->decrement_non_leaf_children();
+      }
+      T1->add_component(T1_a);
+      
+      //only contract if one node
+      if (T1_a_p->get_children().size() == 1) {
+	//If we contract this node, and it used to be a sibling group
+	//then it is not a sibling group anymore
+	if (is_sibling_group) {
+	  sibling_groups->remove(T1_a_p);
+          #ifdef DEBUG
+	  cout << "Removed " << T1_a_p->str() << " from sibling groups" << endl;
+	  #endif
+	}
+	
+	Node *possible_previous_sibling = T1_a_p->get_children().front();
+	bool was_sibling_group = possible_previous_sibling->is_sibling_group();
+	
+	Node *T1_a_gp = T1_a_p->parent();
+	Node *T1_new_a_p = T1_a_p;
+	
+	//If the child is a sibling group, there is a possibility contract()
+	//will delete it, so we need to update it in the sibling groups
+	if (T1_a_p->parent() == NULL) {
+	  if (was_sibling_group){
+	    list<Node*>::iterator i = find(sibling_groups->begin(), sibling_groups->end(), possible_previous_sibling);
+	    *i = T1_new_a_p;	    
+	  }
+	}
+	else {
+	  T1_new_a_p = possible_previous_sibling;
+	}
+       
+        T1_a_p->contract(true);
+	T1_new_a_p->recalculate_non_leaf_children();
+	//After contracting this, the grandparent may be a sibling group now
+	if (T1_a_gp != NULL) {
+	  T1_a_gp->recalculate_non_leaf_children(); //can we tell what this would be instead of recalculating?
+	  if (T1_a_gp->is_sibling_group()) {	 
+	    sibling_groups->push_front(T1_a_gp);	 
+	  }
+	}
+      }
+
+    }//!singletons->empty()
+
+    //NOTE: we know there are no singletons left here
+    if(!sibling_groups->empty()) {
+      //Find identical sibling groups
+      //Get the first group that has identical sibling groups, otherwise default to the group on the back
+      list<Node*>::reverse_iterator i = sibling_groups->rbegin();
+      Node *T1_sibling_group = sibling_groups->back();
+      list<list<Node*>> identical_sibling_groups;
+      T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
+      bool found_identical = false;
+      for (; i != sibling_groups->rend(); i++ ){
+	(*i)->find_identical_sibling_groups(&identical_sibling_groups);
+	if (identical_sibling_groups.size() > 0) {
+	  T1_sibling_group = (*i);
+	  found_identical = true;
+	  break;
+	}
+      }
+      #ifdef MULT_PICK_LARGEST_GROUP
+      if (!found_identical) {
+	int max_size = 0;
+	Node* largest_group = NULL;
+	for (auto i = sibling_groups->begin(); i != sibling_groups->end(); i++) {
+	  if ((*i)->get_children().size() > max_size) {
+	    max_size = (*i)->get_children().size();
+	    largest_group = (*i);
+	  }
+	}
+	T1_sibling_group = largest_group;
+      }
+      #endif
+      #ifdef DEBUG
+      cout << "K = " << k << endl;
+      cout << "F2: ";
+      T2->print_components();
+      cout << endl;
+      cout << "F1: ";
+      T1->print_components();
+      cout << endl;
+      #endif
+
+      /* 
+	 Case where a subset of the group have the same parent both in T1 and T2
+      */
+      // Case 2 - Contract identical sibling pair
+      if (identical_sibling_groups.size() > 0) {	  		
+	list<list<Node *>>::iterator i;
+	for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
+	  //Contract the groups
+	  list<Node *> T2_group = (*i);
+	  Node *T2_p = T2_group.front()->parent();
+	  #ifdef DEBUG
+	  //cout << "Contracting T1... " << endl;
+	  #endif
+	  Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
+	  #ifdef DEBUG
+	  //cout << "Contracting T2... " << endl;
+	  #endif
+	  Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
+
+	  //Maintain twins
+	  T1_group_new->set_twin(T2_group_new);
+	  T2_group_new->set_twin(T1_group_new);			
+
+	  // check if T2_p is a singleton after the contraction
+	  if (T2_p->is_singleton() && T2_p != T2->components[0]){
+	    singletons->push_front(T2_p);
+	  }
+	  if (T1_sibling_group->parent() != NULL) {
+	    //Check if the contraction made a new sibling group
+	    T1_sibling_group->parent()->recalculate_non_leaf_children();
+	    if (T1_sibling_group->parent()->is_sibling_group()) {
+	      sibling_groups->push_front(T1_sibling_group->parent());
+	      #ifdef DEBUG
+	      //cout << "Added new sibling group after contraction: " << T1_sibling_group->parent()->str_subtree() << endl;
+	      #endif
+	    }
+	  }
+	  if (!T1_sibling_group->is_sibling_group()) {
+	    sibling_groups->remove(T1_sibling_group);
+	      #ifdef DEBUG
+	    //cout << "Removed new sibling group after contraction: " << T1_sibling_group->str() << endl;
+	      #endif
+
+	  }	  
+	}
+      }
+
+      /*
+	4 branching case
+	Step 6-8 in paper
+	Cut above a1, b1, a2, b2
+	Part 1: Get the LCA, this is the numbering to the top part
+	Part 2: Get subset of sibling group that is descendant of this LCA
+	Part 3: Sort them based on depth
+	Part 4: Since this is the approximation, we cut deepest 2
+      */
+
+      // Case 3
+      else {
+
+	//Check branch and bound
+	if (BB) {
+	  //copies for the approx so we dont clobber this tree
+	  map<Node*, Node*> approx_map = map<Node*, Node*>();
+	  Forest T1_approx = Forest(T1, &approx_map);
+	  Forest T2_approx = Forest(T2, &approx_map);
+	  sync_twins(&T1_approx, &T2_approx);
+	  list<Node*> sibling_group_approx = list<Node*>();
+	  for (auto n = sibling_groups->begin(); n != sibling_groups->end(); n++) {
+	    sibling_group_approx.push_back(approx_map[*n]);
+	  }
+	  list<Node*> singletons_approx = list<Node*>();
+	  for (auto n = singletons->begin(); n != singletons->end(); n++) {
+	    singletons_approx.push_back(approx_map[*n]);
+	  }
+	  int approx_spr = rSPR_worse_3_mult_approx_hlpr(&T1_approx, &T2_approx, &singletons_approx, &sibling_group_approx, NULL, NULL, false);
+	  //TODO: Sometimes approx returns 1 over the right amount. For example 4 for a 1 cut tree or 16 for a 3 cut tree
+	  //If approx_spr > 3k then we will not have enough cuts
+	  if (approx_spr > 3*k + 1) {
+#ifdef DEBUG
+	    cout << "approx failed approx k = " << approx_spr  <<  endl;
+#endif
+	    return -1;
+	  }
+	}
+
+	//Finding deepest siblings
+	#ifdef DEBUG
+	cout << "Sibling group to be cutting: " << T1_sibling_group->str_subtree() << endl;
+	#endif
+	//vector of ints describing how many of the siblings are in its descendants, indexed by preorder number
+	vector<int> descendant_count = T1_sibling_group->find_pseudo_lca_descendant_count(T2->max_preorder + 1);
+	Node* arbitrary_lca = T1_sibling_group->find_arbitrary_lca(T2->components, descendant_count);
+	vector<Node *> deepest_siblings;
+	vector<vector<Node*>> siblings_by_depth;
+	//Get depth of siblings from root of each component
+	//If the lca is null, all siblings are in different components, ie no path between them
+	if (arbitrary_lca == NULL) {	
+	  siblings_by_depth = vector<vector<Node *>>(10);
+	  for (int i = 0; i != T2->components.size(); i++) {
+	    //if preorder is -1 then this is rho
+	    if (T2->components[i]->get_preorder_number() == -1) { continue; }
+	    T2->components[i]->get_deepest_siblings(descendant_count, siblings_by_depth);
+	  }
+	}
+	//Otherwise they share an LCA
+	else {
+	  siblings_by_depth = arbitrary_lca->get_deepest_siblings(descendant_count);
+	}
+	map<Node*, int> s_map = map<Node*, int>();
+	//Get deepest siblings returns sparse vector, this compacts it
+	deepest_siblings = contract_deepest_siblings(siblings_by_depth, &s_map);      
+	// Should assert here
+	if (deepest_siblings.size() < 2) { cout << "improper length" << endl; }
+
+	//Get the deepest two of the siblings
+	Node *T2_a1 = deepest_siblings[0];
+	Node *T2_a2 = deepest_siblings[1];
+	#ifdef DEBUG
+	cout << "a1: " << T2_a1->str() << " a2: " << T2_a2->str() << endl;
+	#endif
+	best_k = -1;
+
+	//MULT_4_BRANCH is naive approach of making 4 cuts every time
+	if (!MULT_4_BRANCH) {
+	//step 7
+	/*
+	  if a1 == prot, x = 2 else x = 1
+	*/
+	if (protected_node != NULL) {
+	  Node* T2_ax;
+	  if (T2_a1 != protected_node) {
+	    T2_ax = T2_a1;
+	  }
+	  else {
+	    T2_ax = T2_a2;
+	  }
+	  
+	  bool a0_descendant_of_lca = false;
+	  Node* stepper = protected_node;
+	  while (stepper->parent() != NULL && stepper->parent() != arbitrary_lca) {
+	    stepper = stepper->parent();
+	  }
+	  if (stepper->parent() == arbitrary_lca) {
+	    a0_descendant_of_lca = true;
+	  }
+
+	  //TODO (Ben) do one iteration of pl parent for has_aj_child and has_non_aj_child,
+	  //           as well as any other flags, before step 7 check
+	  bool pl_has_aj_child = false;
+	  if (arbitrary_lca != NULL) {
+	    Node* pl = arbitrary_lca->parent();	  
+	    if (pl != NULL) {
+	      for (auto i = pl->get_children().begin(); i != pl->get_children().end(); i++) {
+		if (*i != arbitrary_lca && descendant_count[(*i)->get_preorder_number()] == -1) {
+		  pl_has_aj_child = true;
+		  break;
+		}
+	      }
+	    }
+	  }
+	  //step 7.1
+	  if (arbitrary_lca == NULL) {
+	    #ifdef DEBUG
+	    cout << "Case 7.1 T2_ax: " << T2_ax->str() << endl;
+	    #endif
+	    #ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_71++;
+	    #endif
+	    /* 
+	       recurse on cut ax prot protected node
+	    */
+	    //7.1 : cut ax
+	    if (T2_ax->parent() != NULL) {
+	      vector<Node*> to_cut = {T2_ax};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	    }
+	  }
+
+	  //step 7.2
+	  else if (!a0_descendant_of_lca) {
+	    /*
+	      recurse on cut a1's B's up to LCA prot protected node
+
+	    */
+	    #ifdef DEBUG
+	    cout << "Case 7.2a cut all B1's Protected Node: " << protected_node->str() <<  endl;
+	    #endif
+	    #ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_72++;
+	    #endif
+
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a1;
+		
+	      while(stepper->parent() != arbitrary_lca) { 
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	    }
+	    
+	    if (s_map[T2_a1] > 1 ||
+		s_map[deepest_siblings[deepest_siblings.size()-1]] > 0){
+	      /*
+		recurse on cut a1 prot protected node
+	      */
+#ifdef DEBUG
+	    cout << "Case 7.2b Cut a1 Protected Node: " << protected_node->str() <<  endl;
+#endif
+	      //7.2b cut a1
+	      if (T2_a1->parent() != NULL) {
+		vector<Node*> to_cut = {T2_a1};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	      }     
+	    }
+	     /*
+
+	      Not part of the outlined special cases
+
+	     */
+	    //if (T2_a1->parent()->get_children().size() == 2)
+	    {
+	      #ifdef DEBUG
+	      cout << "Case 7.2c Cut a2 T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	      #endif
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);	      
+	    }
+	  }	
+	    
+
+	  //TODO: Is component 0 considered a root?
+	  //If we do get component 0 can we consider this if rho has been added?
+	  //step 7.3
+	  else if (deepest_siblings.size() == 2 &&
+		   T2_ax->parent() == arbitrary_lca &&
+		   a0_descendant_of_lca &&
+		   (
+		    (arbitrary_lca->parent() == NULL && arbitrary_lca != T2->get_component(0)) ||
+		    pl_has_aj_child
+		    )) {
+	    /*
+	      recurse on cut Bx prot protected node
+	    */
+	    //7.3 cut Bx
+
+	    #ifdef DEBUG
+	    cout << "Case 7.3 Cut T2_bx T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	    #endif
+	    #ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_73++;
+	    #endif
+
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_ax};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	    }
+	    /*
+
+	      This is NOT in the cases. Figure out whats happening with 8.2 with r = 2
+
+	     */
+	    /*
+	    {
+	      cout << "Case 7.3 Cut T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	      vector<Node*> to_cut = {T2_ax};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	      }
+	    */
+	  }
+
+
+	  //step 7.4
+	  else if (a0_descendant_of_lca) {
+	    /*
+	      recurse on cut ax prot protected_node
+	                 if m > 2 and r > 2 recurse on 
+			    cut all Bx's then B`x
+	     */
+	    //7.4 cut ax
+	    #ifdef DEBUG
+	    cout << "Case 7.4 T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	    #endif
+	    #ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_74++;
+	    #endif
+
+	    {
+	      vector<Node*> to_cut = {T2_ax};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	    }
+	    if (T1_sibling_group->get_children().size() > 2 && deepest_siblings.size() > 2) {
+	      #ifdef DEBUG
+	      cout << "Case 7.4b T2_ax: " << T2_ax->str() << " Protected Node: " << protected_node->str() << endl;
+	      #endif
+	      //7.4 cut all Bx B`x
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_ax;
+		
+	      while(stepper->parent() != arbitrary_lca) { //Do we know ax is descendant of lca?
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+	      to_cut_except.push_back(T2_ax);
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);	      
+	    }
+	    /*
+
+	      Not part of the outlined special cases
+
+	     */
+	    {
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);	     
+	    }
+	    {
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a1};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);	     
+	    }
+
+	    /*
+	    if (T1_sibling_group->get_children().size() == 2 &&
+		deepest_siblings.size() == 2 &&
+		T2_a1 == T2_ax &&
+		T2_a2 != protected_node) {
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, protected_node);
+	      }*/
+	  }
+	}
+
+	//step 8
+	else {
+	  bool all_but_ar_s1 = true;
+	  for (int i = 0; i < deepest_siblings.size() - 1; i++) {
+	    if (s_map[deepest_siblings[i]] != 1) {
+	      all_but_ar_s1 = false;
+	      break;
+	    }
+	  }
+	  bool all_s1 = s_map[deepest_siblings[deepest_siblings.size()-1]] == 1 &&
+	    all_but_ar_s1;
+
+	  bool lca_p_contains_sibling = false;	    
+	  if (arbitrary_lca != NULL && arbitrary_lca->parent() != NULL) {
+	    for (list<Node*>::iterator i = arbitrary_lca->parent()->get_children().begin();
+		 i != arbitrary_lca->parent()->get_children().end();
+		 i++) {
+	      if (descendant_count[(*i)->get_preorder_number()] == -1) {
+		lca_p_contains_sibling = true;
+		break;
+	      }
+	    }
+	  }
+
+	  //step 8.1
+	  if (arbitrary_lca == NULL) {
+	    /*
+	      recurse on cut a1 no prot,
+	      cut a2 no prot
+	    */
+#ifdef DEBUG
+	    cout << "Case 8.1a cut a1" << endl;
+#endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_81++;
+#endif
+
+	    //8.1 : Cut a1
+	    if (T2_a1->parent() != NULL) {
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    else if (T2_a1 == T2->get_component(0)) {
+	      if (!T1->contains_rho()) {
+		MULT_RHO_CUT_AND_RESOLVE(T2_a1, NULL);
+	      }
+	    }
+#ifdef DEBUG
+	    cout << "Case 8.1b cut a2" << endl;
+#endif
+	    //8.1 : Cut a2
+	    if (T2_a2->parent() != NULL) {
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    else if (T2_a2 == T2->get_component(0)) {
+	      if (!T1->contains_rho()) {
+		MULT_RHO_CUT_AND_RESOLVE(T2_a2, NULL);
+	      }
+	    }
+	  
+	  }
+	  //step 8.2
+	  else if (all_but_ar_s1 &&
+		   deepest_siblings[deepest_siblings.size()-1]->parent() == arbitrary_lca) {
+	    /*
+	      recurse on cut all B's except shallowest
+	      for each sibling except for shallowest,
+	      cut all other B's protect ai
+		           
+	    */
+	    //8.2 B's
+	    {
+#ifdef DEBUG
+	    cout << "Case 8.2a cut B1 - B(r-1)" << endl;
+#endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_82++;
+#endif
+
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      for (int i = 0; i < deepest_siblings.size() - 1; i++) {
+		to_cut_except.push_back(deepest_siblings[i]);
+	      }
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //all other B's except ai
+	    //Doesnt explicitly say this in the paper, but
+	    //this would only happen if r > 2
+
+
+	    if (deepest_siblings.size() > 2){
+	      for (int i = 0; i < deepest_siblings.size() - 1; i++) {
+#ifdef DEBUG
+	      cout << "Case 8.2b for all ai cut all other B" << endl;
+#endif
+
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		for (int j = 0; j < deepest_siblings.size() - 1; j++) {
+		  if (i != j) {
+		    to_cut_except.push_back(deepest_siblings[j]);
+		  }
+		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);
+	      }
+	      }
+	    /*
+	    else if (T1_sibling_group->parent() != NULL && T1_sibling_group->parent()->get_children().size() == 2) {
+	      Node* gp = T1_sibling_group->parent();
+	      Node* aunt = gp->get_children().front() == T1_sibling_group ?
+		gp->get_children().back() :
+		gp->get_children().front();
+	      if (aunt->is_leaf()) {
+		Node* a1_p = T2_a1->parent();
+		vector<Node*> a1_p_leaves = a1_p->find_leaves();
+		Node* T2_aunt = aunt->get_twin();
+		for (int i = 0; i < a1_p_leaves.size(); i++) {
+		  if (a1_p_leaves[i] == T2_aunt) {
+#ifdef DEBUG
+		    cout << "Case 8.2c cut a2" << endl;
+#endif
+		    vector<Node*> to_cut = {T2_a2};
+		    vector<Node*> to_cut_except = {};
+		    MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+		    break;
+		  }
+		}
+
+	      }
+	      }*/
+
+
+	      else if (deepest_siblings.size() == 2) {
+		  vector<Node*> to_cut = {T2_a2};
+		  vector<Node*> to_cut_except = {};
+		  MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	      }
+
+	  }
+	  
+
+	  //step 8.3
+	  else if (T1_sibling_group->get_children().size() == 2 &&
+		   s_map[T2_a1] + s_map[T2_a2] >= 2) {
+	    /*recurse on cut a1 no prot,
+	      cut a2 no prot,
+	      cut all along a1 to a2 no prot
+	    */
+	    //8.3 : Cut a1
+	    if (T2_a1->parent() != NULL) {
+#ifdef DEBUG
+	      cout << "Case 8.3a cut a1" << endl;
+#endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_83++;
+#endif
+
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.3 : Cut a2
+	    if (T2_a2->parent() != NULL) {
+#ifdef DEBUG
+	    cout << "Case 8.3b cut a2" << endl;
+#endif
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.3 : All along path from a1, a2
+	    {
+#ifdef DEBUG
+	    cout << "Case 8.3c cut all B1's and B2's" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a1;
+		
+	      while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      stepper = T2_a2;
+	      while(stepper->parent() != arbitrary_lca) { //no need to check for null! we know theres a path
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      /*
+		Cut from top to bottom,
+		Cutting from bottom to top causes the contraction to invalidate
+		the node, since contraction is implemented by cutting the parent, then giving
+		the child to the parent
+	      */
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }	      
+	  }
+
+	  //step 8.4
+	  else if (T1_sibling_group->get_children().size() > 2 &&
+		   deepest_siblings.size() == 2 &&
+		   s_map[T2_a1] == 1 &&
+		   s_map[T2_a2] == 1) {
+	    /* 
+	       recurse on cut a1 and a2 no prot
+	       cut b1 and b2 no prot
+	       cut all except b1 off of lca, b1
+	       cut all except b2 off of lca, b2
+	    */
+	    //8.4 : Cut a1 and a2
+	    {
+#ifdef DEBUG
+	    cout << "Case 8.4a cut a1 & a2" << endl;
+#endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_84++;
+#endif
+
+	      vector<Node*> to_cut = {T2_a1, T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.4 : Cut a1 and a2's B's
+	    {
+#ifdef DEBUG
+	    cout << "Case 8.4b cut B1 & B2" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a1, T2_a2};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+
+	    //8.4 : All except a1->p, then b1
+	    {
+#ifdef DEBUG
+	    cout << "Case 8.4c cut B1 & B`1" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a1->parent(), T2_a1};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a2);
+	    }
+	    //8.4 : All except a2->p, then b2
+	    {
+#ifdef DEBUG
+	    cout << "Case 8.4d cut B2 & B`2" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a2->parent(), T2_a2};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);
+	    }
+	    Node* pl = arbitrary_lca->parent();
+	    bool pl_has_non_aj_child = false;
+	    if (pl != NULL) {
+	      for (auto i = pl->get_children().begin(); i != pl->get_children().end(); i++) {
+		if (*i != arbitrary_lca && descendant_count[(*i)->get_preorder_number()] != -1) {
+		  pl_has_non_aj_child = true;
+		  break;
+		}
+	      }
+	    }
+	    bool gpl_has_non_aj_child = false;
+	    //place this conditional so we do not unnecessarily iterate
+	    //If pl_has_non_aj_child then the if will evaluate to true later on anyways
+	    if (!pl_has_non_aj_child) {
+	      if (pl != NULL) {
+		Node* gpl = pl->parent();		    		    
+		if (gpl != NULL) {
+		  for (auto i = gpl->get_children().begin(); i != gpl->get_children().end(); i++) {
+		    if (*i != pl && descendant_count[(*i)->get_preorder_number()] != -1) {
+		      gpl_has_non_aj_child = true;
+		      break;
+		    }
+		  }
+		}
+	      }
+	    }
+	    //8.4 special case
+	    if (arbitrary_lca->parent() == NULL ||
+		pl_has_non_aj_child ||
+		gpl_has_non_aj_child) {
+	      //8.4 Cut a1 prot a2
+	      {
+#ifdef DEBUG
+	      cout << "Case 8.4e cut a1" << endl;
+#endif
+		vector<Node*> to_cut = {T2_a1};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a2);	
+	      }
+	      //8.4 Cut a2 prot a1
+	      {
+#ifdef DEBUG
+	      cout << "Case 8.4f a2" << endl;
+#endif
+		vector<Node*> to_cut = {T2_a2};
+		vector<Node*> to_cut_except = {};
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);	
+	      }
+
+	    }
+	  }
+
+	  //step 8.5
+	  else if (T1_sibling_group->get_children().size() > 2 &&
+		   deepest_siblings.size() > 2 &&
+		   all_s1) {
+	    /*
+	      recurse on cut all a1 through ar no prot,
+	      cut all b1 through br no prot,
+	      for each ai, cut all a's except ai prot ai
+	      for each ai, cut all B's except for ai's B prot ai
+	    */
+	    //8.5 all ai
+	    {
+#ifdef DEBUG
+	    cout << "Case 8.5a cut all a1-ar" << endl;
+#endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_85++;
+#endif	    
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      for (int i = 0; i < deepest_siblings.size(); i++) {
+		to_cut.push_back(deepest_siblings[i]);
+	      }
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.5 cut all bi
+	    {
+#ifdef DEBUG
+	      cout << "Case 8.5b cut all B1-Br" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      for (int i = 0; i < deepest_siblings.size(); i++) {
+		to_cut_except.push_back(deepest_siblings[i]);
+	      }
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.5 for each ai cut all a's except ai
+	    {	      
+	      for (int i = 0; i < deepest_siblings.size(); i++) {
+#ifdef DEBUG
+		cout << "Case 8.5c cut all a1-ar except ai" << endl;
+#endif
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		for (int j = 0; j < deepest_siblings.size(); j++) {
+		  if (i != j) {
+		    to_cut.push_back(deepest_siblings[j]);
+		  }
+		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
+	      }
+	    }
+	    //8.5 for each ai cut all b's except ai's
+	    {	      
+	      for (int i = 0; i < deepest_siblings.size(); i++) {
+#ifdef DEBUG
+		cout << "Case 8.5d cut all B1-Br except Bi" << endl;
+#endif
+		vector<Node*> to_cut = {};
+		vector<Node*> to_cut_except = {};
+		for (int j = 0; j < deepest_siblings.size(); j++) {
+		  if (i != j) {
+		    to_cut_except.push_back(deepest_siblings[j]);
+		  }
+		}
+		MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, deepest_siblings[i]);//TODO protect ai
+	      }
+	    }
+	  }
+
+	  //step 8.6
+	  else if (T1_sibling_group->get_children().size() > 2 &&
+		   deepest_siblings.size() == 2 &&
+		   s_map[T2_a1] >= 2 &&
+		   T2_a2->parent() == arbitrary_lca && //equivalent to s_map[T2_a2] == 0
+		   (
+		    arbitrary_lca->parent() == NULL ||
+		    lca_p_contains_sibling
+		    )) {
+	    /*
+	      recurse on cut a1 no prot,
+	      cut all B's leading up to LCA from a1, no prot,
+	      cut B2 (essentially a1's whole branch) no prot
+	    */
+	    //if (T2_a1->parent() != NULL) {
+	    //8.6 cut a1
+	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.6a cut a1" << endl;
+#endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_86++;
+#endif
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.6 cut all B1s
+	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.6b cut all B1's" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a1;
+		
+	      while(stepper->parent() != arbitrary_lca) { 
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //8.6 cut B2
+	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.6c cut B2" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a2};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }	      
+	  }
+
+	  //step 8.7
+	  else if (T1_sibling_group->get_children().size() > 2 &&
+		   s_map[T2_a1] >= 2) {
+	    /*
+	      recurse on cut a1 no prot,
+	      cut a2 prot a1,
+	      cut all B1's leading up to LCA no prot,
+			   
+	    */
+	    //8.7 cut a1
+	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.7a cut a1" << endl;
+#endif
+#ifdef DEBUG_CASE_COUNTER
+	    case_counter.case_87++;
+#endif
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }	      
+	    //8.7 cut a2
+	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.7b cut a2" << endl;
+#endif
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);
+	    }
+	    //8.7 cut all B1s
+	    {
+#ifdef DEBUG	     
+	      cout << "Case 8.7c cut all B1's" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a1;
+		
+	      while(stepper->parent() != arbitrary_lca) { 
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);		
+	    }
+	    //8.7 cut all B2s
+	    {
+#ifdef DEBUG
+	    cout << "Case 8.7d";
+	    if (deepest_siblings.size() == 2) {
+	      cout << "2" << endl;
+	    }
+	    else {
+	      cout << "n" << endl;
+	    }
+#endif
+
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {};
+	      Node* stepper = T2_a2;
+		
+	      while(stepper->parent() != arbitrary_lca) { 
+		to_cut_except.push_back(stepper);
+		stepper = stepper->parent();
+	      }
+	      //TODO: use list to push_front or figure out how to add from top to bottom 
+	      reverse(to_cut_except.begin(), to_cut_except.end());
+	      //8.7 cut all B2's, cut B`2, otherwise r > 2
+	      if(deepest_siblings.size() == 2) {
+		to_cut_except.push_back(T2_a2); // cut B`2 at the end
+	      }
+	      //This exception should be caught by 8.6 case.
+	      /*
+		if (to_cut_except.size() == 0) {
+		cout << "\n\n\nto_cut_except empty in 8.7n. Parent is lca ERROR \n\n\n"; 
+		}*/
+
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, T2_a1);	
+	    }
+	  }
+
+	}
+
+	}
+	else { //4_MULT_BRANCH
+
+	  //To debug: set all to true. Make all cuts all the time
+	  //Otherwise uses same logic as approximation algorithm
+	  bool cut_a1 = true;
+	  bool cut_b1 = true;
+	  bool cut_a2 = true;
+	  bool cut_b2 = true;
+
+	  if (T1_sibling_group->get_children().size() == 2) {
+	    /*
+	      7.1 case
+	      Cut a1, pa1, a2 in F2, add 3 to num_cut
+	    */	
+	    cut_a1   = true;
+	    cut_b1 = true;
+	    cut_a2   = true;
+	    /*
+	      7.2 case
+	      Cut a1, a2, pa1, pa2, add 4 to num_cuts
+	    */
+	    if (previous_group == T1_sibling_group) {
+	      cut_b2 = true;
+	    }
+	  } // size == 2
+      
+	  else if (T1_sibling_group->get_children().size() > 2) {
+	    /*
+	      7.3 case
+	      If a2's parent's only sibling is part of the sibling group, 
+	      and a1's parent is a root or has a sibling that is not part of the sibling group
+	      then cut a2 and a2_p otherwise a1 and a1_p
+	    */
+	    if (previous_group != T1_sibling_group) {
+	      Node* T2_a2_p = T2_a2->parent();
+	      bool x_2 = false;
+	      bool a2_p_one_sibling = (T2_a2_p != NULL) &&
+		(T2_a2_p->parent() != NULL) &&
+		(T2_a2_p->parent()->get_children().size() == 2);	  
+	      if (a2_p_one_sibling) {
+		list<Node *> group = T1_sibling_group->get_children();
+		//get the other one
+		Node *a2_p_sibling = T2_a2_p->parent()->get_children().front() == T2_a2_p ?
+		  T2_a2_p->parent()->get_children().back() :
+		  T2_a2_p->parent()->get_children().front();	
+		//check if it is part of sibling group
+		bool a2_p_sibling_in_group = descendant_count[a2_p_sibling->get_preorder_number()] == -1;
+		if (a2_p_sibling_in_group) {
+		  Node* T2_a1_p = T2_a1->parent();
+		  bool a1_p_is_root = T2_a1_p->parent() == NULL;
+		  bool a1_p_sibling_not_in_group = false;
+		  if (!a1_p_is_root) {
+		    list<Node*> a1_p_siblings = T2_a1_p->parent()->get_children();
+		    for (list<Node*>::iterator i = a1_p_siblings.begin(); i != a1_p_siblings.end(); i++) {
+		      if (descendant_count[(*i)->get_preorder_number()] != -1) {
+			a1_p_sibling_not_in_group = true;
+			break;
+		      }
+		    }
+		  }
+		  if (a2_p_one_sibling && a2_p_sibling_in_group && (a1_p_is_root || a1_p_sibling_not_in_group)) {
+		    x_2 = true;
+		  }
+		}
+	      }
+	      if (x_2){
+		cut_a2 = true;
+		cut_b2 = true;
+		//cut_a1 = true;
+		//cut_b1 = true;
+	      }
+	      else {
+		cut_a1 = true;
+		cut_b1 = true;
+		cut_a2 = true;
+		//cut_b2 = true;
+	      }
+	    }
+	    /*7.4 case
+	      cut a1 and a1_p
+	    */
+	    else if (previous_group == T1_sibling_group) {
+	      cut_a1   = true;
+	      cut_b1 = true;
+	    }
+	  }
+	  /*
+	    Cutting section
+	  */
+	  Node *T2_a1_p = T2_a1->parent();
+
+	  if (cut_a1) {	  
+	    if (T2_a1_p != NULL) {
+#ifdef DEBUG
+	      cout << "Case Cut a1" << endl;
+#endif
+	      vector<Node*> to_cut = {T2_a1};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    //mimics case 8.1, should add rho
+	    else if (T2_a1 == T2->get_component(0) && arbitrary_lca == NULL) {
+	      if (!T1->contains_rho()) {
+		MULT_RHO_CUT_AND_RESOLVE(T2_a1, NULL);
+	      }
+	    }
+	  }
+	  if (cut_b1) {
+	    if (T2_a1_p != NULL) {
+#ifdef DEBUG
+	      cout << "Case Cut b1" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a1};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	  }
+	  Node *T2_a2_p = T2_a2->parent();
+	  if (cut_a2){
+#ifdef DEBUG
+	      cout << "Case Cut a2" << endl;
+#endif
+	    if (T2_a2_p != NULL) {
+	      vector<Node*> to_cut = {T2_a2};
+	      vector<Node*> to_cut_except = {};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	    else if (T2_a2 == T2->get_component(0) && arbitrary_lca == NULL) {
+	      
+	      if (!T1->contains_rho()) {
+		MULT_RHO_CUT_AND_RESOLVE(T2_a2, NULL);
+	      }
+	    }
+
+	  }
+	  if (cut_b2) {
+	    if (T2_a2_p != NULL) {
+#ifdef DEBUG
+	      cout << "Case Cut b2" << endl;
+#endif
+	      vector<Node*> to_cut = {};
+	      vector<Node*> to_cut_except = {T2_a2};
+	      MULT_BB_CUT_AND_RESOLVE(to_cut, to_cut_except, NULL);
+	    }
+	  }
+	}
+	sibling_groups->pop_back();
+	return best_k;
+      }//else (cutting)
+      previous_group = T1_sibling_group;
+    }//!sibling_groups->empty()
+
+  } //while(!sibling_groups->empty() && !singletons->empty()
+
+  //Made it to end, so add to results
+  if (k >= 0) {
+    //if (PREFER_RHO && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
+    if (true && !AFs->empty() && !AFs->front().first.contains_rho() && T1->contains_rho()) {
+      if (!ALL_MAFS)
+	AFs->clear();
+      AFs->push_front(make_pair(Forest(T1),Forest(T2)));
+      *num_ties = 2;
+    }
+    else if (ALL_MAFS || AFs->empty()) {
+      AFs->push_back(make_pair(Forest(T1),Forest(T2)));
+    }
+    //else if (!PREFER_RHO || AFs->front().first.contains_rho() == T1->contains_rho()) {
+    else if (false || AFs->front().first.contains_rho() == T1->contains_rho()) {
+      if (rand() < RAND_MAX/ *num_ties) {
+	AFs->clear();
+	AFs->push_back(make_pair(Forest(T1),Forest(T2)));
+      }
+      (*num_ties)++;
+    }
+  }
+  return k;
+}
+
+
 /* rSPR_3_approx
  * Calculate an approximate maximum agreement forest and SPR distance
  * RETURN At most 3 times the rSPR distance
@@ -251,9 +2246,10 @@ list<Node *> *sibling_pairs) {
 // Case 1 - Remove singletons
 while(!singletons->empty()) {
 
+
 	Node *T2_a = singletons->back();
 	singletons->pop_back();
-	// find twin in T1
+  // find twin in T1
 	Node *T1_a = T2_a->get_twin();
 	// if this is in the first component of T_2 then
 	// it is not really a singleton.
@@ -2455,7 +4451,7 @@ cout << "  ";
 									um.add_event(new ProtectEdge(T2_b2));
 									T2_b2->protect_edge();
 								}
-							}
+						}
 						}
 					}
 					if (cut_a_only) {
@@ -2863,6 +4859,11 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		max_k = MAX_SPR;
 	else if (max_k == -1)
 		max_k = INT_MAX;
+
+	if (T2->get_preorder_number() == -1) {
+	  T2->preorder_number();
+	}
+
 	ClusterForest F1 = ClusterForest(T1);
 	ClusterForest F2 = ClusterForest(T2);
 	Forest F3 = Forest(F1);
@@ -2877,8 +4878,13 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		cout << "T2: ";
 		F2.print_components();
 	}
-
-	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	int full_approx_spr;
+	if (MULTIFURCATING) {
+	  full_approx_spr = rSPR_worse_3_mult_approx(&F3, &F4);
+	}
+	else {
+	  full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	}
 	if (full_approx_spr < CLUSTER_TUNE) {
 		do_cluster = false;
 	}
@@ -2916,7 +4922,13 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 		F2.get_component(0)->edge_preorder_interval();
 	}
 	if (LEAF_REDUCTION2) {
-		reduction_leaf(&F1, &F2);
+	  
+	  if (MULTIFURCATING) {
+	    reduction_leaf_mult(&F1, &F2);
+	  }
+	  else {	    
+	    reduction_leaf(&F1, &F2);
+	    }
 //		F1.get_component(0)->preorder_number();
 //		F2.get_component(0)->preorder_number();
 //		F1.get_component(0)->edge_preorder_interval();
@@ -3014,8 +5026,13 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 			cout << "C" << i << "_2: ";
 			f2.print_components();
 		}
-
-		int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
+		int approx_spr;
+		if (MULTIFURCATING) {
+		  approx_spr = rSPR_worse_3_mult_approx(&f1a, &f2a);
+		}
+		else {
+		  approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
+		}
 		if (verbose) {
 			cout << "cluster approx drSPR=" << f2a.num_components()-1 << endl;
 			//cout << "cluster approx drSPR=" << approx_spr << endl;
@@ -3062,7 +5079,12 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 						f1t.add_rho();
 						f2t.add_rho();
 					}
-					exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
+					if (MULTIFURCATING) {
+					  exact_spr = rSPR_branch_and_bound_mult(&f1t, &f2t, k);
+					}
+					else {
+					  exact_spr = rSPR_branch_and_bound(&f1t, &f2t, k);
+					}
 				}
 				if (exact_spr >= 0 || k + total_k > max_k ||
 						k > CLUSTER_MAX_SPR) {
@@ -3103,7 +5125,14 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 						else {
 							Forest f1a = Forest(f1);
 							Forest f2a = Forest(f2);
-							int approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
+							
+							int approx_spr;
+							if (MULTIFURCATING) {
+							  approx_spr = rSPR_worse_3_mult_approx(&f1a, &f2a);
+							}
+							else{
+							  approx_spr = rSPR_worse_3_approx(&f1a, &f2a);
+							}
 								//total_k += min_spr;
 								total_k += approx_spr / 3;
 						}
@@ -3276,6 +5305,10 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	}
 	cout << endl << endl;
 */
+	#ifdef DEBUG_CASE_COUNTER
+	print_mult_case_count();
+        #endif
+
 	return total_k;
 }
 
@@ -3296,7 +5329,13 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		F2.print_components();
 	}
 
-	int full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	int full_approx_spr;
+	if (MULTIFURCATING) {
+	  full_approx_spr = rSPR_worse_3_mult_approx(&F3, &F4);
+	}
+	else {
+	  full_approx_spr = rSPR_worse_3_approx(&F3, &F4);
+	}
 	if (full_approx_spr <= CLUSTER_TUNE) {
 		do_cluster = false;
 	}
@@ -3350,7 +5389,14 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 			}
 			Forest f1 = Forest(cluster.F1);
 			Forest f2 = Forest(cluster.F2);
-			int min_spr = rSPR_worse_3_approx(&f1, &f2);
+			
+			int min_spr;
+			if (MULTIFURCATING) {
+			  min_spr = rSPR_worse_3_mult_approx(&f1, &f2);
+			}
+			else {
+			  min_spr = rSPR_worse_3_approx(&f1, &f2);
+			}
 			min_spr /= 3;
 
 			if (verbose) {
@@ -3375,9 +5421,14 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 					cluster.F1->add_rho();
 					cluster.F2->add_rho();
 				}
-
-				cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
+				if (MULTIFURCATING) {
+				  cluster_spr = rSPR_branch_and_bound_mult_range(cluster.F1,
 						cluster.F2, min_spr, MAX_SPR - total_k);
+				}
+				else {
+				  cluster_spr = rSPR_branch_and_bound_range(cluster.F1,
+						cluster.F2, min_spr, MAX_SPR - total_k);
+				}
 				if (cluster_spr >= 0) {
 					if (verbose) {
 	  				cout << endl;
@@ -3432,13 +5483,21 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 			delete cluster_points;
 		}
 		full_approx_spr /= 3;
-		total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
+		if (MULTIFURCATING) {
+		  total_k = rSPR_branch_and_bound_mult_range(&F1, &F2, full_approx_spr, MAX_SPR);
+		}
+		else {
+		  total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
+		}
 		int i = 1;
-		if (total_k < 0)
-			if (CLAMP)
-				total_k = MAX_SPR;
-			else
-				total_k = full_approx_spr;
+		if (total_k < 0) //{
+		  if (CLAMP) //{
+		  total_k = MAX_SPR;
+		//	}
+		else //{
+		  total_k = full_approx_spr;
+		//			}
+		//}
 
 	}
 
@@ -3481,7 +5540,60 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, Forest **out_F1,
 }
 
 // T1 and T2 are assumed to already be synced
+void reduction_leaf_mult(Forest *T1, Forest* T2) {
+  
+  list<Node *> *sibling_groups = T1->find_sibling_groups();
+  while (!sibling_groups->empty()) {
+    //Get a sibling group with identical siblings
+    list<Node*>::reverse_iterator i = sibling_groups->rbegin();
+    Node *T1_sibling_group = sibling_groups->back();
+    list<list<Node*>> identical_sibling_groups;
+    T1_sibling_group->find_identical_sibling_groups(&identical_sibling_groups);
+    for (; i != sibling_groups->rend(); i++ ){
+      (*i)->find_identical_sibling_groups(&identical_sibling_groups);
+      if (identical_sibling_groups.size() > 0) {
+	T1_sibling_group = (*i);
+	break;
+      }
+    }
 
+    // Checked all sibling groups, found none with identical groups in T2
+    // Therefore there are no more contractions to be made
+
+    if (identical_sibling_groups.size() == 0) {
+      delete sibling_groups;
+      return;
+      }
+    // Contract them
+    else {
+      list<list<Node *>>::iterator i;
+      for (i = identical_sibling_groups.begin(); i != identical_sibling_groups.end(); i++) {
+	list<Node *> T2_group = (*i);
+	Node *T2_p = T2_group.front()->parent();
+	Node *T1_group_new = T1_sibling_group->contract_twin_group(&T2_group);
+	Node *T2_group_new = T2_p->contract_sibling_group(&T2_group);
+	  
+	T1_group_new->set_twin(T2_group_new);
+	T2_group_new->set_twin(T1_group_new);			
+
+	if (T1_sibling_group->parent() != NULL) {
+	  //Check if the contraction made a new sibling group
+	  T1_sibling_group->parent()->recalculate_non_leaf_children();
+	  if (T1_sibling_group->parent()->is_sibling_group()) {
+	    sibling_groups->push_front(T1_sibling_group->parent());
+	  }
+	}
+	//Check if this contraction removed a sibling group
+	if (!T1_sibling_group->is_sibling_group()) {
+	  sibling_groups->remove(T1_sibling_group);
+	}	  
+      }
+    }
+  }
+  delete sibling_groups;
+}
+  
+// T1 and T2 are assumed to already be synced
 void reduction_leaf(Forest *T1, Forest *T2) {
 	reduction_leaf(T1, T2, NULL);
 }
@@ -3602,7 +5714,26 @@ int rSPR_total_distance(Node *T1, vector<Node *> &gene_trees,
 //	cout << "T1: " << T1->str_subtree() << endl;
 	for(int i = 0; i < end; i++) {
 			//		cout << i << endl;
-		int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+	  cout << "Trying tree #" << i << " : " << gene_trees[i]->str_subtree() << endl;
+	  int k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+
+	  MULTIFURCATING = true;
+		//MULT_4_BRANCH = true;
+		int mult_k = rSPR_branch_and_bound_simple_clustering(T1, gene_trees[i], VERBOSE);
+		MULTIFURCATING = false;
+		//MULT_4_BRANCH = false;
+		
+		if (k != mult_k) {
+		  cout << "BINARY DOES NOT MATCH MULT" << endl;
+		  cout << "T1: " << T1->str_subtree() << endl;;
+		  cout << "BINARY k = " << k << " mult_k = " << mult_k << endl;
+		  break;
+		  }
+		else {
+		  cout << "\tMATCHES: k = " << k << endl;
+		}
+		
+		//cout << "\t: k = " << k << endl;
 //		k *= mylog2(gene_trees[i]->size());
 
 		if (original_scores != NULL)
@@ -4823,3 +6954,94 @@ void strip_trailing_whitespace(string &str) {
 	str.erase(end_pos, str.size()-end_pos);
 }
 
+//randomizes T2 with count number of sprs. If T1 equals T2 at the beginning,
+//then the spr distance between T1 and T2 is equal to (or possibly less than) count
+//Assumes they are already synced, assumes there are valid sprs to be made
+void randomize_tree_with_spr(Forest* T1, Forest* T2, int count) {
+  for (int spr = 0; spr < count; spr++) {
+    vector<Node*> all_nodes = T2->get_component(0)->find_nodes_in_subtree();
+    Node* source = all_nodes[rand() % all_nodes.size()];
+    Node* target = all_nodes[rand() % all_nodes.size()];
+    bool target_in_subtree = false;
+    Node* first_leaf = target->find_leaves()[0];
+    vector<Node*> source_leaves = source->find_leaves();
+    for (int i = 0; i < source_leaves.size(); i++) {
+      if (source_leaves[i] == first_leaf) {
+	target_in_subtree = true;
+	break;
+      }
+    }
+
+    //Get random node
+    //if target is in source's subtree repick
+    //spr
+    while (source == target ||
+	   source->is_sibling_of(target) ||
+	   source->parent() == target || 
+	   target_in_subtree) {	   
+      source = all_nodes[rand() % all_nodes.size()];
+      target = all_nodes[rand() % all_nodes.size()];
+      //cout << "Trying: " << source->str_subtree() << " and "<<  target->str_subtree() << endl;
+      target_in_subtree = false;
+      Node* first_leaf = target->find_leaves()[0];
+      
+      int child_count = source->get_children().size();
+      if (child_count > 2) {
+	int rand_count = rand() % (child_count + 1);
+	if (rand_count == child_count || rand_count == 0){
+	  //cout << "moving whole tree" << endl;
+	}
+	else if (rand_count == 1) {
+	  source = source->get_children().front();
+	  //cout << "moving first child" << endl;
+	}
+	else {
+	  list<Node*> to_expand = list<Node*>();
+	  list<Node*>::iterator c = source->get_children().begin();
+	  for (int i = 0; i < rand_count; i++) {
+	    to_expand.push_back(*c);
+	    c++;
+	  }	
+	  source = source->expand_children_out(to_expand);
+	  //cout << "Moving part " << rand_count<< endl;
+	}
+      }
+      
+      vector<Node*> source_leaves = source->find_leaves();
+      for (int i = 0; i < source_leaves.size(); i++) {
+	if (source_leaves[i] == first_leaf) {
+	  //cout << "target in subtree" << endl;
+	  target_in_subtree = true;
+	  break;
+	}
+      }
+    } 
+
+    //cout << "Moving : " << source->str_subtree() << " to " << target->str_subtree() << endl;
+    
+    Node* parent = source->parent();      
+    if (parent != NULL) {
+      source->cut_parent();
+      if (parent->get_children().size() == 1) {
+	parent->contract(true);
+      }
+    }
+    else {
+      continue;
+    }
+    //regraft
+    if (target->parent() != NULL) {
+      target->parent()->add_child(source);
+    }
+    else {
+      Node* new_parent = target;//new Node();
+      Node* replace = new Node(*target);
+      new_parent->get_children().clear();
+      new_parent->add_child(replace);
+      new_parent->add_child(source);
+    }
+
+    //T1->print_components();
+    //T2->print_components();
+  }
+}

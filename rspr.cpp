@@ -81,6 +81,10 @@ MULTIFURCATING COMPARISON OPTIONS
 -support x     Collapse bipartitions with less than x support
 -min_length x      Collapse bipartitions with branch lengths less than or
                 equal to x
+-multifurcating Calculate the exact rSPR distance with a branch-and-bound FPT 
+                algorithm. Both trees may be multifurcating
+-multi_4_branch Calculate the exact rSPR distance with a branch-and-bound FPT
+                algorithm. Both trees may be multifurcating. Use 4-way branching
 
 *******************************************************************************
 UNROOTED COMPARISON OPTIONS
@@ -188,6 +192,7 @@ bool DEFAULT_ALGORITHM=true;
 bool DEFAULT_OPTIMIZATIONS=true;
 
 
+bool MULTI_APPROX = false;
 bool FPT = false;
 bool RF = false;
 bool QUIET = false;
@@ -212,6 +217,9 @@ bool REDUCE_ONLY = false;
 bool PRINT_ROOTED_TREES = false;
 bool SHOW_MOVES = false;
 bool SEQUENCE = false;
+bool DEBUG_REVERSE = false;
+bool RANDOM_SPR = false;
+int RANDOM_SPR_COUNT = 0;
 int MULTI_TEST = 0;
 
 string USAGE =
@@ -284,6 +292,10 @@ string USAGE =
 "-support x     Collapse bipartitions with less than x support\n"
 "-min_length x      Collapse bipartitions with branch lengths less than or\n"
 "                equal to x\n"
+"-multifurcating Calculate the exact rSPR distance with a branch-and-bound FPT\n"
+"                algorithm. Both trees may be multifurcating\n"
+"-multi_4_branch Calculate the exact rSPR distance with a branch-and-bound FPT\n"
+"                algorithm. Both trees may be multifurcating. Use 4-way branching\n"
 "\n"
 "*******************************************************************************\n"
 "UNROOTED COMPARISON OPTIONS\n"
@@ -394,6 +406,29 @@ int main(int argc, char *argv[]) {
 			APPROX_REVERSE_CUT_ONE_B = true;
 //			APPROX_EDGE_PROTECTION = true;
 		}
+		else if (strcmp(arg, "-multi_approx") == 0) {
+		        DEFAULT_ALGORITHM = false;
+			BB = true;
+			MULTI_APPROX = true;
+			DEFAULT_OPTIMIZATIONS = false;
+		}
+		else if (strcmp(arg, "-multifurcating") == 0) {
+		  //DEFAULT_ALGORITHM = false;
+		  //	BB = true;
+			MULTIFURCATING = true;
+			//DEFAULT_OPTIMIZATIONS = false;
+		}
+		else if (strcmp(arg, "-multi_4_branch") == 0) {
+		  //DEFAULT_ALGORITHM = false;
+		  //	BB = true;
+			MULTIFURCATING = true;
+			//DEFAULT_OPTIMIZATIONS = false;
+			MULT_4_BRANCH = true;
+		}
+		else if (strcmp(arg, "-debug_reverse_trees") == 0) {
+		        DEBUG_REVERSE = true;
+		}
+
 		else if (strcmp(arg, "-a_cob") == 0) {
 			APPROX_CUT_ONE_B = true;
 		}
@@ -661,13 +696,24 @@ int main(int argc, char *argv[]) {
 			cout << "SPLIT_APPROX_THRESHOLD=" << SPLIT_APPROX_THRESHOLD
 					<< endl;
 		}
+		
+		//nocheckin
+		else if (strcmp(arg, "-random_spr") == 0) {
+			RANDOM_SPR = true;
+			if (max_args > argc) {
+				char *arg2 = argv[argc+1];
+				if (arg2[0] != '-')
+					RANDOM_SPR_COUNT = atoi(arg2);
+			}
+		}
+
 		else if (strcmp(arg, "-support") == 0) {
 			if (max_args > argc) {
 				char *arg2 = argv[argc+1];
 				if (arg2[0] != '-')
 					REQUIRED_SUPPORT = atof(arg2);
-				cout << "REQUIRED_SUPPORT=" << REQUIRED_SUPPORT
-						<< endl;
+				//cout << "REQUIRED_SUPPORT=" << REQUIRED_SUPPORT
+				//<< endl;
 			}
 		}
 		else if (strcmp(arg, "-min_length") == 0) {
@@ -744,6 +790,9 @@ int main(int argc, char *argv[]) {
 			DEEPEST_PROTECTED_ORDER = true;
 			DEEPEST_ORDER = true;
 		if (CLUSTER_TUNE == -1) {
+		    if (MULTIFURCATING)
+		        CLUSTER_TUNE = 30;
+		    else
 			CLUSTER_TUNE = 30;
 		}
 	}
@@ -771,9 +820,30 @@ int main(int argc, char *argv[]) {
 		string T1_line = "";
 		string T2_line = "";
 		while (getline(cin, T1_line) && getline(cin, T2_line)) {
-			Node *T1 = build_tree(T1_line);
-			Node *T2 = build_tree(T2_line);
+		  Node *T1;
+		  Node *T2;
+		        if (DEBUG_REVERSE) {
+			        T1 = build_tree(T2_line);
+				T2 = build_tree(T1_line);
+		        }
+		        else {
+			        T1 = build_tree(T1_line);
+				T2 = build_tree(T2_line);
+		        }
 
+			//nocheckin
+			if (RANDOM_SPR) {
+			  Forest F1 = Forest(T1);
+			  Forest F2 = Forest(T2);
+			  sync_twins(&F1, &F2);
+			  randomize_tree_with_spr(&F1, &F2, RANDOM_SPR_COUNT);
+			  F1.get_component(0)->print_subtree_hlpr();
+			  cout << ";" << endl;
+			  F2.get_component(0)->print_subtree_hlpr();
+			  cout << ";";
+			  continue;
+			}
+			
 			if (MULTI_TEST > 0) {
 				vector<Node *> interior = T2->find_interior();
 				vector<Node *> remove = random_select(interior, MULTI_TEST);
@@ -784,10 +854,28 @@ int main(int argc, char *argv[]) {
 			}
 			// TODO: should we sync here to prune out additional leaves?
 			if (REDUCE_ONLY) {
+
+				T1->preorder_number();
+				T1->edge_preorder_interval();
+				T2->preorder_number();
+				T2->edge_preorder_interval();
+
+			  
 				Forest F1 = Forest(T1);
 				Forest F2 = Forest(T2);
+				
+				F1.print_components();
+				F2.print_components();
+
 				sync_twins(&F1, &F2);
-				reduction_leaf(&F1, &F2);
+				
+				if (MULTIFURCATING) {
+				  reduction_leaf_mult(&F1, &F2);
+				}
+				else {
+				  reduction_leaf(&F1, &F2);
+				}
+				
 				F1.print_components();
 				F2.print_components();
 				continue;
@@ -838,12 +926,19 @@ int main(int argc, char *argv[]) {
 //			ClusterForest F1 = ClusterForest(T1);
 //			ClusterForest F2 = ClusterForest(T2);
 //			ClusterForest F3 = ClusterForest(T1);
-//			ClusterForest F4 = ClusterForest(T2);
+//			ClusterForest F4 = ClusterForest(T2);			
+			
 			ClusterForest F1 = ClusterForest(T1);
 			ClusterForest F2 = ClusterForest(T2);
 			Forest F3 = Forest(T1);
 			Forest F4 = Forest(T2);
 
+			if (MULTIFURCATING) {
+			  T1->preorder_number();
+			  T2->preorder_number();
+			}
+			
+			
 			if (RF) {
 				int rf_d = rf_distance(T1, T2);
 				cout << "RF Distance=" << rf_d << endl;
@@ -856,6 +951,8 @@ int main(int argc, char *argv[]) {
 				T1->edge_preorder_interval();
 				T2->preorder_number();
 				T2->edge_preorder_interval();
+				
+				
 				int exact_k = rSPR_branch_and_bound_simple_clustering(T1,T2,true, &label_map, &reverse_label_map);
 				//int exact_k = rSPR_branch_and_bound_simple_clustering(&F3,&F4,true, &label_map, &reverse_label_map);
 
@@ -865,8 +962,21 @@ int main(int argc, char *argv[]) {
 			}
 	
 			// APPROX ALGORITHM
-			int approx_spr = rSPR_worse_3_approx(&F1, &F2);
-			int min_spr = approx_spr / 3;
+			int approx_spr;
+			int min_spr;
+			if (MULTI_APPROX || MULTIFURCATING)
+			{
+			  F1.components[0]->preorder_number(0);
+			  F2.components[0]->preorder_number(0);
+
+			    approx_spr = rSPR_worse_3_mult_approx(&F1, &F2);
+				min_spr = approx_spr / 3;				
+			}
+			else
+			{
+			    approx_spr = rSPR_worse_3_approx(&F1, &F2);
+				min_spr = approx_spr / 3;
+			}
 			if (!(QUIET && (BB || FPT))) {
 				F1.numbers_to_labels(&reverse_label_map);
 				F2.numbers_to_labels(&reverse_label_map);
@@ -883,6 +993,11 @@ int main(int argc, char *argv[]) {
 				*/
 				//cout << "approx drSPR=" << approx_spr << endl;
 				cout << "\n";
+				if (MULTI_APPROX) {
+				  T1->delete_tree();
+				  T2->delete_tree();
+				  continue;
+				}
 			}
 	
 			int k = min_spr;
@@ -922,7 +1037,16 @@ int main(int argc, char *argv[]) {
 				// BRANCH AND BOUND FPT ALGORITHM
 				Forest F1 = Forest(F3);
 				Forest F2 = Forest(F4);
-				int exact_spr = rSPR_branch_and_bound(&F1, &F2);
+				int exact_spr;
+				if (MULTIFURCATING) {
+				   F1.components[0]->preorder_number(0);
+				   F2.components[0]->preorder_number(0);
+			 
+				  exact_spr = rSPR_branch_and_bound_mult_range(&F1, &F2, min_spr);
+				}
+				else {
+				        exact_spr = rSPR_branch_and_bound(&F1, &F2);
+				}
 				if (exact_spr >= 0) {
 					cout << "F1: ";
 					F1.print_components();
@@ -1172,7 +1296,7 @@ int main(int argc, char *argv[]) {
 				if (UNROOTED) {
 					distance = rSPR_total_approx_distance_unrooted(T1,trees);
 				}
-				else
+				else 
 					distance = rSPR_total_approx_distance(T1,trees);
 				cout << "total approx distance= " << distance << endl;
 			}

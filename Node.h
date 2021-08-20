@@ -31,6 +31,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #define INCLUDE_NODE
 
 #define COPY_CONTRACTED
+#define DEBUG_SUPPORT 0
 
 #include <cstdio>
 #include <string>
@@ -65,6 +66,7 @@ vector<Node *> find_leaves(Node *node);
 */
 int stomini(string s);
 
+
 class Forest;
 
 class Node {
@@ -89,7 +91,7 @@ class Node {
 	int sibling_pair_status;
 	int num_clustered_children;
 	Forest *forest;
-	// TODO: contracted_list ?
+        list <Node *> contracted_children;
 	Node *contracted_lc;
 	Node *contracted_rc;
 	bool contracted;
@@ -99,6 +101,8 @@ class Node {
 	int lost_children;
 	double support;
 	double support_normalization;
+        // TODO (Ben): put initialization in correct constructor
+        int non_leaf_children = 0;
 
 	public:
 	Node() {
@@ -181,6 +185,79 @@ class Node {
 		else
 			contracted_rc = new Node(*(n.contracted_rc), this);
 		this->contracted = n.contracted;
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  Node* contracted_node = new Node(**i, this);
+		  add_contracted_child(contracted_node);
+		  contracted_node->set_parent(this);
+		} 
+#else
+		this->contracted_lc = n.contracted_lc;
+		this->contracted_rc = n.contracted_rc;
+		this->contracted = n.contracted;
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  add_contracted_child(**i);
+		  contracted_node->set_parent(this);
+		} 
+
+#endif
+		this->edge_protected = n.edge_protected;
+		this->allow_sibling = n.allow_sibling;
+		this->lost_children = n.lost_children;
+		this->max_merge_depth = n.max_merge_depth;
+		this->support = n.support;
+		this->support_normalization = n.support_normalization;
+		this->non_leaf_children = n.non_leaf_children;
+	}
+
+        /* Temporary until rSPR_branch_and_bound_mult_hlpr uses the UndoMachine */
+        // copy constructor
+        Node(const Node &n, map<Node*, Node*> *node_map) {
+		p = NULL;
+		name = n.name.c_str();
+//		twin = n.twin;
+		depth = n.depth;
+//		depth = 0;
+		pre_num = n.pre_num;
+		edge_pre_start = n.edge_pre_start;
+		edge_pre_end = n.edge_pre_end;
+		component_number = n.component_number;
+		this->active_descendants = list <Node *>();
+		this->removable_descendants = list< list<Node *>::iterator>();
+		this->root_lcas = list <Node *>();
+		//sibling_pair_loc = n.sibling_pair_loc;
+		//sibling_pair_status = n.sibling_pair_status;
+		this->sibling_pair_loc = list<Node *>::iterator(); 
+		this->sibling_pair_status = 0;
+		this->num_clustered_children = 0;
+		this->forest = NULL;
+		list<Node *>::const_iterator c;
+		this->children = list<Node *>();
+		for(c = n.children.begin(); c != n.children.end(); c++) {
+		        Node* new_node = new Node(**c, node_map);
+			add_child(new_node);
+			node_map->emplace(pair<Node*,Node*>(*c, new_node));
+		}
+#ifdef COPY_CONTRACTED
+		if (n.contracted_lc == NULL)
+			contracted_lc = NULL;
+		else {
+		  contracted_lc = new Node(*(n.contracted_lc), this);// node_map);
+		  // contracted_lc->set_parent(this);
+		  }
+		if (n.contracted_rc == NULL)
+			contracted_rc = NULL;
+		else {
+		  contracted_rc = new Node(*(n.contracted_rc), this);//node_map);
+			//contracted_rc->set_parent(this);
+		}
+		this->contracted = n.contracted;
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  Node* contracted_node = new Node(**i, node_map);
+		  contracted_children.push_back(contracted_node);
+		  contracted_node->set_parent(this);
+		  //TODO: why does this change distance?
+		  //node_map->emplace(pair<Node*,Node*>(*i, contracted_node));
+		} 
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
@@ -192,8 +269,10 @@ class Node {
 		this->max_merge_depth = n.max_merge_depth;
 		this->support = n.support;
 		this->support_normalization = n.support_normalization;
+		this->non_leaf_children = n.non_leaf_children;
 	}
 
+  
 	Node(const Node &n, Node *parent) {
 		p = parent;
 		name = n.name.c_str();
@@ -230,10 +309,21 @@ class Node {
 		else
 			contracted_rc = new Node(*(n.contracted_rc), this);
 		this->contracted = n.contracted;
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  Node* contracted_node = new Node(**i, this);
+		  add_contracted_child(contracted_node);
+		  contracted_node->set_parent(this);
+		} 
+
 #else
 		this->contracted_lc = n.contracted_lc;
 		this->contracted_rc = n.contracted_rc;
 		this->contracted = n.contracted;
+		for (auto i = n.contracted_children.begin(); i != n.contracted_children.end(); i++) {
+		  add_contracted_child(**i);
+		  contracted_node->set_parent(this);
+		} 
+
 #endif
 		this->edge_protected = n.edge_protected;
 		this->allow_sibling = n.allow_sibling;
@@ -294,20 +384,25 @@ class Node {
 			c++;
 			n->delete_tree();
 		}
-		children.clear();
 
+		cut_parent();
+		/*
+		children.clear();
+		*/
 
 #ifdef COPY_CONTRACTED
 		if (contracted_lc != NULL) {
 			contracted_lc->delete_tree();
 			contracted_lc = NULL;
 		}
-		contracted_lc = NULL;
 		if (contracted_rc != NULL) {
 			contracted_rc->delete_tree();
 			contracted_rc = NULL;
 		}
-		contracted_rc = NULL;
+		for (auto i = contracted_children.begin(); i != contracted_children.end(); i++) {
+		  (*i)->delete_tree();
+		}
+		contracted_children.clear();
 #endif
 		delete this;
 	}
@@ -402,12 +497,18 @@ class Node {
 	}
 */
 	// potentially dangerous
-/*	Node *set_parent(Node *n) {
+	Node *set_parent(Node *n) {
 		p = n;
 		return p;
 	}
-*/
-
+  
+        void add_children(list<Node *> *nodes) {
+	    list<Node *>::iterator i;
+	    for (i = nodes->begin(); i != nodes->end(); i++) {
+	      //children.push_back((*i));
+	      add_child(*i);
+	    }
+	}
 	Node *set_twin(Node *n) {
 		twin = n;
 		return twin;
@@ -440,6 +541,17 @@ class Node {
 		edge_pre_end= p;
 		return edge_pre_end;
 	}
+        void set_non_leaf_children(int p) {
+	        non_leaf_children = p;
+	}
+
+        void decrement_non_leaf_children() {
+	        non_leaf_children--;
+	}
+        void increment_non_leaf_children() {
+	        non_leaf_children++;
+	}
+
 
 	void copy_edge_pre_interval(Node *n) {
 		if (n->edge_pre_start > -1) {
@@ -449,9 +561,9 @@ class Node {
 			edge_pre_end = n->edge_pre_end;
 		}
 	}
-
-	void set_component_number(int c) {
+	int set_component_number(int c) {
 		component_number = c;
+		return c;
 	}
 	list<Node *>& get_children() {
 		return children;
@@ -531,6 +643,13 @@ class Node {
 		}
 	}
 
+        bool is_sibling_of(Node* other) {
+	  if (parent() != NULL && other->parent() != NULL) {	    
+	    return parent() == other->parent();
+	  }
+	  return false;
+	}
+
 
 	int num_lost_children() {
 		return lost_children;
@@ -581,7 +700,7 @@ class Node {
 	double get_support() {
 		return support;
 	}
-	void  set_support(double s) {
+	void set_support(double s) {
 		support = s;
 	}
 	void a_inc_support() {
@@ -793,6 +912,16 @@ class Node {
 					if (child->contracted_rc != NULL)
 						contracted_rc = child->contracted_rc;
 					pre_num = child->get_preorder_number();
+
+					c = child->contracted_children.begin();
+					while(c!= child->contracted_children.end()) {
+						Node *new_child = *c;
+						c++;
+						new_child->set_parent(this);
+						add_contracted_child(new_child);
+						contracted = true;
+					}
+					child->contracted_children.clear();
 					if (remove) {
 						child->contracted_lc = NULL;
 						child->contracted_rc = NULL;
@@ -902,6 +1031,102 @@ class Node {
 		contracted_rc = NULL;
 	}
 
+        int recalculate_non_leaf_children() {
+	        int total = 0;
+		list<Node *>::iterator i;
+		for (i = children.begin(); i != children.end(); i++) {
+		  if (!(*i)->is_leaf()) {
+			total++;
+		  }
+		}
+		non_leaf_children = total;
+		return total;
+	}
+
+        void add_contracted_child(Node *node) {
+                contracted_children.push_back(node);
+		node->contracted = true;
+		node->set_parent(this);
+	}
+
+        list<Node *> *get_combined_children(list<Node *> *nodes) {
+	        list<Node *> *combined = new list<Node *>();
+		list<Node *>::iterator i;
+		for (i = nodes->begin(); i != nodes->end(); i++) {
+		  list<Node *> children = (*i)->get_children();
+		  combined->insert(combined->end(), children.begin(), children.end());
+		}
+		return combined;
+	}
+
+  
+        Node *contract_sibling_group(list<Node *> *nodes) {
+	  //check to make sure all nodes are siblings
+	  list<Node *>::iterator i;
+	  for (i = nodes->begin(); i != nodes->end(); i++) {
+	    if ((*i)->parent() != this) {
+	      return NULL;
+	    }
+	  }
+	  //contract all children into this
+	  if (nodes->size() == children.size()) {
+	    //TODO: Both have references to children, double free?
+	    list<Node*> *new_children = get_combined_children(nodes);
+	    children.clear();
+	    for (i = new_children->begin(); i != new_children->end(); i++) {
+	      children.push_back(*i);
+	    }
+	    delete new_children;
+	    int min_pre_num = 0x7FFFFFFF; //max value constant?
+	    for (i = nodes->begin(); i != nodes->end(); i++) {
+	      //children.remove(*i); already removed in setting children
+	      add_contracted_child(*i);
+	      if ((*i)->get_preorder_number() < min_pre_num) {
+		  min_pre_num = (*i)->get_preorder_number();
+	      }
+	    }
+	    recalculate_non_leaf_children();
+	    return this;
+	  }
+	  //Otherwise we create a new node and contract them into that
+	  else {
+	    Node *new_child = new Node();
+	    add_child(new_child);
+	    int min_pre_num = 0x7FFFFFFF; //max value constant?
+	    for (i = nodes->begin(); i != nodes->end(); i++) {
+	      new_child->add_contracted_child((*i));
+	      children.remove((*i));
+	      if ((*i)->get_preorder_number() < min_pre_num) {
+		  min_pre_num = (*i)->get_preorder_number();
+		}
+	    }
+	    new_child->set_preorder_number(min_pre_num);
+
+	    
+	    list<Node*> *new_children = get_combined_children(nodes);
+	     new_child->add_children(new_children);
+	    for (i = new_children->begin(); i != new_children->end(); i++) {
+	      (*i)->set_parent(new_child);
+
+	    }
+	    delete new_children;
+	    new_child->set_parent(this);
+	    recalculate_non_leaf_children();
+	    new_child->recalculate_non_leaf_children();
+	    return new_child;
+	  }
+	}
+
+    //Takes a list of nodes in the other tree to contract in this tree
+    Node *contract_twin_group(list<Node *> *TO_nodes) {
+	  list<Node *> TT_nodes;
+	    list<Node *>::iterator i;
+		for( i = TO_nodes->begin(); i != TO_nodes->end(); i++) {
+		    TT_nodes.push_back((*i)->get_twin());			
+		}
+		return contract_sibling_group(&TT_nodes);		
+    }
+  
 	void fix_contracted_order() {
 		if (twin != NULL && twin->contracted_lc->twin != contracted_lc) {
 			Node *swap = contracted_lc;
@@ -993,11 +1218,11 @@ class Node {
 	string get_name() {
 		return name;
 	}
-
+  
 	void str_hlpr(string *s) {
 		if (!name.empty())
 			*s += name.c_str();
-		if (contracted_lc != NULL || contracted_rc != NULL) {
+		if (contracted_lc != NULL || contracted_rc != NULL || !contracted_children.empty()) {
 			#ifdef DEBUG_CONTRACTED
 				*s += "<";
 			#else
@@ -1005,10 +1230,18 @@ class Node {
 			#endif
 			if (contracted_lc != NULL) {
 				contracted_lc->str_c_subtree_hlpr(s);
+				*s += ",";
 			}
-			*s += ",";
+			for (auto c = contracted_children.begin(); c != contracted_children.end(); c++) {
+			  (*c)->str_c_subtree_hlpr(s);
+			  *s += ",";
+			}
+
 			if (contracted_rc != NULL) {
 				contracted_rc->str_c_subtree_hlpr(s);
+			}
+			else {
+			  s->pop_back();
 			}
 			#ifdef DEBUG_CONTRACTED
 				*s += ">";
@@ -1184,7 +1417,8 @@ class Node {
 		cout << str_subtree();
 		cout << endl;
 	}
-	void print_subtree_hlpr() {
+
+  	void print_subtree_hlpr() {
 		cout << str_subtree();
 	}
 	void print_subtree_twin_hlpr() {
@@ -1200,6 +1434,10 @@ class Node {
 		return (lchild() != NULL && lchild()->is_leaf()
 				&& rchild() != NULL && rchild()->is_leaf());
 	}
+
+    bool is_sibling_group() {
+	  return non_leaf_children == 0 && !is_leaf();
+    }
 
 	bool is_singleton() {
 		return (parent() == NULL && is_leaf());
@@ -1242,7 +1480,7 @@ class Node {
 		find_sibling_pairs_hlpr(sibling_pairs);
 		return sibling_pairs;
 	}
-	
+  
 	void find_leaves_hlpr(vector<Node *> &leaves) {
 		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
@@ -1253,7 +1491,62 @@ class Node {
 		}
 
 	}
-	
+      // finds the parents of the sibling groups in this node's subtree
+    void append_sibling_groups(list<Node *> *sibling_groups) {
+	  find_sibling_groups_hlpr(sibling_groups);	
+    }
+
+    // finds the parents of the sibling groups in this node's subtree
+    list<Node *> *find_sibling_groups() {
+	    list<Node *> *sibling_groups = new list<Node *>();
+		find_sibling_groups_hlpr(sibling_groups);
+		return sibling_groups;
+    }
+    void find_sibling_groups_hlpr(list<Node*> *sibling_groups) {
+	    list<Node *>::iterator c;
+		int total_non_leaves = 0;
+		for (c = children.begin(); c != children.end(); c++) {
+		  if (!(*c)->is_leaf()) {
+			total_non_leaves++;
+		    (*c)->find_sibling_groups_hlpr(sibling_groups);
+		  }
+		}
+		non_leaf_children = total_non_leaves;
+		if (is_sibling_group())
+		  sibling_groups->push_back(this);		
+    }
+
+    // Assumes this is the parent of the sibling group in T1
+    //outputs a list of list of nodes of siblings in T2 that have the same parents in T2
+    void find_identical_sibling_groups(list<list<Node *>> *identical_sibling_groups) {
+                identical_sibling_groups->clear();
+		list<Node *>::iterator c;
+		map<Node *, list<Node*>> parent_to_children = map<Node *, list<Node *>>();
+		for (c = children.begin(); c != children.end(); c++) {
+		  Node *T1_a = *c;
+		  Node *T2_a = T1_a->get_twin();
+		  if (T2_a->parent() == NULL)	{
+			continue;
+		  }
+		  auto search = parent_to_children.find(T2_a->parent());
+		  //if it does not equal the end, then we already have this parent in the map
+		  if (search != parent_to_children.end()) {
+			search->second.push_back(T2_a);
+		  }
+		  //otherwise we add it
+		  else {
+			parent_to_children.insert({T2_a->parent(), {T2_a}});
+		  }
+		}
+		//Check which parents have more than one identical sibling
+		map<Node *, list<Node*>>::iterator parents;
+		for (parents = parent_to_children.begin(); parents != parent_to_children.end(); parents++) {
+		  if (parents->second.size() > 1) {
+			identical_sibling_groups->push_back(parents->second);
+		  }
+		}
+    }
+  
 	// find the leaves in this node's subtree
 	vector<Node *> find_leaves() {
 		vector<Node *> leaves = vector<Node *>();
@@ -1262,6 +1555,31 @@ class Node {
 		else
 			find_leaves_hlpr(leaves);
 		return leaves;
+	}
+        void find_nodes_in_subtree_hlpr(vector<Node*> *nodes) {
+	  for  (auto i = children.begin(); i != children.end(); i++) {
+	    (*i)->find_nodes_in_subtree_hlpr(nodes);
+	  }
+	  nodes->push_back(this);
+	}
+        vector<Node*> find_nodes_in_subtree() {
+                vector<Node*> nodes = vector<Node*>();
+		for (auto i = children.begin(); i != children.end(); i++) {
+		  (*i)->find_nodes_in_subtree_hlpr(&nodes);
+		}
+		return nodes;
+	}
+
+      
+  //find the preorder numbers of the leaves in this node's subtree
+        vector<int> find_leaf_preorders() {
+	  vector<Node*> leaves = find_leaves();
+	  vector<int> preorders = vector<int>();
+	  for (int i = 0; i < leaves.size(); i++) {
+	    preorders.push_back(leaves[i]->get_preorder_number());
+	  }
+	  
+	  return preorders;
 	}
 
 	void find_interior_hlpr(vector<Node *> &interior) {
@@ -1274,7 +1592,7 @@ class Node {
 		}
 
 	}
-	
+  
 	// find the interior nodes in this node's subtree
 	// does not include this node
 	vector<Node *> find_interior() {
@@ -1283,7 +1601,160 @@ class Node {
 			find_interior_hlpr(interior);
 		return interior;
 	}
+  /*
+        int find_arbitrary_lca_hlpr(vector<Node *> &sibling_descendants_counter) {
+		list<Node *>::iterator i;
+		int total = 0;
+		for (i = children->begin(); i != children->end(); i++) {
+		  total += (*i)->find_arbitrary_lca_hlpr(sibling_descendants_counter);
+		}
+		sibling_descendants_counter[get_preorder_number()] += total;
+		return sibling_descendants_counter[get_preorder_number()];
+	}
+  
+        // Finds one of the lca's in T2 based on a sibling group parent of T1
+        vector<Node *> find_arbitrary_lca(Node* T1_parent) {
+	        vector<Node *> sibling_descendants_counter = vector<Node *>();
+		list<Node *>::iterator i;
+		list<Node *> siblings = T1_parent->get_children();
+		for (i = siblings->begin(); i != siblings->end(); i++)
+		  {
+		    Node* twin = (*i)->get_twin();
+		    if (twin != NULL) {
+		      //1 it
+		    }
+		    else {
+		      //0 it
+		    }
+		  }
+		for () {
+		     //i in components of t2 forest)
+		  find_arbitrary_lca_hlpr(sibling_descendants_counter);
+		}
 
+	}
+  */
+
+        int get_deepest_siblings_hlpr(vector<int> &descendants, Node** to_be_placed) {
+	  list<Node*>::iterator i;
+	  for (i = children.begin(); i != children.end(); i++) {
+	    int descendant_value = descendants[(*i)->get_preorder_number()];
+	    if (descendant_value == -1) {
+	      *to_be_placed = (*i);
+	      return 2;
+	    }
+	    else if (descendant_value == 1) {
+	      return 1 + (*i)->get_deepest_siblings_hlpr(descendants, to_be_placed);
+	    }
+	  }
+	  return -300; //shouldn't get here, it should break when it tries to index -300.
+	  //should really assert
+	}
+
+        void get_deepest_siblings(vector<int> &descendants, vector<vector<Node*>> &siblings_by_depth) {
+	  get_deepest_siblings_strt(descendants, siblings_by_depth);
+	}
+        vector<vector<Node*>> get_deepest_siblings(vector<int> &descendants) {
+	  vector<vector<Node *>> siblings_by_depth = vector<vector<Node *>>(10);
+	  get_deepest_siblings_strt(descendants, siblings_by_depth);
+	  return siblings_by_depth;
+	}
+  
+        /*
+	  Takes a vector of ints with the number of siblings that descend 
+	  from that node indexed by their pre-order number
+	  Assumes siblings are marked with -1
+	  TODO (Ben): proper counting sort
+	 */
+         void get_deepest_siblings_strt(vector<int> &descendants, vector<vector<Node*>> &siblings_by_depth) {
+	   if (get_preorder_number() == -1) { return; } //if -1 then this is rho
+	   //This is the sibling, and is a component
+	   if (descendants[get_preorder_number()] == -1) {
+	     siblings_by_depth[0].push_back(this);
+	     return;
+	   }
+	   list<Node *>::iterator i;
+	  //Go down each path of 1s and take note of their path length to this node
+	  //There should be the same amount of 1 paths as nodes.size()
+	  for (i = children.begin(); i != children.end(); i++) {
+
+	    if (descendants[(*i)->get_preorder_number()] == 1) {
+	      Node* placed_node;
+	      int depth = (*i)->get_deepest_siblings_hlpr(descendants, &placed_node);
+	      while (siblings_by_depth.size() - 1 < depth)
+		{
+		  siblings_by_depth.resize(siblings_by_depth.size() * 2);
+		}
+	      if (placed_node != NULL){
+		siblings_by_depth[depth].push_back(placed_node);
+	      }
+	    }	
+	    //if it is -1 then this child is the node itself
+	    else if (descendants[(*i)->get_preorder_number()] == -1) {
+	      siblings_by_depth[1].push_back(*i);
+	    }
+	  }
+	}
+
+        
+  
+        Node *find_arbitrary_lca_hlpr(vector<int> &descendants) {
+	        if (descendants[get_preorder_number()] < 2) { return NULL; }
+		list<Node*>::iterator i;
+	        for (i = children.begin(); i != children.end(); i++) {
+		  if (descendants[(*i)->get_preorder_number()] > 1) {
+		    return (*i)->find_arbitrary_lca_hlpr(descendants);
+		  }
+		}
+		return this;
+	}
+        /*
+	  Takes a vector of components in T2, 
+	  and a count of how many sibling descendants the node 
+	  has in the index of its preorder number
+	  Returns lca of the nodes
+	  Returns NULL if there is no path between any of the two siblings
+	  
+	  NOTE: this can be a function
+        */
+        Node *find_arbitrary_lca(vector<Node *> components, vector<int> &descendants) {	        
+		for (int i = 0; i < components.size(); i++) {
+		  Node* root = components[i];
+		  if (root->get_preorder_number() == -1) {continue;}
+		  if (descendants[root->get_preorder_number()] > 1) {
+		    return root->find_arbitrary_lca_hlpr(descendants);
+		  }
+		}
+		return NULL;
+	}
+  /*This is potentially slower than just doing a traversal of the whole tree, 
+    since we could be visiting the same path many times. 
+    It does mean if this is a short branch and the others are
+    long that we dont visit those branches though
+    TODO: traverse tree and sum on return. Label sibling group with 1s rest with 0
+  */
+        void find_pseudo_lca_descendant_count_hlpr(vector <int> &desc_counter) {
+		if (p != NULL) {
+		  desc_counter[p->get_preorder_number()]++;
+		  p->find_pseudo_lca_descendant_count_hlpr(desc_counter);
+		}
+	}
+        vector<int> find_pseudo_lca_descendant_count(int max_preorder) {
+	        vector<int> sibling_descendants_counter = vector<int>(max_preorder, 0);
+		list<Node *>::iterator i;
+		for (i = children.begin(); i != children.end(); i++)
+		  {
+		    Node* twin = (*i)->get_twin();
+		    if (twin != NULL) {
+		      //set the twin itself to -1
+		      //This will be used later when traversing down to notify we have hit the node
+		      sibling_descendants_counter[twin->get_preorder_number()] = -1;
+		      twin->find_pseudo_lca_descendant_count_hlpr(sibling_descendants_counter);
+		    }
+		  }
+		return sibling_descendants_counter;
+	}
+  
 	void find_descendants_hlpr(vector<Node *> &descendants) {
 		list<Node *>::iterator c;
 		for(c = children.begin(); c != children.end(); c++) {
@@ -1394,7 +1865,7 @@ class Node {
 		return same_component(n, lca_depth, a);
 	}
 
-
+ 
 	void labels_to_numbers(map<string, int> *label_map, map<int, string> *reverse_label_map) {
 		if (name != "") {
 			map<string, int>::iterator i = label_map->find(name);
@@ -1419,9 +1890,13 @@ class Node {
 			contracted_lc->labels_to_numbers(label_map, reverse_label_map);
 		if (contracted_rc != NULL)
 			contracted_rc->labels_to_numbers(label_map, reverse_label_map);
+		for(c = contracted_children.begin(); c != contracted_children.end(); c++) {
+			(*c)->labels_to_numbers(label_map, reverse_label_map);
+		}
 	}
-	
-	void numbers_to_labels(map<int, string> *reverse_label_map) {
+
+
+  	void numbers_to_labels(map<int, string> *reverse_label_map) {
 		if (name != "") {
 			string converted_name = "";
 			string current_num = "";
@@ -1459,6 +1934,10 @@ class Node {
 			contracted_lc->numbers_to_labels(reverse_label_map);
 		if (contracted_rc != NULL)
 			contracted_rc->numbers_to_labels(reverse_label_map);
+		for(c = contracted_children.begin(); c != contracted_children.end(); c++) {
+			(*c)->numbers_to_labels(reverse_label_map);
+		}
+
 	}
 
 	void build_name_to_pre_map(map<string, int> *name_to_pre) {
@@ -1488,9 +1967,21 @@ class Node {
 			contracted_rc->count_numbered_labels(label_counts);
 	}
 
+  int get_max_preorder_number(int next) {
+    if (next < get_preorder_number()) {
+      next = get_preorder_number();
+    }
+    for (auto c = children.begin(); c != children.end(); c++) {
+      next = (*c)->get_max_preorder_number(next);
+    }
+    return next;
+  }
+  
 	void preorder_number() {
 		preorder_number(0);
 	}
+  
+
 	int preorder_number(int next) {
 		set_preorder_number(next);
 		next++;
@@ -1778,6 +2269,25 @@ void fixroot() {
 	}
 }
 
+  //Currently only used on T2, if you want to use it on T1, update non_leaf_children
+Node *expand_children_out(list<Node*> nodes) {
+  Node *new_child = new Node();
+  //new_child->set_parent(this);
+  int min_preorder = 0x7FFFFFFF;
+  list<Node *>::iterator i;
+  for (i = nodes.begin(); i != nodes.end(); i++) {
+    new_child->add_child(*i);
+    (*i)->set_parent(new_child);//not needed?
+    children.remove(*i);
+    if ((*i)->get_preorder_number() < min_preorder) {
+      min_preorder = (*i)->get_preorder_number();
+    }
+  }
+  //super hacky, may overlap with others. Currently this is being used only when the other node is being contracted anyways, but be careful
+  new_child->set_preorder_number(min_preorder);
+  add_child(new_child);
+  return new_child;
+}
 
 Node *expand_parent_edge(Node *n) {
 	if (p != NULL) {
@@ -1853,6 +2363,7 @@ Node *undo_expand_parent_edge() {
  *		NULL if no spr occured)
  *
  * Note: binary only
+ * TODO (ben): multifurcating
  */
 Node *spr(Node *new_sibling, int &which_child) {
 	Node *reverse;
@@ -1875,7 +2386,7 @@ Node *spr(Node *new_sibling, int &which_child) {
 
 		old_sibling->cut_parent();
 		//p->delete_child(old_sibling);
-		p->cut_parent();
+		p->cut_parent(); //LEAK?
 //		grandparent->delete_child(p);
 		if (leftc && !grandparent->is_leaf()) {
 				Node *ns = grandparent->children.front();
@@ -1974,6 +2485,40 @@ Node *spr(Node *new_sibling) {
 	return spr(new_sibling, na);
 }
 
+  /*
+    prune this subtree and attach as a sibling of new_sibiling
+   */
+
+void spr_mult(Node *new_sibling) {
+  //prune
+  Node* parent = p;
+  if (parent != NULL) {
+    cut_parent();
+    if (parent->get_children().size() == 1) {
+      parent->contract(true);
+    }
+  }
+  else {
+    return;
+  }
+  //regraft
+  if (new_sibling->parent() != NULL) {
+    Node* new_parent = new Node();
+    new_sibling->parent()->add_child(new_parent);
+    //new_parent->set_parent(new_sibling->parent());
+    new_parent->add_child(new_sibling);
+    new_parent->add_child(this);
+    }
+  else {
+    Node* new_parent = new_sibling;//new Node();
+    Node* replace = new Node(*new_sibling);
+    new_parent->get_children().clear();
+    new_parent->add_child(replace);
+    new_parent->add_child(this);
+  }
+}
+
+  
 void find_descendant_counts_hlpr(vector<int> *dc) {
 	int num_descendants = 0;
 	list<Node *>::iterator c;
@@ -2088,6 +2633,7 @@ Node *find_by_prenum_full(int prenum) {
 
 // expand all contracted nodes of a subtree starting at n
 void expand_contracted_nodes() {
+  	list<Node *>::iterator c;
 	if (is_leaf()) {
 		if (contracted_lc != NULL) {
 			add_child(contracted_lc);
@@ -2097,11 +2643,26 @@ void expand_contracted_nodes() {
 			add_child(contracted_rc);
 			contracted_rc = NULL;
 		}
+		for(c = contracted_children.begin(); c != contracted_children.end(); c++) {
+		        add_child(*c);
+		}
+		contracted_children.clear();
+
 	}
-	list<Node *>::iterator c;
 	for(c = get_children().begin(); c != get_children().end(); c++) {
 		(*c)->expand_contracted_nodes();
 	}
+	/*
+	//if -1 then this is a node we created for a contraction, and it should go up one
+	if (get_edge_pre_end() == -1) {
+	  if (p != NULL) {
+	    while (!children.empty()) {
+	      p->add_child(children.front());
+	    }
+	    delete this;
+	    return;
+	  }
+	  }*/
 }
 
 int get_name_num() {
@@ -2116,11 +2677,13 @@ Node *build_tree(string s);
 Node *build_tree(string s, set<string, StringCompare> *include_only);
 Node *build_tree(string s, int start_depth);
 Node *build_tree(string s, int start_depth, set<string, StringCompare> *include_only);
+
 int build_tree_helper(int start, const string& s, Node *parent,
 		bool &valid, set<string, StringCompare> *include_only);
 //void preorder_number(Node *node);
 //int preorder_number(Node *node, int next);
 string strip_newick_name(string &T);
+vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_depth);
 
 
 // build a tree from a newick string
@@ -2212,9 +2775,13 @@ int build_tree_helper(int start, const string& s, Node *parent,
 						string info = s.substr(loc, next - loc);
 						if (info[0] != ':') {
 							double support = atof(info.c_str());
-//							cout << "support=" << support << endl;
+							#if DEBUG_SUPPORT
+							cout << "support=" << support << endl;
+							#endif
 							if (REQUIRED_SUPPORT > 0 && support < REQUIRED_SUPPORT && numc > 0) {
-//								cout << "contracting (support)" << endl;
+							  #if DEBUG_SUPPORT
+ 								cout << "contracting (support)" << endl;
+								#endif
 								node->contract_node();
 								contracted = true;
 							}
@@ -2223,9 +2790,13 @@ int build_tree_helper(int start, const string& s, Node *parent,
 						if (next_colon != string::npos) {
 							string length_str = info.substr(next_colon+1);
 							double length = atof(length_str.c_str());
-//							cout << "length=" << length << endl;
+#if DEBUG_SUPPORT
+							cout << "length=" << length << endl;
+							#endif
 							if (MIN_LENGTH >= 0 && !contracted && length <= MIN_LENGTH && numc > 0) {
-//								cout << "contracting (length)" << endl;
+#if DEBUG_SUPPORT
+								cout << "contracting (length)" << endl;
+								#endif
 								node->contract_node();
 								contracted = true;
 							}
@@ -2386,6 +2957,32 @@ void reroot_safe(Node **n, Node *new_lc) {
 	(*n)->preorder_number();
 	(*n)->edge_preorder_interval();
 }
+
+//TODO: remove references to this, replace with map version
+vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_depth) {	  
+	  vector<Node*> deepest_siblings = vector<Node*>();
+	  for (int j = siblings_by_depth.size() - 1; j >= 0; j--) {
+	    if (siblings_by_depth[j].size() != 0) {
+	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
+		deepest_siblings.push_back(siblings_by_depth[j][k]);
+	      }
+	    }
+	  }
+	  return deepest_siblings; 
+	}
+vector<Node *> contract_deepest_siblings(vector<vector<Node *>> &siblings_by_depth, map<Node*, int> *s_map) {	  
+	  vector<Node*> deepest_siblings = vector<Node*>();
+	  for (int j = siblings_by_depth.size() - 1; j >= 0; j--) {
+	    if (siblings_by_depth[j].size() != 0) {
+	      for (int k = 0; k < siblings_by_depth[j].size(); k++) {
+		deepest_siblings.push_back(siblings_by_depth[j][k]);
+		s_map->insert({siblings_by_depth[j][k], j - 1});
+	      }
+	    }
+	  }
+	  
+	  return deepest_siblings; 
+	}
 
 
 
