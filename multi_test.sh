@@ -25,6 +25,25 @@ declare -a tests=(
 		  "multi_tree_8.7_test_00.txt"
 		  "multi_tree_8.7_test_01.txt"
 		  "cluster_test"
+		  "cluster_1.txt"
+		  "cluster_2.txt"
+		  "cluster_3.txt"
+		  #"cluster_4.txt"
+		  "cluster_5.txt"
+		  "cluster_6.txt"
+		  "cluster_7.txt"
+		  "cluster_8.txt"
+		  "cluster_9.txt"
+		  "cluster_a.txt"
+		  "cluster_b.txt"
+		  "cluster_c.txt"
+		  "cluster_d.txt"
+		  "cluster_e.txt"
+		  #"cluster_f.txt"
+		  "cluster_10.txt"
+		  "cluster_11.txt"
+
+		  "cluster_12.txt"
 		  )
 declare -a binary_tests_array=(
                   "trees2.txt"
@@ -42,6 +61,19 @@ declare -a binary_tests_array=(
 		  "cluster_2.txt"
 		  "cluster_3.txt"
 		  "cluster_4.txt"
+		  "cluster_5.txt"
+		  "cluster_6.txt"
+		  "cluster_7.txt"
+		  "cluster_8.txt"
+		  "cluster_9.txt"
+		  "cluster_a.txt"
+		  "cluster_b.txt"
+		  "cluster_c.txt"
+		  "cluster_d.txt"
+		  "cluster_e.txt"
+		  "cluster_f.txt"
+		  "cluster_10.txt"
+		  "cluster_11.txt"
 		  )
 
 declare -a move_tests=(
@@ -60,11 +92,11 @@ declare -a move_tests=(
 		  "cluster_test"
 )
 
-cluster="-bb"
+cluster=""
 binary_tests=false
 reverse=""
 leaf_reduction=""
-show_moves=""
+show_moves=false
 binary="-multifurcating"
 incremental_tests=false
 clean_incremental=false
@@ -82,7 +114,7 @@ do
     elif [ "$arg" = "-leaf_reduction" ] ;    then
 	leaf_reduction=true
     elif [ "$arg" = "-show_moves" ] ;    then
-	show_moves="-show_moves"
+	show_moves=true
     elif [ "$arg" = "-incremental" ] ;    then
 	incremental_tests=true
     elif [ "$arg" = "-clean_incremental_test_output" ] ;    then
@@ -98,26 +130,6 @@ if [ "$clean_incremental" = true ] ; then
     exit 1
 fi
 
-if [ "$incremental_tests" = true ] ; then
-    TIMEFORMAT="%U"
-    for d in `seq 0 20`
-    do
-	filename=../../incremental_output/100_leaf_"$d"_spr_timings.csv
-	if [ ! -f $filename ]
-	then
-	    touch $filename
-	fi
-	for i in `seq 1 30`
-	do
-	    #python3 ../../randomMultifurcatingTree.py 1000 | ./rspr -multifurcating -random_spr 5 | time ./rspr -multifurcating -leaf_reduction
-	    #time ls > /dev/null | tr -d . > ../../timeout
-	    { time python3 ../../randomMultifurcatingTree.py 100 | ./rspr -multifurcating -random_spr "$d" | time ./rspr -multifurcating -leaf_reduction 2> ../../sleep.stderr > /dev/null; } 2>> $filename
-	    #printf ',' >> ../../time.txt
-	done
-	echo "Finished dSPR test $d"
-    done
-    exit 1
-fi
 
 if [ "$binary_tests" = true ] ; then
    for i in ${binary_tests_array[@]}
@@ -125,7 +137,7 @@ if [ "$binary_tests" = true ] ; then
        echo "\n\n////////////////////////////////////////////////////////"
        echo $i
        echo "////////////////////////////////////////////////////////\n\n"
-       time ./rspr $show_moves $binary $reverse $cluster< test_trees/$i
+       time ./rspr  $binary $reverse $cluster< test_trees/$i
    done
 else
    for i in ${tests[@]}
@@ -133,7 +145,7 @@ else
        echo "\n\n////////////////////////////////////////////////////////"
        echo $i
        echo "////////////////////////////////////////////////////////\n\n"
-       time ./rspr -multifurcating $cluster $reverse < test_trees/$i    
+       time ./rspr -multi_4_branch $cluster $reverse  < test_trees/$i    
    done
 fi
 echo "Finished"
