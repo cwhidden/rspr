@@ -29,7 +29,7 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #ifndef LGT
 #define LGT
 
-#define DEBUG_LGT
+//#define DEBUG_LGT
 
 #include <cstdio>
 #include <cstdlib>
@@ -227,7 +227,6 @@ void list_transfers(list<transfer> *transfer_list, Node *super_tree,
 			expand_contracted_nodes(MAF1);
 			expand_contracted_nodes(MAF2);
 #ifdef DEBUG_LGT
-			
 			cout << "\tT1: "; F1.print_components();
 			cout << "\tT2: "; F2.print_components();
 			//cout << "\tT1: "; F1.print_components_with_edge_pre_interval();
@@ -496,12 +495,15 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		transfer_list.pop_front();
 		Node *s = T1->find_by_prenum_full(trans.source_pre);
 		Node *t = T1->find_by_prenum_full(trans.target_pre);
-//					cout << trans.source_pre << endl;
-//					cout << trans.target_pre << endl;
+
+#ifdef DEBUG_LGT
+		cout << trans.source_pre << endl;
+		cout << trans.target_pre << endl;
 		print_leaf_list(s);
 		cout << " : ";
 		print_leaf_list(t);
 		cout << endl;
+#endif
 
 		//TODO (ben): try updating the preorder interval when contracting
 
@@ -601,10 +603,12 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		    new_s->add_child(s->parent()->parent()->lchild());
 		    //s = new_s;
 		  }
+			#ifdef DEBUG_LGT
 		  print_leaf_list(s);
 		  cout << " : ";
 		  print_leaf_list(t);
 		  cout << endl;
+			#endif
 
 		  s->spr_mult(t);
 		}
