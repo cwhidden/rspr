@@ -114,8 +114,8 @@ class ClusterForest: public Forest {
 		int start = 0;
 		if (solved_cluster->contains_rho()) {
 			if (cluster_parent->parent() != NULL ||
-					!(cluster_parent->lchild() && cluster_parent->lchild()->get_name() == "X"
-					|| cluster_parent->rchild() && cluster_parent->rchild()->get_name() == "X"))
+					!((cluster_parent->lchild() && cluster_parent->lchild()->get_name() == "X")
+					|| (cluster_parent->rchild() && cluster_parent->rchild()->get_name() == "X")))
 				cluster_parent->contract(true);
 		}
 		else {

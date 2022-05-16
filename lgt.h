@@ -171,11 +171,13 @@ void print_transfers(Node *super_tree, vector<Node *> *gene_trees,
 			int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
 			expand_contracted_nodes(MAF1);
 			expand_contracted_nodes(MAF2);
-//			cout << i << ": " << distance << endl;
-//			cout << "\tT1: "; F1.print_components();
-//			cout << "\tT2: "; F2.print_components();
-//			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
-//			cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
+			/*
+			cout << i << ": " << distance << endl;
+			cout << "\tT1: "; F1.print_components();
+			cout << "\tT2: "; F2.print_components();
+			cout << "\tF1: "; MAF1->print_components_with_edge_pre_interval();
+			cout << "\tF2: "; MAF2->print_components_with_edge_pre_interval();
+			*/
 			sync_af_twins(MAF1, MAF2);
 			print_transfers(super_tree, &F1, &F2, MAF1, MAF2, reverse_label_map);
 		}

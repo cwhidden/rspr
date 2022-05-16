@@ -3750,7 +3750,7 @@ cout << "  ";
 					Node *T2_a = T1_a->get_twin();
 					Node *T2_c = T1_c->get_twin();
 					// select if this is a Case 2 or, optionally, nonbranching
-					if (T2_a->parent() != NULL && T2_a->parent() == T2_c->parent()
+					if ((T2_a->parent() != NULL && T2_a->parent() == T2_c->parent())
 							|| (!cut_b_only && PREFER_NONBRANCHING
 									&& is_nonbranching(T1, T2, T1_a, T1_c, T2_a, T2_c))) {
 						um.add_event(new RemoveSetSiblingPairs(sibling_pairs,
@@ -3774,7 +3774,7 @@ cout << "  ";
 							depth2 = T2_a->get_depth();
 						if (deepest_valid == sibling_pairs->end()
 								|| deepest_depth < depth
-								|| deepest_depth == depth && deepest_depth_2 < depth2) {
+								|| (deepest_depth == depth && deepest_depth_2 < depth2) ) {
 							// TODO: this crashes on bigtest2
 							// Why can we end up cutting the protected node?
 							if (!DEEPEST_PROTECTED_ORDER
@@ -3925,7 +3925,7 @@ cout << "  ";
 					if ((!CUT_LOST || k < 0 ||
 								(T1_a->num_lost_children() == 0 &&
 								 T1_c->num_lost_children() == 0))
-							&& (T2_c->parent() != NULL && T2_a->parent() != NULL)|| !T2->contains_rho()) {
+							&& ((T2_c->parent() != NULL && T2_a->parent() != NULL)|| !T2->contains_rho())) {
 						singletons->clear();
 						um.undo_all();
 						return k-1;
@@ -5490,14 +5490,14 @@ int rSPR_branch_and_bound_simple_clustering(Forest *T1, Forest *T2, bool verbose
 		  total_k = rSPR_branch_and_bound_range(&F1, &F2, full_approx_spr, MAX_SPR);
 		}
 		int i = 1;
-		if (total_k < 0) //{
-		  if (CLAMP) //{
-		  total_k = MAX_SPR;
-		//	}
-		else //{
-		  total_k = full_approx_spr;
-		//			}
-		//}
+		if (total_k < 0) {
+			if (CLAMP) {
+				total_k = MAX_SPR;
+			}
+			else {
+		 	 total_k = full_approx_spr;
+			}
+		}
 
 	}
 

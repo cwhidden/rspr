@@ -1067,13 +1067,16 @@ int main(int argc, char *argv[]) {
 					T2->delete_tree();
 					continue;
 				}
-				if (exact_spr == -1)
-						if (FPT)
-						cout << "exact drSPR=?  " << "k=" << k << " too large"
-							<< endl;
-						else
-						cout << "exact BB drSPR=?  " << "k=" << k << " too large"
-							<< endl;
+				if (exact_spr == -1) {
+						if (FPT) {
+							cout << "exact drSPR=?  " << "k=" << k << " too large"
+								<< endl;
+						}
+						else {
+							cout << "exact BB drSPR=?  " << "k=" << k << " too large"
+								<< endl;
+						}
+				}
 				cout << "\n";
 			}
 	

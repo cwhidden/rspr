@@ -73,6 +73,8 @@ MULTIFURCATING COMPARISON OPTIONS
 
 -allow_multi   Allow multifurcating gene trees
 
+-lgt_multi   Allow multifurcating input tree for LGT analysis
+
 -support x     Collapse bipartitions with less than x support
 
 *******************************************************************************
@@ -326,6 +328,8 @@ string USAGE =
 "*******************************************************************************\n"
 "\n"
 "-allow_multi   Allow multifurcating gene trees\n"
+"\n"
+"-lgt_multi   Allow multifurcating input tree for LGT analysis\n"
 "\n"
 "-support x     Collapse bipartitions with less than x support\n"
 "\n"
@@ -821,6 +825,9 @@ int main(int argc, char *argv[]) {
 		else if (strcmp(arg, "-allow_multi") == 0) {
 			IGNORE_MULTI = false;
 		}
+		else if (strcmp(arg, "-lgt_multi") == 0) {
+			MULTIFURCATING = true;
+		}
 		else if (strcmp(arg, "-protect_edges") == 0) {
 			EDGE_PROTECTION = true;
 			DEFAULT_OPTIMIZATIONS=false;
@@ -1150,8 +1157,8 @@ int main(int argc, char *argv[]) {
 				continue;
 			}
 			int T_size = T->size();
-			if (!INVALID_TREES && ((T_size <= 4)
-					|| T_size == 5 && !SMALL_TREES)) {
+			if (((!INVALID_TREES && ((T_size <= 4)))
+					|| (T_size == 5 && !SMALL_TREES))) {
 				skipped_small++;
 				continue;
 			}
@@ -1604,7 +1611,7 @@ TODO:
 		// GREEDY ADDITION
 		int x = 0;
 		for(; label != labels.rend() &&
-				NUM_LEAVES < 0 || leaf_num <= NUM_LEAVES; label++) {
+				(NUM_LEAVES < 0 || leaf_num <= NUM_LEAVES); label++) {
 			if (INITIAL_SUPER_TREE != "" &&
 					super_tree->contains_leaf(label->second)) {
 				leaf_num++;
@@ -2918,11 +2925,14 @@ void test_sibling_helper(Node *n, Node *new_leaf, Node *super_tree,
 	//than recreating and destroying it
 //	cout << "Previous Super Tree" << super_tree->str_subtree() << endl;
 	int status = -1;
-	if (n->parent() != NULL)
-		if (n->parent()->lchild() == n)
+	if (n->parent() != NULL) {
+		if (n->parent()->lchild() == n) {
 			status = 1;
-		else
+		}
+		else {
 			status = 2;
+		}
+	}
 	Node *new_node = n->expand_parent_edge(n);
 	new_node->add_child(new_leaf);
 //	cout << "New Super Tree" << super_tree->str_subtree() << endl;
@@ -3048,11 +3058,14 @@ void find_best_siblings_helper(Node *n, Node *new_leaf, Node *super_tree,
 	//than recreating and destroying it
 //	cout << "Previous Super Tree" << super_tree->str_subtree() << endl;
 	int status = -1;
-	if (n->parent() != NULL)
-		if (n->parent()->lchild() == n)
+	if (n->parent() != NULL) {
+		if (n->parent()->lchild() == n) {
 			status = 1;
-		else
+		}
+		else {
 			status = 2;
+		}
+	}
 	Node *new_node = n->expand_parent_edge(n);
 	new_node->add_child(new_leaf);
 //	cout << "New Super Tree" << super_tree->str_subtree() << endl;

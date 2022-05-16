@@ -2759,7 +2759,7 @@ int build_tree_helper(int start, const string& s, Node *parent,
 //			if (loc_check != string::npos &&
 //					s[loc_check] == ','
 			if (s[loc] != ')'
-					|| IGNORE_MULTI && count > 2) {
+					|| (IGNORE_MULTI && count > 2)) {
 				valid = false;
 					return s.size()-1;
 			}
