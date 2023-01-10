@@ -916,6 +916,8 @@ int main(int argc, char *argv[]) {
 
 
 			if (SHOW_MOVES) {
+				//cout << T1->str_subtree() << endl;
+				//cout << T2->str_subtree() << endl;
 				show_moves(T1, T2, &label_map, &reverse_label_map);
 				T1->delete_tree();
 				T2->delete_tree();
