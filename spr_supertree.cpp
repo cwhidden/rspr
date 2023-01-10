@@ -207,7 +207,6 @@ bool DEFAULT_ALGORITHM=true;
 bool DEFAULT_OPTIMIZATIONS=true;
 bool DEFAULT_SEARCH_OPTIMIZATIONS=true;
 
-
 bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
@@ -806,6 +805,15 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-lgt_analysis") == 0) {
 			LGT_ANALYSIS=true;
+		}
+		else if (strcmp(arg, "-lgt_move_parent") == 0) {
+			LGT_MOVE_PARENT=true;
+		}
+		else if (strcmp(arg, "-lgt_move_individual_node") == 0) {
+			LGT_MOVE_INDIVIDUAL_NODE=true;
+		}
+		else if (strcmp(arg, "-lgt_maintain_list") == 0) {
+			LGT_MAINTAIN_LIST=true;
 		}
 		else if (strcmp(arg, "-lgt_evaluation") == 0) {
 			LGT_EVALUATION=true;
@@ -1936,28 +1944,32 @@ TODO:
 			cleanup = true;
 		}
 
+		//IMP
 		if (LGT_ANALYSIS) {
 			cout << "LGT Analysis" << endl;
 			super_tree->preorder_number();
 			super_tree->edge_preorder_interval();
+			super_tree->print_preorder_number();
 			int num_nodes = super_tree->size();
+			cout << "Num nodes " << num_nodes << endl;
 			vector<vector<int> > transfer_counts =
 				vector<vector<int> >(num_nodes, vector<int>(num_nodes, 0));
+			//cout << "Gene trees " << gene_trees.size();
 			for(int i = 0; i < gene_trees.size(); i++) {
 				gene_trees[i]->preorder_number();
 				gene_trees[i]->edge_preorder_interval();
+				//gene_trees[i]->print_subtree();
 			}
 			add_transfers(&transfer_counts, super_tree, &gene_trees);
-#ifdef DEBUG_LGT
+//#ifdef DEBUG_LGT
 			for(int i = 0; i < num_nodes; i++) {
 				for(int j = 0; j < num_nodes; j++) {
-					if (j > 0)
-						cout << " ";
-					cout << transfer_counts[i][j];
+					if (transfer_counts[i][j] > 0){
+					cout << i << " - " << j << endl;
+					}
 				}
-				cout << endl;
 			}
-#endif
+//#endif
 
 			if (LGT_GROUPS != "") {
 				ifstream lgt_group_file;
@@ -2157,7 +2169,7 @@ TODO:
 	int current_distance = 0;
 	if (NUM_ITERATIONS < 0)
 		NUM_ITERATIONS=labels.size(); 
-
+	cout << "Num Itr - " << NUM_ITERATIONS << endl;
 	// SUPERTREE IMPROVEMENT STEP
 	for(int i = 0; i < NUM_ITERATIONS; i++) {
 /*		if (TABOO_SEARCH) {

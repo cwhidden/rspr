@@ -194,6 +194,22 @@ class Forest {
 		cout << endl;
 	}
 
+	// print the forest
+	void print_components_preorder() {
+		vector<Node *>::iterator it = components.begin();
+		for(it = components.begin(); it != components.end(); it++) {
+			cout << "Component start " << endl;
+			Node *root = *it;
+			if (root == NULL)
+				cout << "!";
+			else if (root->is_leaf() && root->str() == "")
+				cout << "*";
+			else
+				root->print_preorder_number();
+		}
+		cout << endl;
+	}
+
 	// print the components seperated by s
 	void print_components(string s) {
 		vector<Node *>::iterator it = components.begin();
