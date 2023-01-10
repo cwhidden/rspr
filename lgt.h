@@ -50,9 +50,6 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include "SiblingPair.h"
 #include "UndoMachine.h"
 
-bool LGT_MOVE_PARENT = false;
-bool LGT_MOVE_INDIVIDUAL_NODE = false;
-bool LGT_MAINTAIN_LIST = false;
 
 using namespace std;
 
@@ -104,7 +101,6 @@ void add_transfers(vector<vector<int> > *transfer_counts, Node *super_tree,
 		Forest F2 = Forest((*gene_trees)[i]);
 		if (sync_twins(&F1,&F2)) {
 			int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
-			//for multifurcating
 			expand_contracted_nodes(MAF1);
 			expand_contracted_nodes(MAF2);
 #ifdef DEBUG_LGT			
@@ -131,18 +127,8 @@ void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 	int start = 1;
 	if (MAF2->contains_rho())
 		start = 0;
-	cout << "MAF1 : ";
-	MAF1->print_components();
-	MAF1->print_components_preorder();
-	cout << "MAF2 : ";
-	MAF2->print_components();
-	MAF2->print_components_preorder();
-
-	map<string, list<list<int>>> map_transfer_sibling;			
-
 	for(int i = start; i < MAF2->num_components(); i++) {
 		Node *F2_source = MAF2->get_component(i);
-		cout << "F2 Source " << F2_source->get_name() << endl;
 		Node *F1_source;
 		Node *F1_target;
 		if (!map_transfer(F2_source, F1, MAF2, &F1_source,
@@ -151,106 +137,8 @@ void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 		}
 
 		#pragma omp atomic
-		if(!IGNORE_MULTI && MULTIFURCATING){
-			Node *F1_source_new = F1_source;
-			Node *F1_target_new = F1_target;
-			if(LGT_MOVE_PARENT){
-				if(F1_target->is_temp_target_parent()){
-					Node* f1_child = F1->find_by_prenum(
-									F1_target->get_preorder_number());
-					if(f1_child != NULL && f1_child->parent() != NULL){
-						F1_target_new = f1_child->parent();
-					}
-				}
-				if(F1_source->is_temp_parent()){
-					Node* f1_lchild = F1->find_by_prenum(
-										F1_source->get_preorder_number());
-					if(f1_lchild != NULL && f1_lchild->parent() != NULL){
-						F1_source_new = f1_lchild->parent();
-					}
-				}
-				(*transfer_counts)[F1_source_new->get_preorder_number()][F1_target_new->get_preorder_number()]++;
-			}
-			else if(LGT_MOVE_INDIVIDUAL_NODE){
-				list<Node*> lstSource = {F1_source_new};
-				list<Node*> lstTarget = {F1_target_new};
-				if(F1_target->is_temp_target_parent()){
-					/*Node* f1_child = F1->find_by_prenum(
-									F1_target->get_preorder_number());
-
-					if(f1_child != NULL && f1_child->parent() != NULL){
-						F1_target_new = f1_child->parent();
-						lstTarget = F1_target_new->get_children();
-					}*/
-					lstTarget = F1_target->get_children();
-				}
-				if(F1_source->is_temp_parent()){
-					lstSource = F1_source->get_children();
-				}
-				list<Node *>::const_iterator c, ct;
-				for(c = lstSource.begin(); c != lstSource.end(); c++) {
-					for(ct = lstTarget.begin(); ct != lstTarget.end(); ct++) {
-						(*transfer_counts)[(*c)->get_preorder_number()][(*ct)->get_preorder_number()]++;
-					}
-				}
-			}
-			else if(LGT_MAINTAIN_LIST){
-				list<int> F1_source_sibling;
-				list<int> F1_target_sibling;
-				if(F1_target->is_temp_parent()){
-					Node* f1_child = F1->find_by_prenum(
-										F1_target->get_preorder_number());
-					if(f1_child != NULL && f1_child->parent() != NULL){
-						F1_target_new = f1_child->parent();
-					}
-					list<Node *>::const_iterator c;
-					for(c = F1_target->get_children().begin(); 
-								c != F1_target->get_children().end(); c++) {
-						F1_target_sibling.push_back((*c)->get_preorder_number());
-						F1_target->get_all_children_preorder(&F1_target_sibling);
-					}
-				}
-				if(F1_source->is_temp_parent()){
-					Node* f1_lchild = F1->find_by_prenum(
-										F1_source->get_preorder_number());
-					if(f1_lchild != NULL && f1_lchild->parent() != NULL){
-						F1_source_new = f1_lchild->parent();
-					}
-					list<Node *>::const_iterator c;
-					for(c = F1_source->get_children().begin(); 
-								c != F1_source->get_children().end(); c++) {
-						F1_source_sibling.push_back((*c)->get_preorder_number());
-						F1_source->get_all_children_preorder(&F1_source_sibling);
-					}
-				}
-				string key = to_string(F1_source_new->get_preorder_number()) 
-								+ "_" + to_string(F1_target_new->get_preorder_number());
-				map_transfer_sibling[key] = {F1_source_sibling, F1_target_sibling};
-				(*transfer_counts)[F1_source_new->get_preorder_number()][F1_target_new->get_preorder_number()]++;
-			}
-			else{
-				(*transfer_counts)[F1_source->get_preorder_number()][F1_target->get_preorder_number()]++;
-			}
-		}
-		else{
-			(*transfer_counts)[F1_source->get_preorder_number()][F1_target->get_preorder_number()]++;
-		}
-
+		(*transfer_counts)[F1_source->get_preorder_number()][F1_target->get_preorder_number()]++;
 		// do we want to check that the move is valid here?
-	}
-
-	//Print transfer map
-	if(LGT_MAINTAIN_LIST){
-		cout << "Transfer map" << endl;
-		for(auto it = map_transfer_sibling.cbegin(); it != map_transfer_sibling.cend(); ++it){
-			std::cout << "Key : " << it->first << endl;
-			for(auto &lst : it->second){
-				for (auto const &i: lst) {
-					cout << i << " ";
-				}
-				cout << endl;
-			}
-		}
 	}
 					// TODO: identify a valid move (if any) for each component
 					// loop over the components of MAF2
@@ -334,11 +222,8 @@ void list_transfers(list<transfer> *transfer_list, Node *super_tree,
 		Forest *MAF2 = NULL;
 		Forest F1 = Forest(super_tree);
 		Forest F2 = Forest(gene_tree);
-		//cout << "Super tree forest " << endl;
 		if (sync_twins(&F1,&F2)) {
 			int distance = rSPR_branch_and_bound_simple_clustering(F1.get_component(0), F2.get_component(0), &MAF1, &MAF2);
-			//MAF1->print_components();
-			//MAF2->print_components();
 			expand_contracted_nodes(MAF1);
 			expand_contracted_nodes(MAF2);
 #ifdef DEBUG_LGT
@@ -475,7 +360,6 @@ void print_leaf_list(Node *T) {
 	}
 }
 
-//IMP
 bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
 		Node **F1_source_out, Node **F1_target_out) {
 	bool ret_val = false;
@@ -499,9 +383,6 @@ bool map_transfer(Node *F2_source, Forest *F1, Forest *MAF2,
 		F1_target = F2_target->get_twin();
 	else
 		F1_target = F1->get_component(0);
-
-	cout << "F1 source " << F1_source->get_preorder_number() << " - " << F2_source->get_preorder_number() << endl;
-	cout << "F1 target " << F1_target->get_preorder_number() << " - " << F2_target->get_preorder_number() << endl;
 	#ifdef DEBUG_LGT			
 		cout << "\tF1s: " << F1_source->str_edge_pre_interval_subtree()
 			<< endl;
@@ -533,14 +414,11 @@ Node *find_best_target(Node *source, Forest *AF) {
 }
 
 Node* find_best_target(Node *source, Node *target, Node **best_target) {
-	cout << "Source : " << source->get_preorder_number() << endl;
-	cout << "Target : " << target->get_preorder_number() << " - " << target->get_edge_pre_start() << " - " << target->get_edge_pre_end()<< endl;
 	if (target->get_edge_pre_start() <= source->get_preorder_number()
 			&& target->get_edge_pre_end() >= source->get_preorder_number()
 			&& (*best_target == NULL || target->get_edge_pre_start() >
 					(*best_target)->get_edge_pre_start())) {
 		*best_target = target;
-		cout << "Best Target : " << (*best_target)->get_preorder_number() << " - " << (*best_target)->get_edge_pre_start() << " - " << (*best_target)->get_edge_pre_end()<< endl;
 	}
 	list<Node *>::const_iterator c;
 	for(c = target->get_children().begin();
@@ -596,19 +474,15 @@ bool is_subset(vector<int>& A, vector<int>& B)
   return true;
 }
 
-//IMP
 void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		map<int, string> *reverse_label_map) {
 	T1->preorder_number();
 	T2->preorder_number();
 	T1->edge_preorder_interval();
 	T2->edge_preorder_interval();
-	//T1->print_preorder_number();
 	int num_nodes = T1->size();
-	//cout << "Num nodes " << num_nodes << endl;
 	int distance = rSPR_branch_and_bound_simple_clustering(T1, T2);
 	int current_distance = distance;
-	cout << "Distance " << distance << endl;
 	T1->numbers_to_labels(reverse_label_map);
 	cout << T1->str_subtree() << endl;
 	T1->labels_to_numbers(label_map, reverse_label_map);
@@ -619,27 +493,8 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 	choose_different_tranfer:
 		transfer trans = transfer_list.front();
 		transfer_list.pop_front();
-		//IMP
-		
-		//T1->print_preorder_number();
-
 		Node *s = T1->find_by_prenum_full(trans.source_pre);
 		Node *t = T1->find_by_prenum_full(trans.target_pre);
-
-		/*cout << "Source " << trans.source_pre << " -> ";		
-		for (auto i = trans.source_child_pre_nums.begin(); i != trans.source_child_pre_nums.end(); i++) {
-			cout << *i << " - ";
-		}
-		cout << endl;
-		cout << "Source tree : ";
-		s->print_subtree();
-		cout << "Target " << trans.target_pre << " -> ";		
-		for (auto i = trans.target_child_pre_nums.begin(); i != trans.target_child_pre_nums.end(); i++) {
-			cout << *i << " - ";
-		}
-		cout << endl;
-		cout << "Target tree : ";
-		t->print_subtree();*/
 
 #ifdef DEBUG_LGT
 		cout << trans.source_pre << endl;
@@ -653,10 +508,10 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		//TODO (ben): try updating the preorder interval when contracting
 
 		if (MULTIFURCATING) {
+
 		  vector<Node*> source_nodes_to_expand = vector<Node*>();
 		  
 		  if (trans.source_child_pre_nums.size() > 0) {
-		    //cout << "Old S " << s->get_preorder_number() << endl;
 		    //move up until all the preorders are in s's subtree
 		    s = s->parent();
 		    vector<int> leaf_preorders = s->find_leaf_preorders();
@@ -666,7 +521,7 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 			leaf_preorders = s->find_leaf_preorders();
 			leaf_is_subset = is_subset(trans.source_child_pre_nums, leaf_preorders);
 		    }
-		    //cout << "New S " << s->get_preorder_number() << endl;
+		    
 		    //get the children that have the preorders in their subtree
 		    for (auto i = s->get_children().begin(); i != s->get_children().end(); i++) {
 		      vector<int> this_childs_preorder_list = (*i)->find_leaf_preorders();
@@ -718,9 +573,7 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		      goto choose_different_tranfer;
 		    }
 		  }
-		  //cout << "Big Decision T0.0 ";
-			//T1->print_subtree();
-			if (trans.source_child_pre_nums.size() > 0) {
+		  if (trans.source_child_pre_nums.size() > 0) {
 		    //if there are children who don't have the correct preorders, expand the others
 		    if (source_nodes_to_expand.size() < s->get_children().size()) {
 		      Node* new_s = new Node();
@@ -732,7 +585,7 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		    }
 		  }
 		  if (trans.target_child_pre_nums.size() > 0) {
-			//if there are children who don't have the correct preorders, expand the others
+		    //if there are children who don't have the correct preorders, expand the others
 		    if (target_nodes_to_expand.size() < t->get_children().size()){
 		      Node* new_t = new Node();
 		      t->add_child(new_t);
@@ -742,9 +595,6 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		      t = new_t;
 		    }
 		  }
-		  //cout << "Big Decision T0 ";
-			//T1->print_subtree();
-			//cout << s->get_preorder_number() << endl;
 		  if (s->parent() != NULL &&
 		      s->parent()->get_children().size() > 2) {
 		    Node* new_s = new Node();
@@ -753,8 +603,6 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		    new_s->add_child(s->parent()->parent()->lchild());
 		    //s = new_s;
 		  }
-		  //cout << "Big Decision T1 ";
-			//T1->print_subtree();
 			#ifdef DEBUG_LGT
 		  print_leaf_list(s);
 		  cout << " : ";
