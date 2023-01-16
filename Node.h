@@ -2773,6 +2773,7 @@ int build_tree_helper(int start, const string& s, Node *parent,
 				if (next != string::npos) {
 					if (next > loc && (REQUIRED_SUPPORT > 0 || MIN_LENGTH >= 0)) {
 						string info = s.substr(loc, next - loc);
+						// support values (a number after a close bracket)
 						if (info[0] != ':') {
 							double support = atof(info.c_str());
 							#if DEBUG_SUPPORT
@@ -2786,6 +2787,7 @@ int build_tree_helper(int start, const string& s, Node *parent,
 								contracted = true;
 							}
 						}
+						// branch lengths (a number after a colon)
 						int next_colon = info.find_first_of(":");
 						if (next_colon != string::npos) {
 							string length_str = info.substr(next_colon+1);
@@ -2801,6 +2803,23 @@ int build_tree_helper(int start, const string& s, Node *parent,
 								contracted = true;
 							}
 						}
+						// support values (a number in square brackets)
+						int square_bracket = info.find_first_of("[");
+						if (square_bracket != string::npos) {
+							string support_str = info.substr(square_bracket+1);
+							double support = atof(support_str.c_str());
+							#if DEBUG_SUPPORT
+							cout << "support=" << support << endl;
+							#endif
+							if (REQUIRED_SUPPORT > 0 && !contracted && support < REQUIRED_SUPPORT && numc > 0) {
+							  #if DEBUG_SUPPORT
+ 								cout << "contracting (support)" << endl;
+								#endif
+								node->contract_node();
+								contracted = true;
+							}
+						}
+
 					}
 					loc=next;
 				}
