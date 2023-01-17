@@ -1435,6 +1435,40 @@ class Node {
 				&& rchild() != NULL && rchild()->is_leaf());
 	}
 
+	bool is_temp_parent(){
+		return (non_leaf_children == 0 && !is_leaf() 
+				&& lchild() != NULL && pre_num == lchild()->get_preorder_number());
+	}
+
+	bool is_temp_target_parent(){
+		return (non_leaf_children == 0 && !is_leaf() 
+				&& pre_num == get_child_min_preorder());
+	}
+
+	int get_child_min_preorder(){
+		int min_pre_num = INT_MAX;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			if(min_pre_num > (*c)->get_preorder_number()){
+				min_pre_num = (*c)->get_preorder_number();
+			}
+		}
+		return min_pre_num;
+	}
+
+	void get_all_children_preorder(list<int> *children_preorders) {
+	    list<Node *>::iterator c;
+		if(is_leaf()){
+			children_preorders->push_back(pre_num);
+			return;
+		}
+		for (c = children.begin(); c != children.end(); c++) {
+		  	if (!(*c)->is_leaf()) {
+				(*c)->get_all_children_preorder(children_preorders);
+		  	}
+		}		
+    }
+
     bool is_sibling_group() {
 	  return non_leaf_children == 0 && !is_leaf();
     }
@@ -1977,6 +2011,14 @@ class Node {
     return next;
   }
   
+	void print_preorder_number() {
+		cout << name << " - " << pre_num << " - " << edge_pre_start << " - " << edge_pre_end << endl;
+		list<Node *>::iterator c;
+		for(c = children.begin(); c != children.end(); c++) {
+			(*c)->print_preorder_number();
+		}
+	}
+
 	void preorder_number() {
 		preorder_number(0);
 	}
