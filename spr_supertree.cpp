@@ -207,7 +207,6 @@ bool DEFAULT_ALGORITHM=true;
 bool DEFAULT_OPTIMIZATIONS=true;
 bool DEFAULT_SEARCH_OPTIMIZATIONS=true;
 
-
 bool FPT = false;
 bool QUIET = false;
 bool UNROOTED = false;
@@ -806,6 +805,15 @@ int main(int argc, char *argv[]) {
 		}
 		else if (strcmp(arg, "-lgt_analysis") == 0) {
 			LGT_ANALYSIS=true;
+		}
+		else if (strcmp(arg, "-lgt_move_parent") == 0) {
+			LGT_MOVE_PARENT=true;
+		}
+		else if (strcmp(arg, "-lgt_move_individual_node") == 0) {
+			LGT_MOVE_INDIVIDUAL_NODE=true;
+		}
+		else if (strcmp(arg, "-lgt_maintain_list") == 0) {
+			LGT_MAINTAIN_LIST=true;
 		}
 		else if (strcmp(arg, "-lgt_evaluation") == 0) {
 			LGT_EVALUATION=true;
@@ -1951,11 +1959,10 @@ TODO:
 #ifdef DEBUG_LGT
 			for(int i = 0; i < num_nodes; i++) {
 				for(int j = 0; j < num_nodes; j++) {
-					if (j > 0)
-						cout << " ";
-					cout << transfer_counts[i][j];
+					if (transfer_counts[i][j] > 0){
+					cout << i << " - " << j << endl;
+					}
 				}
-				cout << endl;
 			}
 #endif
 
@@ -2157,7 +2164,7 @@ TODO:
 	int current_distance = 0;
 	if (NUM_ITERATIONS < 0)
 		NUM_ITERATIONS=labels.size(); 
-
+	//cout << "Num Itr - " << NUM_ITERATIONS << endl;
 	// SUPERTREE IMPROVEMENT STEP
 	for(int i = 0; i < NUM_ITERATIONS; i++) {
 /*		if (TABOO_SEARCH) {

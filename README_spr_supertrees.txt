@@ -84,7 +84,24 @@ MULTIFURCATING COMPARISON OPTIONS
 
 -allow_multi   Allow multifurcating gene trees
 
+-lgt_multi   Allow multifurcating input tree for LGT analysis
+
 -support x     Collapse bipartitions with less than x support
+
+*******************************************************************************
+MULTIFURCATING NONBINARY NODE MOVE OPTIONS
+*******************************************************************************
+
+-lgt_move_parent    Moves the parent node of the nonbinary nodes to the destination
+                    (Note: More taxa are transferred)
+
+-lgt_move_individual_node    Moves each individual child node of the nonbinary node
+                             to the individual child of nonbinary destination node
+                             (Note: Overcounts the number of transfers)
+
+-lgt_maintain_list    Moves the parent node of the nonbinary nodes to the destination
+                      while maintaining the list of children of both source and
+                      destination nonbinary node
 
 *******************************************************************************
 UNROOTED COMPARISON OPTIONS

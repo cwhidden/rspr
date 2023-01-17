@@ -50,6 +50,9 @@ along with rspr.  If not, see <http://www.gnu.org/licenses/>.
 #include "SiblingPair.h"
 #include "UndoMachine.h"
 
+bool LGT_MOVE_PARENT = false;
+bool LGT_MOVE_INDIVIDUAL_NODE = false;
+bool LGT_MAINTAIN_LIST = false;
 
 using namespace std;
 
@@ -127,6 +130,9 @@ void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 	int start = 1;
 	if (MAF2->contains_rho())
 		start = 0;
+
+	map<string, list<list<int>>> map_transfer_sibling;			
+
 	for(int i = start; i < MAF2->num_components(); i++) {
 		Node *F2_source = MAF2->get_component(i);
 		Node *F1_source;
@@ -137,8 +143,115 @@ void add_transfers(vector<vector<int> > *transfer_counts, Forest *F1,
 		}
 
 		#pragma omp atomic
-		(*transfer_counts)[F1_source->get_preorder_number()][F1_target->get_preorder_number()]++;
+		if(!IGNORE_MULTI && MULTIFURCATING){
+			Node *F1_source_new = F1_source;
+			Node *F1_target_new = F1_target;
+			if(LGT_MOVE_PARENT){
+				if(F1_target->is_temp_target_parent()){
+					Node* f1_child = F1->find_by_prenum(
+									F1_target->get_preorder_number());
+					if(f1_child != NULL && f1_child->parent() != NULL){
+						F1_target_new = f1_child->parent();
+					}
+				}
+				if(F1_source->is_temp_parent()){
+					Node* f1_lchild = F1->find_by_prenum(
+										F1_source->get_preorder_number());
+					if(f1_lchild != NULL && f1_lchild->parent() != NULL){
+						F1_source_new = f1_lchild->parent();
+					}
+				}
+				(*transfer_counts)[F1_source_new->get_preorder_number()][F1_target_new->get_preorder_number()]++;
+			}
+			else if(LGT_MOVE_INDIVIDUAL_NODE){
+				list<Node*> lstSource = {F1_source_new};
+				list<Node*> lstTarget = {F1_target_new};
+				if(F1_target->is_temp_target_parent()){
+					/*Node* f1_child = F1->find_by_prenum(
+									F1_target->get_preorder_number());
+
+					if(f1_child != NULL && f1_child->parent() != NULL){
+						F1_target_new = f1_child->parent();
+						lstTarget = F1_target_new->get_children();
+					}*/
+					lstTarget = F1_target->get_children();
+				}
+				if(F1_source->is_temp_parent()){
+					lstSource = F1_source->get_children();
+				}
+				list<Node *>::const_iterator c, ct;
+				for(c = lstSource.begin(); c != lstSource.end(); c++) {
+					for(ct = lstTarget.begin(); ct != lstTarget.end(); ct++) {
+						(*transfer_counts)[(*c)->get_preorder_number()][(*ct)->get_preorder_number()]++;
+					}
+				}
+			}
+			else if(LGT_MAINTAIN_LIST){
+				list<int> F1_source_sibling;
+				list<int> F1_target_sibling;
+				if(F1_target->is_temp_parent()){
+					Node* f1_child = F1->find_by_prenum(
+										F1_target->get_preorder_number());
+					if(f1_child != NULL && f1_child->parent() != NULL){
+						F1_target_new = f1_child->parent();
+					}
+					list<Node *>::const_iterator c;
+					for(c = F1_target->get_children().begin(); 
+								c != F1_target->get_children().end(); c++) {
+						F1_target_sibling.push_back((*c)->get_preorder_number());
+						F1_target->get_all_children_preorder(&F1_target_sibling);
+					}
+				}
+				if(F1_source->is_temp_parent()){
+					Node* f1_lchild = F1->find_by_prenum(
+										F1_source->get_preorder_number());
+					if(f1_lchild != NULL && f1_lchild->parent() != NULL){
+						F1_source_new = f1_lchild->parent();
+					}
+					list<Node *>::const_iterator c;
+					for(c = F1_source->get_children().begin(); 
+								c != F1_source->get_children().end(); c++) {
+						F1_source_sibling.push_back((*c)->get_preorder_number());
+						F1_source->get_all_children_preorder(&F1_source_sibling);
+					}
+				}
+				string key = to_string(F1_source_new->get_preorder_number()) 
+								+ "_" + to_string(F1_target_new->get_preorder_number());
+				map_transfer_sibling[key] = {F1_source_sibling, F1_target_sibling};
+				(*transfer_counts)[F1_source_new->get_preorder_number()][F1_target_new->get_preorder_number()]++;
+			}
+			else{
+				(*transfer_counts)[F1_source->get_preorder_number()][F1_target->get_preorder_number()]++;
+			}
+		}
+		else{
+			(*transfer_counts)[F1_source->get_preorder_number()][F1_target->get_preorder_number()]++;
+		}
+
 		// do we want to check that the move is valid here?
+	}
+
+	int num_nodes = transfer_counts->size();
+	for(int i = 0; i < num_nodes; i++) {
+		for(int j = 0; j < num_nodes; j++) {
+			if ((*transfer_counts)[i][j] > 0){
+			cout << i << " - " << j << endl;
+			}
+		}
+	}
+
+	//Print transfer map
+	if(LGT_MAINTAIN_LIST){
+		cout << "Transfer map" << endl;
+		for(auto it = map_transfer_sibling.cbegin(); it != map_transfer_sibling.cend(); ++it){
+			std::cout << "Key : " << it->first << endl;
+			for(auto &lst : it->second){
+				for (auto const &i: lst) {
+					cout << i << " ";
+				}
+				cout << endl;
+			}
+		}
 	}
 					// TODO: identify a valid move (if any) for each component
 					// loop over the components of MAF2
@@ -508,7 +621,6 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		//TODO (ben): try updating the preorder interval when contracting
 
 		if (MULTIFURCATING) {
-
 		  vector<Node*> source_nodes_to_expand = vector<Node*>();
 		  
 		  if (trans.source_child_pre_nums.size() > 0) {
@@ -521,7 +633,7 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 			leaf_preorders = s->find_leaf_preorders();
 			leaf_is_subset = is_subset(trans.source_child_pre_nums, leaf_preorders);
 		    }
-		    
+		    //cout << "New S " << s->get_preorder_number() << endl;
 		    //get the children that have the preorders in their subtree
 		    for (auto i = s->get_children().begin(); i != s->get_children().end(); i++) {
 		      vector<int> this_childs_preorder_list = (*i)->find_leaf_preorders();
@@ -573,7 +685,9 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		      goto choose_different_tranfer;
 		    }
 		  }
-		  if (trans.source_child_pre_nums.size() > 0) {
+		  //cout << "Big Decision T0.0 ";
+			//T1->print_subtree();
+			if (trans.source_child_pre_nums.size() > 0) {
 		    //if there are children who don't have the correct preorders, expand the others
 		    if (source_nodes_to_expand.size() < s->get_children().size()) {
 		      Node* new_s = new Node();
@@ -585,7 +699,7 @@ void show_moves(Node *T1, Node *T2, map<string, int> *label_map,
 		    }
 		  }
 		  if (trans.target_child_pre_nums.size() > 0) {
-		    //if there are children who don't have the correct preorders, expand the others
+			//if there are children who don't have the correct preorders, expand the others
 		    if (target_nodes_to_expand.size() < t->get_children().size()){
 		      Node* new_t = new Node();
 		      t->add_child(new_t);
