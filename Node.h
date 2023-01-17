@@ -2807,7 +2807,7 @@ int build_tree_helper(int start, const string& s, Node *parent,
 						int square_bracket = info.find_first_of("[");
 						if (square_bracket != string::npos) {
 							string support_str = info.substr(square_bracket+1);
-							double support = atof(support_str.c_str());
+							double support = atof(support_str.c_str()) / 100.0;
 							#if DEBUG_SUPPORT
 							cout << "support=" << support << endl;
 							#endif
