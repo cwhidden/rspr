@@ -754,7 +754,9 @@ int main(int argc, char *argv[]) {
 			cout << USAGE;
 			return 0;
 		}
-			
+		else if (strcmp(arg, "-show_clusters") == 0) {
+			SHOW_CLUSTERS = true;
+		}	
 	}
 	if (DEFAULT_OPTIMIZATIONS) {
 		CUT_ALL_B=true;

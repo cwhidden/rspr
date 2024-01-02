@@ -225,6 +225,7 @@ bool check_all_pairs = true;
 bool PREFER_NONBRANCHING = false;
 int CLUSTER_TUNE = -1;
 int SIMPLE_UNROOTED_LEAF = 0;
+bool SHOW_CLUSTERS = false;
 
 class ProblemSolution {
 public:
@@ -4998,6 +4999,15 @@ int rSPR_branch_and_bound_simple_clustering(Node *T1, Node *T2, bool verbose, ma
 	int k;
 	int num_clusters = F1.num_components();
 	int total_k = 0;
+
+	if(SHOW_CLUSTERS){
+		cout << "Clusters start" << endl;
+		for(int i = 1; i < num_clusters; i++) {
+			Forest f1 = Forest(F1.get_component(i));
+			f1.print_components();
+		}
+		cout << "Clusters end" << endl;
+	}
 
 
 	for(int i = 1; i < num_clusters; i++) {
